@@ -8,10 +8,10 @@ Das Projekt ist nicht kommerziell und richtet sich als Angebot an alle Tierheime
 
 ---
 
-*Adoptier Lieber is a platform for animal shelters and similar rehoming organizations. It offers a centralized interface where shelters can easily list their residents, creating a unified place for animal adoption. In the long run, it aims to become the platform where people find their future best friend and shelters are noticeably relieved. This is a non-commercial project, offered to all shelters and organizations that want to rehome animals to adopters.*
+_Adoptier Lieber is a platform for animal shelters and similar rehoming organizations. It offers a centralized interface where shelters can easily list their residents, creating a unified place for animal adoption. In the long run, it aims to become the platform where people find their future best friend and shelters are noticeably relieved. This is a non-commercial project, offered to all shelters and organizations that want to rehome animals to adopters._
 
 ## Installation
 
 Anleitung zur Einrichtung und zum Starten des Projekts: [INSTALL.md](INSTALL.md)
 
-*For setup and getting started, see [INSTALL.md](INSTALL.md).*
+_For setup and getting started, see [INSTALL.md](INSTALL.md)._

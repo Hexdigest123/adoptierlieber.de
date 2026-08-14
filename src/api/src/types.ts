@@ -1,11 +1,11 @@
-import type { Env } from './config/env'
+import type { Env } from "./config/env";
 
 export type AppEnv = {
-  Bindings: Env
-}
+  Bindings: Env;
+};
 
 export type User = {
-  id: number
-  name: string
-  email: string
-}
+  id: number;
+  name: string;
+  email: string;
+};

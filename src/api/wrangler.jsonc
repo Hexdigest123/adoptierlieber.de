@@ -5,22 +5,22 @@
   "routes": [
     {
       "pattern": "api.adoptierlieber.de",
-      "custom_domain": true
-    }
+      "custom_domain": true,
+    },
   ],
   "d1_databases": [
     {
       "binding": "adoptierlieber",
       "database_name": "adoptierlieber",
       "database_id": "b6bb4aa3-e374-447b-881e-5673773ff340",
-      "migrations_dir": "./drizzle"
-    }
+      "migrations_dir": "./drizzle",
+    },
   ],
   "r2_buckets": [
-      {
-        "bucket_name": "adoptierlieber-images",
-        "binding": "adoptierlieber_images"
-      }
+    {
+      "bucket_name": "adoptierlieber-images",
+      "binding": "adoptierlieber_images",
+    },
   ],
   "env": {
     "staging": {
@@ -28,21 +28,21 @@
       "routes": [
         {
           "pattern": "api.staging.adoptierlieber.de",
-          "custom_domain": true
-        }
+          "custom_domain": true,
+        },
       ],
       "d1_databases": [
         {
           "binding": "adoptierlieber_staging",
           "database_name": "adoptierlieber-staging",
           "database_id": "813e5660-998e-49aa-9704-24f70b02f8d8",
-          "migrations_dir": "./drizzle"
-        }
+          "migrations_dir": "./drizzle",
+        },
       ],
       "vars": {
         "ENVIRONMENT": "staging",
-        "BASIC_AUTH_USER": "staging"
-      }
-    }
-  }
+        "BASIC_AUTH_USER": "staging",
+      },
+    },
+  },
 }

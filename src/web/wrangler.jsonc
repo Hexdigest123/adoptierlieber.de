@@ -6,19 +6,19 @@
 	"main": ".svelte-kit/cloudflare/_worker.js",
 	"assets": {
 		"binding": "ASSETS",
-		"directory": ".svelte-kit/cloudflare"
+		"directory": ".svelte-kit/cloudflare",
 	},
 	"workers_dev": true,
 	"preview_urls": true,
 	"routes": [
 		{
 			"pattern": "adoptierlieber.de",
-			"custom_domain": true
+			"custom_domain": true,
 		},
 		{
 			"pattern": "www.adoptierlieber.de",
-			"custom_domain": true
-		}
+			"custom_domain": true,
+		},
 	],
 	"env": {
 		"staging": {
@@ -27,12 +27,12 @@
 			"routes": [
 				{
 					"pattern": "staging.adoptierlieber.de",
-					"custom_domain": true
-				}
+					"custom_domain": true,
+				},
 			],
 			"vars": {
-				"BASIC_AUTH_USER": "staging"
-			}
-		}
-	}
+				"BASIC_AUTH_USER": "staging",
+			},
+		},
+	},
 }
