@@ -17,10 +17,11 @@ bun run dev
 ## Other scripts
 
 ```bash
-bun run check        # Type check (web)
-bun run deploy       # Deploy API and web
-bun run db:generate  # Generate Drizzle migrations
-bun run db:push      # Push schema directly to the database
-bun run db:migrate   # Apply migrations (production)
+bun run check           # Type check (web)
+bun run deploy          # Deploy API and web
+bun run deploy:staging  # Deploy to staging
+bun run db:generate     # Generate Drizzle migrations (SQL, no DB access)
+bun run db:migrate      # Apply migrations (production)
+bun run db:migrate:staging  # Apply migrations (staging)
 bun run db:migrate:local
 ```
