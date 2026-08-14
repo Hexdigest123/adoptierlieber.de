@@ -10,7 +10,6 @@
     "deploy:staging": "bun run --filter @adoptierlieber/api deploy:staging && bun run --filter @adoptierlieber/web deploy:staging",
     "db:migrate:staging": "bun run --filter @adoptierlieber/api db:migrate:staging",
     "db:generate": "bun run --filter @adoptierlieber/api db:generate",
-    "db:push": "bun run --filter @adoptierlieber/api db:push",
     "db:migrate": "bun run --filter @adoptierlieber/api db:migrate",
     "db:migrate:local": "bun run --filter @adoptierlieber/api db:migrate:local",
     "check": "bun run --filter @adoptierlieber/api check && bun run --filter @adoptierlieber/web check"
