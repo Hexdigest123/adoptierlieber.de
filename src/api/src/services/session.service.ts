@@ -49,9 +49,16 @@ export function createSessionService(env: Env) {
 
       return { sessionToken: token, expiresAt: row.expiresAt };
     },
-    async deleteAllWithUserId(userId: string): Promise<boolean> {
-      return (await repo.deleteAllWithUserId(userId)).length > 0;
+
+    async deleteAllWithUserId(userId: string): Promise<void> {
+      await repo.deleteAllWithUserId(userId);
     },
+
+    async deleteWithSessionToken(sessionToken: string): Promise<void> {
+      const hashedToken = await hashToken(sessionToken);
+      await repo.deleteWithToken(hashedToken);
+    },
+
     async findByToken(sessionToken: string): Promise<Session> {
       const hashedToken = await hashToken(sessionToken);
       const session = await repo.find(hashedToken);
@@ -74,6 +81,11 @@ export function createSessionService(env: Env) {
         throw new HTTPException(401, { message: "invalid session" });
       }
 
+      if (session.lastUsedAt.getTime() < currentDate.getTime() - 30 * 60 * 1000) {
+        await repo.deleteWithToken(session.sessionToken);
+        throw new HTTPException(401, { message: "invalid session" });
+      }
+
       await repo.updateLastUsedWithToken(session.sessionToken);
 
       return session;
@@ -84,6 +96,17 @@ export function createSessionService(env: Env) {
       if (!session) {
         throw new HTTPException(401, { message: "invalid session" });
       }
+
+      if (session.expiresAt.getTime() < Date.now()) {
+        await repo.deleteWithToken(session.sessionToken);
+        return false;
+      }
+
+      const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      if (session.createdAt.getTime() < oneMonthAgo) {
+        return false;
+      }
+
       const newExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       if (!(await repo.updateExpiresAtWithToken(session.sessionToken, newExpiresAt))) {
         return false;

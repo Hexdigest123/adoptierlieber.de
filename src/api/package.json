@@ -12,8 +12,10 @@
     "db:migrate:local": "wrangler d1 migrations apply adoptierlieber --local"
   },
   "dependencies": {
+    "@hono-rate-limiter/cloudflare": "^0.2.2",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.2",
+    "hono-rate-limiter": "^0.5.3",
     "nodemailer": "^9.0.5",
     "zod": "^4.4.3"
   },

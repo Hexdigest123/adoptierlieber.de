@@ -7,26 +7,53 @@ import {
 } from "../lib/zod";
 import type { Env } from "../config/env";
 import type { PublicSession, PublicUser } from "../types";
-import { generateToken, hashPassword, verifyPassword, hashToken } from "../lib/hashing";
+import { generateToken, hashPassword, verifyPassword, hashToken, runDummyPasswordOps } from "../lib/hashing";
 import { HTTPException } from "hono/http-exception";
 import { createSessionService } from "./session.service";
 import { sendMail } from "../lib/mail";
+import { verifyEmailSchema } from "../lib/zod";
 
 export function createUserService(env: Env) {
   const repo = createUserRepo(env);
 
   return {
-    async create(input: unknown): Promise<PublicUser> {
+    async create(input: unknown): Promise<{ verificationToken: string } | {}> {
       const data = createUserSchema.parse(input);
 
       data.password = await hashPassword(data.password);
 
-      const row = await repo.create(data);
+      const { token, hashedToken } = await generateToken();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      const row = await repo.create({
+        ...data,
+        emailVerificationToken: hashedToken,
+        emailVerificationTokenExpiresAt: expiresAt,
+      });
 
       if (!row) {
-        throw new HTTPException(409, { message: "duplicated entry" });
+        return {};
       }
-      return { id: row.id, name: row.name, displayName: row.displayName, email: row.email };
+      return { verificationToken: token };
+    },
+
+    async verifyEmail(input: unknown): Promise<void> {
+      const data = verifyEmailSchema.parse(input);
+      const user = await repo.findByEmail(data.email);
+      if (!user) {
+        return;
+      }
+      if (
+        !user.emailVerificationToken ||
+        !user.emailVerificationTokenExpiresAt ||
+        user.emailVerificationTokenExpiresAt.getTime() < Date.now()
+      ) {
+        return;
+      }
+      if ((await hashToken(data.token)) !== user.emailVerificationToken) {
+        return;
+      }
+      await repo.verifyEmail(user.id);
     },
 
     async delete(input: unknown, sessionToken: string): Promise<boolean> {
@@ -39,6 +66,7 @@ export function createUserService(env: Env) {
 
       if (data.deletionToken) {
         if (await this.compareDeletionToken(data.deletionToken, session.userId)) {
+          await repo.unsetAccountDeletion(session.userId);
           await createSessionService(env).deleteAllWithUserId(session.userId);
           await repo.delete(session.userId);
         }
@@ -73,11 +101,13 @@ export function createUserService(env: Env) {
       }
       const user = await repo.findByEmail(data.email);
       if (!user) {
-        throw new HTTPException(404, { message: "session or user not found" });
+        await runDummyPasswordOps();
+        return true;
       }
 
       if (data.resetToken && data.newPassword) {
         if (await this.comparePasswordResetToken(data.resetToken, user.id)) {
+          await repo.unsetPasswordReset(user.id);
           await createSessionService(env).deleteAllWithUserId(user.id);
           const newHashedPassword = await hashPassword(data.newPassword);
           if (!(await repo.updatePassword(user.id, newHashedPassword))) {
@@ -161,6 +191,7 @@ export function createUserService(env: Env) {
       const data = authenticateSchema.parse(input);
       const user = await repo.findByEmail(data.email);
       if (!user) {
+        await runDummyPasswordOps();
         throw new HTTPException(401, { message: "invalid email or password" });
       }
 
@@ -173,6 +204,13 @@ export function createUserService(env: Env) {
         userId: user.id,
       });
       return session;
+    },
+
+    async logout(sessionToken: string): Promise<void> {
+      await createSessionService(env).deleteWithSessionToken(sessionToken);
+    },
+    async logoutAll(userId: string): Promise<void> {
+      await createSessionService(env).deleteAllWithUserId(userId);
     },
   };
 }

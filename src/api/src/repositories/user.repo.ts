@@ -18,7 +18,14 @@ export function createUserRepo(env: Env) {
         .from(usersTable)
         .all();
     },
-    create(input: { name: string; displayName?: string; email: string; password: string }) {
+    create(input: {
+      name: string;
+      displayName?: string;
+      email: string;
+      password: string;
+      emailVerificationToken?: string | null;
+      emailVerificationTokenExpiresAt?: Date | null;
+    }) {
       return db
         .insert(usersTable)
         .values(input)
@@ -72,7 +79,7 @@ export function createUserRepo(env: Env) {
     updatePassword(userId: string, password: string) {
       return db
         .update(usersTable)
-        .set({ password: password })
+        .set({ password: password, passwordChangedAt: new Date() })
         .where(eq(usersTable.id, userId))
         .returning({
           id: usersTable.id,
@@ -85,6 +92,35 @@ export function createUserRepo(env: Env) {
 
     delete(id: string) {
       return db.delete(usersTable).where(eq(usersTable.id, id)).run();
+    },
+
+    unsetPasswordReset(userId: string) {
+      return db
+        .update(usersTable)
+        .set({ passwordResetToken: null, passwordResetTokenExpiresAt: null })
+        .where(eq(usersTable.id, userId))
+        .run();
+    },
+
+    unsetAccountDeletion(userId: string) {
+      return db
+        .update(usersTable)
+        .set({ accountDeletionToken: null, accountDeletionTokenExpiresAt: null })
+        .where(eq(usersTable.id, userId))
+        .run();
+    },
+
+    verifyEmail(userId: string) {
+      return db
+        .update(usersTable)
+        .set({
+          emailVerifiedAt: new Date(),
+          emailVerificationToken: null,
+          emailVerificationTokenExpiresAt: null,
+        })
+        .where(eq(usersTable.id, userId))
+        .returning({ id: usersTable.id })
+        .get();
     },
   };
 }

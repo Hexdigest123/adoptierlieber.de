@@ -83,3 +83,10 @@ export async function hashToken(token: string): Promise<string> {
     );
   return hashedToken;
 }
+
+export async function runDummyPasswordOps(min = 1, max = 5) {
+  const count = min + Math.floor(Math.random() * (max - min + 1));
+  for (let i = 0; i < count; i++) {
+    await hashPassword("timing-equalization-dummy");
+  }
+}

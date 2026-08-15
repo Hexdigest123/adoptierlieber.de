@@ -22,6 +22,12 @@
       "binding": "adoptierlieber_images",
     },
   ],
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT_KV",
+      "id": "167b26d30cd84a9b98ce0669690d18f8",
+    },
+  ],
   "env": {
     "staging": {
       "name": "adoptierlieber-api-staging",
@@ -43,6 +49,12 @@
         "ENVIRONMENT": "staging",
         "BASIC_AUTH_USER": "staging",
       },
+      "kv_namespaces": [
+        {
+          "binding": "RATE_LIMIT_KV",
+          "id": "5d954b6dad08402faf11be63bca9d8bf",
+        },
+      ],
     },
   },
 }

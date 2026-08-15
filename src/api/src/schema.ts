@@ -16,7 +16,13 @@ export const usersTable = sqliteTable("users", {
   accountDeletionTokenExpiresAt: integer("account_deletion_token_expires_at", {
     mode: "timestamp",
   }),
-  passwordChangedAt: integer("password_changed_at", { mode: "timestamp" }),
+  passwordChangedAt: integer("password_changed_at", {
+    mode: "timestamp",
+  }).$defaultFn(() => new Date()),
+  emailVerificationToken: text("email_verification_token"),
+  emailVerificationTokenExpiresAt: integer("email_verification_token_expires_at", {
+    mode: "timestamp",
+  }),
   emailVerifiedAt: integer("email_verified_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
