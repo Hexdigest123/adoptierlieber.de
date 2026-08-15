@@ -35,7 +35,6 @@ export function createUserRepo(env: Env) {
           displayName: usersTable.displayName,
           email: usersTable.email,
         })
-        .onConflictDoNothing()
         .get();
     },
     findById(id: string) {

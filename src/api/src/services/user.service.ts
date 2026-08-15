@@ -25,11 +25,19 @@ export function createUserService(env: Env) {
       const { token, hashedToken } = await generateToken();
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-      const row = await repo.create({
-        ...data,
-        emailVerificationToken: hashedToken,
-        emailVerificationTokenExpiresAt: expiresAt,
-      });
+      let row;
+      try {
+        row = await repo.create({
+          ...data,
+          emailVerificationToken: hashedToken,
+          emailVerificationTokenExpiresAt: expiresAt,
+        });
+      } catch (e: unknown) {
+        if (await repo.findByEmail(data.email)) {
+          throw new HTTPException(409, { message: "email already registered" });
+        }
+        throw e;
+      }
 
       if (!row) {
         return {};

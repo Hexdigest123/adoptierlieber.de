@@ -3,31 +3,28 @@ import { WorkersKVStore } from "@hono-rate-limiter/cloudflare";
 import type { MiddlewareHandler } from "hono";
 import type { AppEnv } from "../types";
 
-const stores = new Map<KVNamespace, WorkersKVStore<AppEnv, string, {}>>();
-const limiters = new Map<number, MiddlewareHandler<AppEnv>>();
+const limiters = new Map<string, MiddlewareHandler<AppEnv>>();
 
-function getStore(namespace: KVNamespace) {
-  let store = stores.get(namespace);
-  if (!store) {
-    store = new WorkersKVStore<AppEnv, string, {}>({ namespace });
-    stores.set(namespace, store);
-  }
-  return store;
-}
-
-/** Rate limit by client IP (via Cloudflare's `cf-connecting-ip` header). */
-export function rateLimitByIp(limit: number): MiddlewareHandler<AppEnv> {
+/**
+ * Rate limit by client IP (via Cloudflare's `cf-connecting-ip` header).
+ * Each route gets its own limiter and KV prefix so buckets never bleed
+ * into each other, regardless of shared limit values.
+ */
+export function rateLimitByIp(name: string, limit: number): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
-    let middleware = limiters.get(limit);
+    let middleware = limiters.get(name);
     if (!middleware) {
       middleware = rateLimiter<AppEnv, string, {}>({
         windowMs: 15 * 60 * 1000,
         limit,
         standardHeaders: "draft-6",
         keyGenerator: (ctx) => ctx.req.header("cf-connecting-ip") ?? "unknown",
-        store: getStore(c.env.RATE_LIMIT_KV),
+        store: new WorkersKVStore<AppEnv, string, {}>({
+          namespace: c.env.RATE_LIMIT_KV,
+          prefix: `rl:${name}:`,
+        }),
       });
-      limiters.set(limit, middleware);
+      limiters.set(name, middleware);
     }
     return middleware(c, next);
   };

@@ -8,7 +8,7 @@ import { sendMail } from "../../lib/mail";
 export const users = new Hono<AppEnv>();
 
 /** Register as a new user. */
-users.post("/", rateLimitByIp(10), async (c) => {
+users.post("/", rateLimitByIp("create-user", 5), async (c) => {
   const input = await c.req.json();
   const result = await createUserService(c.env).create(input);
   if ("verificationToken" in result) {
@@ -24,7 +24,7 @@ users.post("/", rateLimitByIp(10), async (c) => {
 });
 
 /** Verify the email of a user. */
-users.post("/verify", rateLimitByIp(10), async (c) => {
+users.post("/verify", rateLimitByIp("verify-email", 10), async (c) => {
   const input = await c.req.json();
   await createUserService(c.env).verifyEmail(input);
   return c.json({}, 200);
@@ -38,7 +38,7 @@ users.delete("/delete", sessionValidation, async (c) => {
 });
 
 /** Reset the users password. */
-users.post("/reset", rateLimitByIp(5), async (c) => {
+users.post("/reset", rateLimitByIp("reset-password", 5), async (c) => {
   const input = await c.req.json();
   await createUserService(c.env).reset(input);
 
@@ -58,7 +58,7 @@ users.get("/logout-all", sessionValidation, async (c) => {
 });
 
 /** Authenticate with email and password*/
-users.post("/auth", rateLimitByIp(10), async (c) => {
+users.post("/auth", rateLimitByIp("authenticate", 10), async (c) => {
   const input = await c.req.json();
   const session = await createUserService(c.env).authenticate(input);
   return c.json(session, 200);
