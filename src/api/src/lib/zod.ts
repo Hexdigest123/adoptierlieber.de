@@ -2,6 +2,30 @@ import { z } from "zod";
 
 export const createUserSchema = z.object({
   name: z.string().min(1),
-  email: z.string().email(),
+  displayName: z.string().min(1).optional(),
+  email: z.email(),
   password: z.string().min(8),
+});
+
+export const deleteUserSchema = z.object({
+  deletionToken: z.string().min(1).optional(),
+});
+
+export const resetUserSchema = z.object({
+  email: z.string().min(1).optional(),
+  resetToken: z.string().min(1).optional(),
+  newPassword: z.string().min(1).optional(),
+});
+
+export const authenticateSchema = z.object({
+  email: z.email(),
+  password: z.string().min(8),
+});
+
+export const createSessionSchema = z.object({
+  userId: z.string().min(1),
+  sessionToken: z.string().min(1).optional(),
+  expiresAt: z.date().optional(),
+  ipAddress: z.string().optional(),
+  userAgent: z.string().optional(),
 });

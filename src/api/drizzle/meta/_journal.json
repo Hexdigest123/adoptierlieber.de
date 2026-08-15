@@ -8,6 +8,27 @@
       "when": 1786747112363,
       "tag": "0000_slimy_the_executioner",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786793503357,
+      "tag": "0001_cynical_adam_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786795153673,
+      "tag": "0002_parallel_phantom_reporter",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1786814908900,
+      "tag": "0003_perpetual_loki",
+      "breakpoints": true
     }
   ]
 }
