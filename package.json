@@ -2,10 +2,13 @@
   "name": "adoptierlieber.de",
   "private": true,
   "workspaces": [
-    "src/**"
+    "src/api",
+    "src/web"
   ],
   "scripts": {
-    "dev": "bun run --filter @adoptierlieber/api dev & bun run --filter @adoptierlieber/web dev & wait",
+    "dev": "bun run --elide-lines=0 --filter @adoptierlieber/api dev & bun run --elide-lines=0 --filter @adoptierlieber/web dev & wait",
+    "api": "bun run --elide-lines=0 --filter @adoptierlieber/api dev",
+    "web": "bun run --elide-lines=0 --filter @adoptierlieber/web dev",
     "deploy": "bun run --filter @adoptierlieber/api deploy && bun run --filter @adoptierlieber/web deploy",
     "deploy:staging": "bun run --filter @adoptierlieber/api deploy:staging && bun run --filter @adoptierlieber/web deploy:staging",
     "db:migrate:staging": "bun run --filter @adoptierlieber/api db:migrate:staging",
@@ -18,5 +21,9 @@
     "@types/bun": "latest",
     "typescript": "^6.0.3",
     "wrangler": "^4.123.0"
+  },
+  "dependencies": {
+    "@types/nodemailer": "^8.0.1",
+    "nodemailer": "^9.0.5"
   }
 }
