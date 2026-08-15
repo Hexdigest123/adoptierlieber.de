@@ -20,6 +20,9 @@
 			"custom_domain": true,
 		},
 	],
+	"vars": {
+		"PUBLIC_API_URL": "https://api.adoptierlieber.de",
+	},
 	"env": {
 		"staging": {
 			"name": "adoptierlieber-web-staging",
@@ -32,6 +35,7 @@
 			],
 			"vars": {
 				"BASIC_AUTH_USER": "staging",
+				"PUBLIC_API_URL": "https://api.staging.adoptierlieber.de",
 			},
 		},
 	},
