@@ -17,6 +17,7 @@ import {
 import { HTTPException } from "hono/http-exception";
 import { createSessionService } from "./session.service";
 import { sendMail } from "../lib/mail";
+import { accountDeletionTemplate, passwordResetTemplate } from "../lib/email-templates";
 import { verifyEmailSchema } from "../lib/zod";
 
 export function createUserService(env: Env) {
@@ -89,12 +90,7 @@ export function createUserService(env: Env) {
         const { token, hashedToken } = await generateToken();
 
         try {
-          // TODO: add proper translated mail template once design is final
-          await sendMail({
-            to: user.email,
-            subject: "Account deletion requested",
-            text: `Your deletion token is: ${token}. It expires in 1 hour.`,
-          });
+          await sendMail(accountDeletionTemplate({ to: user.email, token }));
         } catch (e: unknown) {
           console.error(e);
           throw new HTTPException(500, { message: "failed to send deletion email" });
@@ -134,12 +130,7 @@ export function createUserService(env: Env) {
         const { token, hashedToken } = await generateToken();
 
         try {
-          // TODO: add proper translated mail template once design is final
-          await sendMail({
-            to: user.email,
-            subject: "Password reset request",
-            text: `Your reset token is: ${token}. It expires in 1 hour.`,
-          });
+          await sendMail(passwordResetTemplate({ to: user.email, token }));
         } catch (e: unknown) {
           console.error(e);
           throw new HTTPException(500, { message: "failed to send deletion email" });

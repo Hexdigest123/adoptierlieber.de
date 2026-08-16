@@ -4,6 +4,7 @@ import type { AppEnv } from "../../types";
 import { sessionValidation } from "../../middlewares/session";
 import { rateLimitByIp } from "../../middlewares/rate-limit";
 import { sendMail } from "../../lib/mail";
+import { verifyEmailTemplate } from "../../lib/email-templates";
 
 export const users = new Hono<AppEnv>();
 
@@ -13,11 +14,7 @@ users.post("/", rateLimitByIp("create-user", 5), async (c) => {
   const result = await createUserService(c.env).create(input);
   if (result && "verificationToken" in result) {
     c.executionCtx.waitUntil(
-      sendMail({
-        to: input.email,
-        subject: "Verify your email",
-        text: `Your verification token is: ${result.verificationToken}. It expires in 24 hours.`,
-      }),
+      sendMail(verifyEmailTemplate({ to: input.email, token: result.verificationToken })),
     );
   }
   return c.json({}, 201);

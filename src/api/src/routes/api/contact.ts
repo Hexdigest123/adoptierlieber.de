@@ -3,6 +3,7 @@ import type { AppEnv } from "../../types";
 import { rateLimitByIp } from "../../middlewares/rate-limit";
 import { contactSchema } from "../../lib/zod";
 import { sendMail } from "../../lib/mail";
+import { contactRequestTemplate } from "../../lib/email-templates";
 
 export const contact = new Hono<AppEnv>();
 
@@ -19,11 +20,14 @@ contact.post("/", rateLimitByIp("contact", 5), async (c) => {
   // empty string must fall back to the default receiver
   const receiver = process.env.SECRET_CONTACT_RECEIVER || process.env.SECRET_RECEIVER_INFO;
   if (receiver) {
-    await sendMail({
-      to: receiver,
-      subject: `Contact request from ${data.name}`,
-      text: `Name: ${data.name}\nEmail: ${data.email}\n\nMessage:\n${data.message}`,
-    });
+    await sendMail(
+      contactRequestTemplate({
+        to: receiver,
+        name: data.name,
+        email: data.email,
+        message: data.message,
+      }),
+    );
   }
 
   return c.json({}, 200);

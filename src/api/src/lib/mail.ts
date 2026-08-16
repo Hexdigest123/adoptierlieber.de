@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 
 export const MAIL_SENDER = process.env.SECRET_RECEIVER_INFO;
 
-type MailOptions = {
+export type MailOptions = {
   to: string | string[];
   subject: string;
   text?: string;
