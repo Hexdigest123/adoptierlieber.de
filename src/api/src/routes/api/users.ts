@@ -11,7 +11,7 @@ export const users = new Hono<AppEnv>();
 users.post("/", rateLimitByIp("create-user", 5), async (c) => {
   const input = await c.req.json();
   const result = await createUserService(c.env).create(input);
-  if ("verificationToken" in result) {
+  if (result && "verificationToken" in result) {
     c.executionCtx.waitUntil(
       sendMail({
         to: input.email,
@@ -60,6 +60,7 @@ users.get("/logout-all", sessionValidation, async (c) => {
 /** Authenticate with email and password*/
 users.post("/auth", rateLimitByIp("authenticate", 10), async (c) => {
   const input = await c.req.json();
-  const session = await createUserService(c.env).authenticate(input);
+  const userAgent = c.req.header("User-Agent") ?? null;
+  const session = await createUserService(c.env).authenticate(input, userAgent);
   return c.json(session, 200);
 });

@@ -40,7 +40,6 @@ export const sessionsTable = sqliteTable(
       .notNull(),
     sessionToken: text("session_token").notNull().unique(),
     userAgent: text("user_agent"),
-    ipAddress: text("ip_address"),
     lastUsedAt: integer("last_used_at", { mode: "timestamp" })
       .notNull()
       .$defaultFn(() => new Date()),

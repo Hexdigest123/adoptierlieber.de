@@ -9,8 +9,11 @@ export function createSessionService(env: Env) {
   const repo = createSessionRepo(env);
 
   return {
-    async create(input: unknown): Promise<PublicSession> {
+    async create(input: unknown, userAgent: string | null): Promise<PublicSession> {
       const data = createSessionSchema.parse(input);
+      if (userAgent) {
+        data.userAgent = userAgent;
+      }
 
       // generate and hash token
       const { token, hashedToken } = await generateToken();
@@ -22,9 +25,7 @@ export function createSessionService(env: Env) {
         userId: data.userId,
         sessionToken: data.sessionToken,
         expiresAt: data.expiresAt,
-        // TODO: implement with frontend integration
-        ipAddress: null,
-        userAgent: null,
+        userAgent: userAgent,
       });
 
       if (!row) {
@@ -34,8 +35,7 @@ export function createSessionService(env: Env) {
             userId: data.userId,
             sessionToken: hashedToken,
             expiresAt: data.expiresAt,
-            ipAddress: null,
-            userAgent: null,
+            userAgent: userAgent,
           });
           if (row) {
             return { sessionToken: token, expiresAt: row.expiresAt };

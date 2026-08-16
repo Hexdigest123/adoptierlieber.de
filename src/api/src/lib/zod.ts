@@ -31,6 +31,5 @@ export const createSessionSchema = z.object({
   userId: z.string().min(1),
   sessionToken: z.string().min(1).optional(),
   expiresAt: z.date().optional(),
-  ipAddress: z.string().optional(),
   userAgent: z.string().optional(),
 });

@@ -11,7 +11,6 @@ export function createSessionRepo(env: Env) {
       userId: string;
       sessionToken: string;
       expiresAt: Date;
-      ipAddress: string | null;
       userAgent: string | null;
     }) {
       return db
@@ -21,7 +20,6 @@ export function createSessionRepo(env: Env) {
           userId: sessionsTable.userId,
           token: sessionsTable.sessionToken,
           expiresAt: sessionsTable.expiresAt,
-          ipAddress: sessionsTable.ipAddress,
           userAgent: sessionsTable.userAgent,
         })
         .onConflictDoNothing()

@@ -7,7 +7,13 @@ import {
 } from "../lib/zod";
 import type { Env } from "../config/env";
 import type { PublicSession, PublicUser } from "../types";
-import { generateToken, hashPassword, verifyPassword, hashToken, runDummyPasswordOps } from "../lib/hashing";
+import {
+  generateToken,
+  hashPassword,
+  verifyPassword,
+  hashToken,
+  runDummyPasswordOps,
+} from "../lib/hashing";
 import { HTTPException } from "hono/http-exception";
 import { createSessionService } from "./session.service";
 import { sendMail } from "../lib/mail";
@@ -17,7 +23,7 @@ export function createUserService(env: Env) {
   const repo = createUserRepo(env);
 
   return {
-    async create(input: unknown): Promise<{ verificationToken: string } | {}> {
+    async create(input: unknown): Promise<{ verificationToken: string } | null> {
       const data = createUserSchema.parse(input);
 
       data.password = await hashPassword(data.password);
@@ -25,7 +31,7 @@ export function createUserService(env: Env) {
       const { token, hashedToken } = await generateToken();
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-      let row;
+      let row: PublicUser;
       try {
         row = await repo.create({
           ...data,
@@ -40,7 +46,7 @@ export function createUserService(env: Env) {
       }
 
       if (!row) {
-        return {};
+        return null;
       }
       return { verificationToken: token };
     },
@@ -195,7 +201,7 @@ export function createUserService(env: Env) {
       return true;
     },
 
-    async authenticate(input: unknown): Promise<PublicSession> {
+    async authenticate(input: unknown, userAgent: string | null): Promise<PublicSession> {
       const data = authenticateSchema.parse(input);
       const user = await repo.findByEmail(data.email);
       if (!user) {
@@ -208,9 +214,12 @@ export function createUserService(env: Env) {
         throw new HTTPException(401, { message: "invalid email or password" });
       }
 
-      const session = createSessionService(env).create({
-        userId: user.id,
-      });
+      const session = await createSessionService(env).create(
+        {
+          userId: user.id,
+        },
+        userAgent,
+      );
       return session;
     },
 
