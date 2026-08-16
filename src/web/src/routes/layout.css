@@ -1,2 +1,80 @@
 @import "tailwindcss";
+@import "@fontsource-variable/outfit";
+
 @plugin "@tailwindcss/typography";
+
+@theme {
+	--font-sans: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
+
+	/* Coral ramp (brand). AA on white: text >= 600, large text/UI >= 500. */
+	--color-coral-50: #fef3f0;
+	--color-coral-100: #fde5de;
+	--color-coral-200: #fac9bc;
+	--color-coral-300: #f6a48f;
+	--color-coral-400: #f07a5e;
+	--color-coral-500: #e5603f;
+	--color-coral-600: #c74626;
+	--color-coral-700: #a63a1f;
+	--color-coral-800: #88311d;
+	--color-coral-900: #702c1e;
+	--color-coral-950: #3c140b;
+
+	/* Peach ramp (warm surfaces). */
+	--color-peach-50: #fff8f3;
+	--color-peach-100: #ffefe3;
+	--color-peach-200: #feddc5;
+	--color-peach-300: #fdc69d;
+	--color-peach-400: #fba668;
+	--color-peach-500: #f78742;
+	--color-peach-600: #e96a24;
+	--color-peach-700: #c2511b;
+	--color-peach-800: #9a421c;
+	--color-peach-900: #7c381a;
+	--color-peach-950: #431b0b;
+
+	/* Neutral warm gray for text/backgrounds. */
+	--color-sand-50: #faf8f6;
+	--color-sand-100: #f3efeb;
+	--color-sand-200: #e4dcd4;
+	--color-sand-300: #cfc2b6;
+	--color-sand-400: #b5a294;
+	--color-sand-500: #9a8577;
+	--color-sand-600: #7d6a5e;
+	--color-sand-700: #66564c;
+	--color-sand-800: #554842;
+	--color-sand-900: #483e39;
+	--color-sand-950: #27211d;
+}
+
+/* Consistent, visible keyboard focus across all interactive elements.
+   outline-2 also sets outline-style:solid in Tailwind 4, so the color must
+   stay transparent until focus-visible. */
+@utility focus-ring {
+	@apply outline-2 outline-offset-2 outline-transparent transition-colors focus-visible:outline-coral-600;
+}
+
+@theme inline {
+	--animate-float: float 7s ease-in-out infinite;
+	--animate-float-slow: float 10s ease-in-out infinite;
+
+	@keyframes float {
+		0%,
+		100% {
+			transform: translateY(0) rotate(var(--float-rotate, 0deg));
+		}
+		50% {
+			transform: translateY(-14px) rotate(var(--float-rotate, 0deg));
+		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		scroll-behavior: auto !important;
+		transition-duration: 0.01ms !important;
+	}
+}

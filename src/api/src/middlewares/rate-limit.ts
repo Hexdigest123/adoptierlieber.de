@@ -26,6 +26,16 @@ export function rateLimitByIp(name: string, limit: number): MiddlewareHandler<Ap
       });
       limiters.set(name, middleware);
     }
-    return middleware(c, next);
+
+    try {
+      return await middleware(c, next);
+    } catch (e: unknown) {
+      // WorkersKVStore re-PUTs a bucket with its remaining expiry; once that
+      // drops below 60s KV rejects the write ("Invalid expiration") and the
+      // store throws -> plain 500s for everyone. Fail open instead: logging
+      // degrades rate limiting gracefully without breaking the endpoint.
+      console.error(`rate limiter ${name} failed, failing open`, e);
+      return next();
+    }
   };
 }

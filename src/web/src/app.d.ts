@@ -10,7 +10,14 @@ declare global {
 		}
 
 		// interface Error {}
-		// interface Locals {}
+		interface Locals {
+			user: {
+				id: string;
+				name: string;
+				displayName: string | null;
+				email: string;
+			} | null;
+		}
 		// interface PageData {}
 		// interface PageState {}
 	}
@@ -18,6 +25,7 @@ declare global {
 	interface Env {
 		BASIC_AUTH_USER?: string;
 		BASIC_AUTH_PASSWORD?: string;
+		PUBLIC_API_URL?: string;
 	}
 }
 

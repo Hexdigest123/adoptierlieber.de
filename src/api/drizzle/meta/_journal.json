@@ -43,6 +43,13 @@
       "when": 1786838374655,
       "tag": "0005_high_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1786841695451,
+      "tag": "0006_wonderful_blade",
+      "breakpoints": true
     }
   ]
 }

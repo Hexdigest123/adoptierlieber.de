@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { SHELTER_ROLE } from "./lib/roles";
 
 export const usersTable = sqliteTable("users", {
   id: text("id")
@@ -49,4 +50,51 @@ export const sessionsTable = sqliteTable(
       .$defaultFn(() => new Date()),
   },
   (table) => [index("user_id_idx").on(table.userId)],
+);
+
+export const sheltersTable = sqliteTable("shelters", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  orgName: text("org_name").notNull(),
+  street: text("street").notNull(),
+  zip: text("zip").notNull(),
+  city: text("city").notNull(),
+  website: text("website"),
+  registrationNumber: text("registration_number"),
+  description: text("description"),
+  verificationStatus: text("verification_status", {
+    enum: ["pending", "verified", "rejected"],
+  })
+    .notNull()
+    .$defaultFn(() => "pending"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const shelterMembersTable = sqliteTable(
+  "shelter_members",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .references(() => usersTable.id, { onDelete: "cascade" })
+      .notNull(),
+    shelterId: text("shelter_id")
+      .references(() => sheltersTable.id, { onDelete: "cascade" })
+      .notNull(),
+    role: integer("role")
+      .notNull()
+      .$default(() => SHELTER_ROLE.STAFF), // 0 | 1 | 2
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("shelter_members_user_shelter_uq").on(table.userId, table.shelterId),
+    index("shelter_members_shelter_idx").on(table.shelterId),
+    index("shelter_members_user_idx").on(table.userId),
+  ],
 );
