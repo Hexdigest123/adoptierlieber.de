@@ -1,10 +1,10 @@
 import { drizzle } from "drizzle-orm/d1";
 import { sessionsTable } from "../schema";
-import type { Env } from "../config/env";
+import { getDb, type Env } from "../config/env";
 import { eq } from "drizzle-orm";
 
 export function createSessionRepo(env: Env) {
-  const db = drizzle(env.adoptierlieber, { schema: { sessionsTable } });
+  const db = drizzle(getDb(env), { schema: { sessionsTable } });
 
   return {
     create(input: {

@@ -9,9 +9,16 @@ const app = new Hono<AppEnv>();
 
 app.onError(errorHandler);
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV === "development") {
   app.use("*", cors({ origin: (origin) => origin ?? "*" }));
 }
+
+app.use("*", async (c, next) => {
+  await next();
+  c.header("X-Content-Type-Options", "nosniff");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Referrer-Policy", "no-referrer");
+});
 
 app.use("*", basicAuth); // checks if we are in a staging environment and enforces http auth
 

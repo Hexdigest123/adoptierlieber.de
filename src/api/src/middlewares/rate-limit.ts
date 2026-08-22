@@ -5,8 +5,19 @@ import type { AppEnv } from "../types";
 
 const limiters = new Map<string, MiddlewareHandler<AppEnv>>();
 
+function clientIp(ctx: { req: { header: (name: string) => string | undefined } }): string {
+  // Web proxy sets a single X-Forwarded-For hop (browser XFF stripped).
+  // Direct api.* hits have no XFF; CF-Connecting-IP is the real client.
+  const forwarded = ctx.req.header("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return ctx.req.header("cf-connecting-ip") ?? "unknown";
+}
+
 /**
- * Rate limit by client IP (via Cloudflare's `cf-connecting-ip` header).
+ * Rate limit by client IP.
  * Each route gets its own limiter and KV prefix so buckets never bleed
  * into each other, regardless of shared limit values.
  */
@@ -18,7 +29,7 @@ export function rateLimitByIp(name: string, limit: number): MiddlewareHandler<Ap
         windowMs: 15 * 60 * 1000,
         limit,
         standardHeaders: "draft-6",
-        keyGenerator: (ctx) => ctx.req.header("cf-connecting-ip") ?? "unknown",
+        keyGenerator: clientIp,
         store: new WorkersKVStore<AppEnv, string, {}>({
           namespace: c.env.RATE_LIMIT_KV,
           prefix: `rl:${name}:`,

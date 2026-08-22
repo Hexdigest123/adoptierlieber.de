@@ -15,7 +15,8 @@
 
 	// preselect shelter form via ?type=shelter (e.g. from the hero CTA)
 	function initialType(): "adopter" | "shelter" {
-		return form?.values?.accountType === "shelter" || page.url.searchParams.get("type") === "shelter"
+		return form?.values?.accountType === "shelter" ||
+			page.url.searchParams.get("type") === "shelter"
 			? "shelter"
 			: "adopter";
 	}
@@ -129,6 +130,7 @@
 					hint={m.auth_password_hint()}
 					required
 					minlength={8}
+					maxlength={128}
 					autocomplete="new-password"
 				/>
 			</div>

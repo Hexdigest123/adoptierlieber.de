@@ -8,11 +8,20 @@ export const load: PageServerLoad = async ({ url }) => {
 export const actions: Actions = {
 	default: async ({ request, fetch }) => {
 		const data = await request.formData();
-		const email = String(data.get("email") ?? "").trim();
+		const email = String(data.get("email") ?? "")
+			.trim()
+			.toLowerCase();
 		const resetToken = String(data.get("resetToken") ?? "").trim();
 		const newPassword = String(data.get("newPassword") ?? "");
 
-		if (!email || !resetToken || newPassword.length < 8) {
+		if (
+			!email ||
+			!resetToken ||
+			newPassword.length < 8 ||
+			newPassword.length > 128 ||
+			!/[A-Za-z]/.test(newPassword) ||
+			!/\d/.test(newPassword)
+		) {
 			return fail(400, { resetError: true, email });
 		}
 

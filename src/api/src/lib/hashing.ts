@@ -1,4 +1,5 @@
 const PBKDF2_ITERATIONS = 600_000;
+const MIN_ITERATIONS = 600_000;
 const KEY_LENGTH = 32;
 const SALT_LENGTH = 16;
 const MAX_ITERATIONS = 10_000_000;
@@ -33,11 +34,28 @@ async function deriveKey(password: string, salt: Uint8Array, iterations: number)
   return new Uint8Array(bits);
 }
 
-function timingSafeEqual(a: Uint8Array, b: Uint8Array) {
+export function timingSafeEqual(a: Uint8Array, b: Uint8Array) {
   if (a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
   return diff === 0;
+}
+
+export function tokensEqual(a: string, b: string) {
+  const left = new TextEncoder().encode(a);
+  const right = new TextEncoder().encode(b);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
+
+export function secretsEqual(a: string, b: string) {
+  const left = new TextEncoder().encode(a);
+  const right = new TextEncoder().encode(b);
+  if (left.length !== right.length) {
+    timingSafeEqual(right, right);
+    return false;
+  }
+  return timingSafeEqual(left, right);
 }
 
 export async function hashPassword(password: string) {
@@ -51,11 +69,17 @@ export async function verifyPassword(password: string, stored: string) {
   if (!match) return false;
   const [, iter, len, saltB64, hashB64] = match;
   const iterations = Number(iter);
-  if (iterations < PBKDF2_ITERATIONS || iterations > MAX_ITERATIONS) return false;
+  if (iterations < MIN_ITERATIONS || iterations > MAX_ITERATIONS) return false;
   if (Number(len) > MAX_KEY_LENGTH) return false;
   const expected = unb64(hashB64);
   const actual = await deriveKey(password, unb64(saltB64), iterations);
   return timingSafeEqual(actual, expected);
+}
+
+export function passwordNeedsRehash(stored: string) {
+  const match = stored.match(PHC);
+  if (!match) return true;
+  return Number(match[1]) < PBKDF2_ITERATIONS;
 }
 
 export async function generateToken(): Promise<{ token: string; hashedToken: string }> {
@@ -63,30 +87,25 @@ export async function generateToken(): Promise<{ token: string; hashedToken: str
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  const hashedToken = await crypto.subtle
-    .digest("SHA-256", new TextEncoder().encode(token))
-    .then((hash) =>
-      Array.from(new Uint8Array(hash))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join(""),
-    );
+  const hashedToken = await hashToken(token);
   return { token, hashedToken };
 }
 
 export async function hashToken(token: string): Promise<string> {
-  const hashedToken = await crypto.subtle
-    .digest("SHA-256", new TextEncoder().encode(token))
-    .then((hash) =>
-      Array.from(new Uint8Array(hash))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join(""),
-    );
-  return hashedToken;
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-export async function runDummyPasswordOps(min = 1, max = 5) {
-  const count = min + Math.floor(Math.random() * (max - min + 1));
-  for (let i = 0; i < count; i++) {
-    await hashPassword("timing-equalization-dummy");
-  }
+// Cached PHC of a random secret so unknown-user paths still cost one verify.
+function randomDummyPassword() {
+  return b64(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+let dummyHash: Promise<string> | undefined;
+
+export async function verifyDummyPassword(password = randomDummyPassword()) {
+  dummyHash ??= hashPassword(randomDummyPassword());
+  return verifyPassword(password, await dummyHash);
 }

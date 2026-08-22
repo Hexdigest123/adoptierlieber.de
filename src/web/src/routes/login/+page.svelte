@@ -36,6 +36,7 @@
 			label={m.auth_password()}
 			required
 			minlength={8}
+			maxlength={128}
 			autocomplete="current-password"
 		/>
 

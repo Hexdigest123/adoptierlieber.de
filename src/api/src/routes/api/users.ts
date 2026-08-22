@@ -23,7 +23,10 @@ users.post("/", rateLimitByIp("create-user", 5), async (c) => {
 /** Verify the email of a user. */
 users.post("/verify", rateLimitByIp("verify-email", 10), async (c) => {
   const input = await c.req.json();
-  await createUserService(c.env).verifyEmail(input);
+  const verified = await createUserService(c.env).verifyEmail(input);
+  if (!verified) {
+    return c.json({ error: "invalid verification" }, 400);
+  }
   return c.json({}, 200);
 });
 
@@ -43,13 +46,13 @@ users.post("/reset", rateLimitByIp("reset-password", 5), async (c) => {
 });
 
 /** Logout from a single session as the current user */
-users.get("/logout", sessionValidation, async (c) => {
+users.post("/logout", sessionValidation, async (c) => {
   await createUserService(c.env).logout(c.get("sessionToken"));
   return c.json("", 200);
 });
 
 /** Logout from a all sessions as the current user */
-users.get("/logout-all", sessionValidation, async (c) => {
+users.post("/logout-all", sessionValidation, async (c) => {
   await createUserService(c.env).logoutAll(c.get("userId"));
   return c.json("", 200);
 });

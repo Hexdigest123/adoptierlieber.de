@@ -18,22 +18,29 @@ const HOP_BY_HOP = new Set([
 /**
  * Proxy all /api/* requests to the backend so the frontend stays same-origin
  * (no CORS in production) and httpOnly cookies keep working.
+ *
+ * Forwards the browser IP so the API KV limiter keys on the client, not this
+ * worker. Drops inbound X-Forwarded-For so browsers cannot pick their own key.
  */
-const proxy: RequestHandler = async ({ params, request, fetch }) => {
+const proxy: RequestHandler = async ({ params, request, fetch, getClientAddress }) => {
+	const path = params.path ?? "";
+
 	const base = env.PUBLIC_API_URL;
 	if (!base) {
 		return new Response("PUBLIC_API_URL is not configured", { status: 500 });
 	}
 
 	const url = new URL(request.url);
-	const target = `${base}/api/${params.path ?? ""}${url.search}`;
+	const target = `${base}/api/${path}${url.search}`;
+	const ip = request.headers.get("cf-connecting-ip") ?? getClientAddress();
 
 	const headers = new Headers();
 	for (const [key, value] of request.headers) {
-		if (!HOP_BY_HOP.has(key.toLowerCase())) {
+		if (!HOP_BY_HOP.has(key.toLowerCase()) && key.toLowerCase() !== "x-forwarded-for") {
 			headers.set(key, value);
 		}
 	}
+	headers.set("x-forwarded-for", ip);
 
 	const response = await fetch(target, {
 		method: request.method,

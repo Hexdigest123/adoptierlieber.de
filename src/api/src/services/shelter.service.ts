@@ -41,24 +41,37 @@ export function createShelterService(env: Env) {
         throw e;
       }
 
-      const shelter = await shelterRepo.create({
-        orgName: data.orgName,
-        street: data.street,
-        zip: data.zip,
-        city: data.city,
-        website: data.website,
-        registrationNumber: data.registrationNumber,
-        description: data.description,
-      });
+      let shelter;
+      try {
+        shelter = await shelterRepo.create({
+          orgName: data.orgName,
+          street: data.street,
+          zip: data.zip,
+          city: data.city,
+          website: data.website,
+          registrationNumber: data.registrationNumber,
+          description: data.description,
+        });
+      } catch (e: unknown) {
+        await userRepo.delete(user.id);
+        throw e;
+      }
       if (!shelter) {
+        await userRepo.delete(user.id);
         throw new HTTPException(500, { message: "something wen't wrong" });
       }
 
-      await memberRepo.create({
-        userId: user.id,
-        shelterId: shelter.id,
-        role: SHELTER_ROLE.OWNER,
-      });
+      try {
+        await memberRepo.create({
+          userId: user.id,
+          shelterId: shelter.id,
+          role: SHELTER_ROLE.OWNER,
+        });
+      } catch (e: unknown) {
+        await userRepo.delete(user.id);
+        await shelterRepo.delete(shelter.id);
+        throw e;
+      }
 
       return { verificationToken: token };
     },

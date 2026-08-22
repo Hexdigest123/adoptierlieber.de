@@ -1,10 +1,10 @@
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { sheltersTable } from "../schema";
-import type { Env } from "../config/env";
+import { getDb, type Env } from "../config/env";
 
 export function createShelterRepo(env: Env) {
-  const db = drizzle(env.adoptierlieber, { schema: { sheltersTable } });
+  const db = drizzle(getDb(env), { schema: { sheltersTable } });
 
   return {
     create(input: {
@@ -29,6 +29,10 @@ export function createShelterRepo(env: Env) {
 
     findById(id: string) {
       return db.select().from(sheltersTable).where(eq(sheltersTable.id, id)).get();
+    },
+
+    delete(id: string) {
+      return db.delete(sheltersTable).where(eq(sheltersTable.id, id)).run();
     },
   };
 }

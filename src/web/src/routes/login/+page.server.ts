@@ -1,5 +1,6 @@
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
+import { setSessionCookie } from "$lib/server/session-cookie";
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) {
@@ -10,7 +11,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	default: async ({ request, fetch, cookies }) => {
 		const data = await request.formData();
-		const email = String(data.get("email") ?? "").trim();
+		const email = String(data.get("email") ?? "")
+			.trim()
+			.toLowerCase();
 		const password = String(data.get("password") ?? "");
 
 		const response = await fetch("/api/users/auth", {
@@ -28,15 +31,7 @@ export const actions: Actions = {
 		}
 
 		const session = (await response.json()) as { sessionToken: string; expiresAt: string };
-		const expires = new Date(session.expiresAt);
-
-		cookies.set("sessionToken", session.sessionToken, {
-			path: "/",
-			httpOnly: true,
-			secure: true,
-			sameSite: "lax",
-			expires,
-		});
+		setSessionCookie(cookies, session.sessionToken, new Date(session.expiresAt));
 
 		redirect(303, "/");
 	},

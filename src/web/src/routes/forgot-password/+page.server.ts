@@ -9,7 +9,9 @@ export const load: PageServerLoad = async ({ url }) => {
 export const actions: Actions = {
 	default: async ({ request, fetch }) => {
 		const data = await request.formData();
-		const email = String(data.get("email") ?? "").trim();
+		const email = String(data.get("email") ?? "")
+			.trim()
+			.toLowerCase();
 
 		if (!email) {
 			return fail(400, { forgotError: true, email });

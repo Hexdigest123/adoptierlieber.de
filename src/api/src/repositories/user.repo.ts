@@ -1,10 +1,10 @@
 import { drizzle } from "drizzle-orm/d1";
 import { usersTable } from "../schema";
-import type { Env } from "../config/env";
-import { eq } from "drizzle-orm";
+import { getDb, type Env } from "../config/env";
+import { eq, sql } from "drizzle-orm";
 
 export function createUserRepo(env: Env) {
-  const db = drizzle(env.adoptierlieber, { schema: { usersTable } });
+  const db = drizzle(getDb(env), { schema: { usersTable } });
 
   return {
     list() {
@@ -41,7 +41,12 @@ export function createUserRepo(env: Env) {
       return db.select().from(usersTable).where(eq(usersTable.id, id)).get();
     },
     findByEmail(email: string) {
-      return db.select().from(usersTable).where(eq(usersTable.email, email)).get();
+      // sql`` binds the value; column ref is an identifier, not interpolation
+      return db
+        .select()
+        .from(usersTable)
+        .where(sql`lower(${usersTable.email}) = ${email.toLowerCase()}`)
+        .get();
     },
     updateDeletionToken(
       userId: string,

@@ -40,3 +40,4 @@ requests.http
 
 # plan artifacts (local, not shared)
 .opencode
+AGENTS.md

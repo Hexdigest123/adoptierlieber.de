@@ -79,7 +79,7 @@
 	"auth_login_subtitle": "Willkommen zurück! Melde dich an, um weiterzumachen.",
 	"auth_email": "E-Mail",
 	"auth_password": "Passwort",
-	"auth_password_hint": "Mindestens 8 Zeichen.",
+	"auth_password_hint": "Mindestens 8 Zeichen, mit Buchstaben und Zahlen.",
 	"auth_name": "Name",
 	"auth_login_submit": "Anmelden",
 	"auth_login_error": "E-Mail oder Passwort ist falsch.",

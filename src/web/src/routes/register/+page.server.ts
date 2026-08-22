@@ -24,7 +24,9 @@ export const actions: Actions = {
 		const accountType = data.get("accountType") === "shelter" ? "shelter" : "adopter";
 
 		const name = String(data.get("name") ?? "").trim();
-		const email = String(data.get("email") ?? "").trim();
+		const email = String(data.get("email") ?? "")
+			.trim()
+			.toLowerCase();
 		const password = String(data.get("password") ?? "");
 
 		const values = {
@@ -41,7 +43,14 @@ export const actions: Actions = {
 		};
 
 		// client-equivalent server validation so the flow works without JS
-		if (!name || !EMAIL_RE.test(email) || password.length < 8) {
+		if (
+			!name ||
+			!EMAIL_RE.test(email) ||
+			password.length < 8 ||
+			password.length > 128 ||
+			!/[A-Za-z]/.test(password) ||
+			!/\d/.test(password)
+		) {
 			return fail(400, { registerError: "invalid" as const, values });
 		}
 		if (

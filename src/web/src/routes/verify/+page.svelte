@@ -39,7 +39,6 @@
 				label={m.auth_verify_token()}
 				required
 				autocomplete="one-time-code"
-				value={form?.token ?? data.token}
 			/>
 
 			<Button type="submit" fullWidth>{m.auth_verify_submit()}</Button>

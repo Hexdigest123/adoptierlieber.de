@@ -81,7 +81,7 @@ export function createSessionService(env: Env) {
         throw new HTTPException(401, { message: "invalid session" });
       }
 
-      if (session.lastUsedAt.getTime() < currentDate.getTime() - 30 * 60 * 1000) {
+      if (session.lastUsedAt.getTime() < currentDate.getTime() - 24 * 60 * 60 * 1000) {
         await repo.deleteWithToken(session.sessionToken);
         throw new HTTPException(401, { message: "invalid session" });
       }

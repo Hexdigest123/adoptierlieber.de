@@ -5,7 +5,9 @@ export const actions: Actions = {
 	contact: async ({ request, fetch }) => {
 		const data = await request.formData();
 		const name = String(data.get("name") ?? "").trim();
-		const email = String(data.get("email") ?? "").trim();
+		const email = String(data.get("email") ?? "")
+			.trim()
+			.toLowerCase();
 		const message = String(data.get("message") ?? "").trim();
 		const website = String(data.get("website") ?? "").trim();
 		const privacy = data.get("privacy") === "on";

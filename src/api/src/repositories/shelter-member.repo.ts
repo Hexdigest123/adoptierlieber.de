@@ -1,10 +1,10 @@
 import { drizzle } from "drizzle-orm/d1";
 import { and, eq } from "drizzle-orm";
 import { shelterMembersTable } from "../schema";
-import type { Env } from "../config/env";
+import { getDb, type Env } from "../config/env";
 
 export function createShelterMemberRepo(env: Env) {
-  const db = drizzle(env.adoptierlieber, { schema: { shelterMembersTable } });
+  const db = drizzle(getDb(env), { schema: { shelterMembersTable } });
 
   return {
     create(input: { userId: string; shelterId: string; role: number }) {

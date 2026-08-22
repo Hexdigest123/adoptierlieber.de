@@ -1,10 +1,19 @@
 import { z } from "zod";
 
+export const emailSchema = z.email().transform((value) => value.trim().toLowerCase());
+
+export const passwordSchema = z
+  .string()
+  .min(8)
+  .max(128)
+  .regex(/[A-Za-z]/)
+  .regex(/\d/);
+
 export const createUserSchema = z.object({
   name: z.string().min(1),
   displayName: z.string().min(1).optional(),
-  email: z.email(),
-  password: z.string().min(8),
+  email: emailSchema,
+  password: passwordSchema,
 });
 
 export const deleteUserSchema = z.object({
@@ -12,18 +21,18 @@ export const deleteUserSchema = z.object({
 });
 
 export const resetUserSchema = z.object({
-  email: z.string().min(1).optional(),
+  email: emailSchema.optional(),
   resetToken: z.string().min(1).optional(),
-  newPassword: z.string().min(8).optional(),
+  newPassword: passwordSchema.optional(),
 });
 
 export const authenticateSchema = z.object({
-  email: z.email(),
-  password: z.string().min(8),
+  email: emailSchema,
+  password: z.string().min(8).max(128),
 });
 
 export const verifyEmailSchema = z.object({
-  email: z.email(),
+  email: emailSchema,
   token: z.string().min(1),
 });
 
@@ -36,8 +45,8 @@ export const createSessionSchema = z.object({
 
 export const createShelterSchema = z.object({
   name: z.string().min(1),
-  email: z.email(),
-  password: z.string().min(8),
+  email: emailSchema,
+  password: passwordSchema,
   orgName: z.string().min(1),
   street: z.string().min(1),
   zip: z.string().min(1),
@@ -49,7 +58,7 @@ export const createShelterSchema = z.object({
 
 export const contactSchema = z.object({
   name: z.string().min(1),
-  email: z.email(),
+  email: emailSchema,
   message: z.string().min(1),
   // honeypot: must stay empty; filled by bots only
   website: z.string().optional(),

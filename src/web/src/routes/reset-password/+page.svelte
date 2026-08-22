@@ -48,6 +48,7 @@
 				hint={m.auth_password_hint()}
 				required
 				minlength={8}
+				maxlength={128}
 				autocomplete="new-password"
 			/>
 

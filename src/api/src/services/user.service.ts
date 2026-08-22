@@ -12,12 +12,18 @@ import {
   hashPassword,
   verifyPassword,
   hashToken,
-  runDummyPasswordOps,
+  verifyDummyPassword,
+  tokensEqual,
+  passwordNeedsRehash,
 } from "../lib/hashing";
 import { HTTPException } from "hono/http-exception";
 import { createSessionService } from "./session.service";
 import { sendMail } from "../lib/mail";
-import { accountDeletionTemplate, passwordResetTemplate } from "../lib/email-templates";
+import {
+  accountDeletionTemplate,
+  passwordChangedTemplate,
+  passwordResetTemplate,
+} from "../lib/email-templates";
 import { verifyEmailSchema } from "../lib/zod";
 
 export function createUserService(env: Env) {
@@ -52,23 +58,24 @@ export function createUserService(env: Env) {
       return { verificationToken: token };
     },
 
-    async verifyEmail(input: unknown): Promise<void> {
+    async verifyEmail(input: unknown): Promise<boolean> {
       const data = verifyEmailSchema.parse(input);
       const user = await repo.findByEmail(data.email);
       if (!user) {
-        return;
+        return false;
       }
       if (
         !user.emailVerificationToken ||
         !user.emailVerificationTokenExpiresAt ||
         user.emailVerificationTokenExpiresAt.getTime() < Date.now()
       ) {
-        return;
+        return false;
       }
-      if ((await hashToken(data.token)) !== user.emailVerificationToken) {
-        return;
+      if (!tokensEqual(await hashToken(data.token), user.emailVerificationToken)) {
+        return false;
       }
       await repo.verifyEmail(user.id);
+      return true;
     },
 
     async delete(input: unknown, sessionToken: string): Promise<boolean> {
@@ -111,7 +118,7 @@ export function createUserService(env: Env) {
       }
       const user = await repo.findByEmail(data.email);
       if (!user) {
-        await runDummyPasswordOps();
+        await verifyDummyPassword();
         return true;
       }
 
@@ -123,6 +130,11 @@ export function createUserService(env: Env) {
           if (!(await repo.updatePassword(user.id, newHashedPassword))) {
             throw new HTTPException(500, { message: "failed to update password" });
           }
+          try {
+            await sendMail(passwordChangedTemplate({ to: user.email }));
+          } catch (e: unknown) {
+            console.error(e);
+          }
           return true;
         }
       } else {
@@ -133,7 +145,7 @@ export function createUserService(env: Env) {
           await sendMail(passwordResetTemplate({ to: user.email, token }));
         } catch (e: unknown) {
           console.error(e);
-          throw new HTTPException(500, { message: "failed to send deletion email" });
+          throw new HTTPException(500, { message: "failed to send reset email" });
         }
 
         if (!(await repo.updateResetToken(user.id, hashedToken, expiresAt))) {
@@ -165,7 +177,7 @@ export function createUserService(env: Env) {
         throw new HTTPException(400, { message: "deletion token expired" });
       }
 
-      if ((await hashToken(deletionToken)) !== row.accountDeletionToken) {
+      if (!tokensEqual(await hashToken(deletionToken), row.accountDeletionToken)) {
         throw new HTTPException(401, { message: "invalid deletion token" });
       }
 
@@ -185,7 +197,7 @@ export function createUserService(env: Env) {
         throw new HTTPException(400, { message: "reset token expired" });
       }
 
-      if ((await hashToken(passwordResetToken)) !== row.passwordResetToken) {
+      if (!tokensEqual(await hashToken(passwordResetToken), row.passwordResetToken)) {
         throw new HTTPException(401, { message: "invalid reset token" });
       }
 
@@ -196,13 +208,21 @@ export function createUserService(env: Env) {
       const data = authenticateSchema.parse(input);
       const user = await repo.findByEmail(data.email);
       if (!user) {
-        await runDummyPasswordOps();
+        await verifyDummyPassword(data.password);
         throw new HTTPException(401, { message: "invalid email or password" });
       }
 
       const valid = await verifyPassword(data.password, user.password);
       if (!valid) {
         throw new HTTPException(401, { message: "invalid email or password" });
+      }
+
+      if (!user.emailVerifiedAt) {
+        throw new HTTPException(401, { message: "invalid email or password" });
+      }
+
+      if (passwordNeedsRehash(user.password)) {
+        await repo.updatePassword(user.id, await hashPassword(data.password));
       }
 
       const session = await createSessionService(env).create(

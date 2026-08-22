@@ -309,6 +309,27 @@ export type PasswordResetInput = EmailTemplateInput & {
 	expiresInHours?: number;
 };
 
+/** Notify the user that their password was changed. */
+export function passwordChangedTemplate({ to }: EmailTemplateInput): MailOptions {
+	const subject = "Dein Passwort wurde geändert";
+	return {
+		to,
+		subject,
+		text: `Dein Passwort wurde geändert
+
+Das Passwort deines Adoptier-Lieber-Kontos wurde gerade geändert. Falls du das nicht selbst gemacht hast, setze dein Passwort sofort zurück.`,
+		html: layout({
+			preview: "Das Passwort deines Kontos wurde geändert.",
+			body: [
+				heading("Dein Passwort wurde geändert"),
+				paragraph(
+					"Das Passwort deines Adoptier-Lieber-Kontos wurde gerade geändert. Falls du das nicht selbst gemacht hast, setze dein Passwort sofort zurück.",
+				),
+			].join(""),
+		}),
+	};
+}
+
 /** Reset code for the password reset flow (1h default). */
 export function passwordResetTemplate({
 	to,
