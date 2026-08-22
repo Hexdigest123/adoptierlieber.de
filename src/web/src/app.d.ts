@@ -16,6 +16,7 @@ declare global {
 				name: string;
 				displayName: string | null;
 				email: string;
+				hasAvatar: boolean;
 			} | null;
 		}
 		// interface PageData {}

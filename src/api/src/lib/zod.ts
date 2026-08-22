@@ -16,6 +16,18 @@ export const createUserSchema = z.object({
   password: passwordSchema,
 });
 
+export const updateUserSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    displayName: z.string().nullable().optional(),
+  })
+  .refine((value) => value.name !== undefined || value.displayName !== undefined);
+
+export const changePasswordSchema = z.object({
+  current_password: z.string().min(8).max(128),
+  new_password: passwordSchema,
+});
+
 export const deleteUserSchema = z.object({
   deletionToken: z.string().min(1).optional(),
 });
@@ -45,6 +57,7 @@ export const createSessionSchema = z.object({
 
 export const createShelterSchema = z.object({
   name: z.string().min(1),
+  displayName: z.string().min(1).optional(),
   email: emailSchema,
   password: passwordSchema,
   orgName: z.string().min(1),

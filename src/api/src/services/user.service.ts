@@ -4,9 +4,17 @@ import {
   authenticateSchema,
   deleteUserSchema,
   resetUserSchema as resetPasswordUserSchema,
+  updateUserSchema,
+  changePasswordSchema,
 } from "../lib/zod";
 import type { Env } from "../config/env";
-import type { PublicSession, PublicUser } from "../types";
+import type { PublicSession, PublicUser, User } from "../types";
+import {
+  deleteAvatar,
+  getAvatarObject,
+  parseAvatarFile,
+  putAvatar,
+} from "../lib/avatar";
 import {
   generateToken,
   hashPassword,
@@ -26,19 +34,33 @@ import {
 } from "../lib/email-templates";
 import { verifyEmailSchema } from "../lib/zod";
 
+function toPublicUser(row: Pick<User, "id" | "name" | "displayName" | "email" | "avatarKey">): PublicUser {
+  return {
+    id: row.id,
+    name: row.name,
+    displayName: row.displayName,
+    email: row.email,
+    hasAvatar: Boolean(row.avatarKey),
+  };
+}
+
 export function createUserService(env: Env) {
   const repo = createUserRepo(env);
 
   return {
-    async create(input: unknown): Promise<{ verificationToken: string } | null> {
+    async create(
+      input: unknown,
+      avatarFile: File | null = null,
+    ): Promise<{ verificationToken: string; userId: string } | null> {
       const data = createUserSchema.parse(input);
+      const parsedAvatar = avatarFile ? await parseAvatarFile(avatarFile) : null;
 
       data.password = await hashPassword(data.password);
 
       const { token, hashedToken } = await generateToken();
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-      let row: PublicUser;
+      let row: Awaited<ReturnType<typeof repo.create>>;
       try {
         row = await repo.create({
           ...data,
@@ -55,7 +77,17 @@ export function createUserService(env: Env) {
       if (!row) {
         return null;
       }
-      return { verificationToken: token };
+
+      if (parsedAvatar) {
+        try {
+          const avatarKey = await putAvatar(env, row.id, parsedAvatar);
+          await repo.updateAvatarKey(row.id, avatarKey);
+        } catch (e: unknown) {
+          console.error(e);
+        }
+      }
+
+      return { verificationToken: token, userId: row.id };
     },
 
     async verifyEmail(input: unknown): Promise<boolean> {
@@ -90,6 +122,9 @@ export function createUserService(env: Env) {
         if (await this.compareDeletionToken(data.deletionToken, session.userId)) {
           await repo.unsetAccountDeletion(session.userId);
           await createSessionService(env).deleteAllWithUserId(session.userId);
+          if (user.avatarKey) {
+            await deleteAvatar(env, session.userId);
+          }
           await repo.delete(session.userId);
         }
       } else {
@@ -161,7 +196,73 @@ export function createUserService(env: Env) {
       if (!row) {
         throw new HTTPException(404, { message: "user not found" });
       }
-      return { id: row.id, name: row.name, displayName: row.displayName, email: row.email };
+      return toPublicUser(row);
+    },
+
+    async changePassword(userId: string, sessionToken: string, input: unknown): Promise<void> {
+      const data = changePasswordSchema.parse(input);
+      const user = await repo.findById(userId);
+      if (!user) {
+        throw new HTTPException(404, { message: "user not found" });
+      }
+
+      const valid = await verifyPassword(data.current_password, user.password);
+      if (!valid) {
+        throw new HTTPException(401, { message: "invalid password" });
+      }
+
+      if (!(await repo.updatePassword(user.id, await hashPassword(data.new_password)))) {
+        throw new HTTPException(500, { message: "failed to update password" });
+      }
+
+      await createSessionService(env).deleteOtherSessions(user.id, sessionToken);
+
+      try {
+        await sendMail(passwordChangedTemplate({ to: user.email }));
+      } catch (e: unknown) {
+        console.error(e);
+      }
+    },
+
+    async updateProfile(userId: string, input: unknown): Promise<PublicUser> {
+      const data = updateUserSchema.parse(input);
+      const values = {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.displayName !== undefined
+          ? { displayName: data.displayName === "" ? null : data.displayName }
+          : {}),
+      };
+      const row = await repo.updateProfile(userId, values);
+      if (!row) {
+        throw new HTTPException(404, { message: "user not found" });
+      }
+      return toPublicUser(row);
+    },
+
+    async putAvatar(userId: string, file: File): Promise<void> {
+      const parsed = await parseAvatarFile(file);
+      const avatarKey = await putAvatar(env, userId, parsed);
+      await repo.updateAvatarKey(userId, avatarKey);
+    },
+
+    async deleteAvatar(userId: string): Promise<void> {
+      const user = await repo.findById(userId);
+      if (!user) {
+        throw new HTTPException(404, { message: "user not found" });
+      }
+      if (!user.avatarKey) {
+        throw new HTTPException(404, { message: "avatar not found" });
+      }
+      await deleteAvatar(env, userId);
+      await repo.updateAvatarKey(userId, null);
+    },
+
+    async getAvatar(userId: string) {
+      const user = await repo.findById(userId);
+      if (!user?.avatarKey) {
+        return null;
+      }
+      return getAvatarObject(env, userId);
     },
 
     async compareDeletionToken(deletionToken: string, userId: string) {

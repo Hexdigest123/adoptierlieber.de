@@ -25,6 +25,7 @@ export const usersTable = sqliteTable("users", {
     mode: "timestamp",
   }),
   emailVerifiedAt: integer("email_verified_at", { mode: "timestamp" }),
+  avatarKey: text("avatar_key"),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),

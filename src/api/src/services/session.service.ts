@@ -53,6 +53,10 @@ export function createSessionService(env: Env) {
     async deleteAllWithUserId(userId: string): Promise<void> {
       await repo.deleteAllWithUserId(userId);
     },
+    async deleteOtherSessions(userId: string, sessionToken: string): Promise<void> {
+      const hashedToken = await hashToken(sessionToken);
+      await repo.deleteOthersWithUserId(userId, hashedToken);
+    },
 
     async deleteWithSessionToken(sessionToken: string): Promise<void> {
       const hashedToken = await hashToken(sessionToken);

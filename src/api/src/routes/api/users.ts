@@ -5,16 +5,18 @@ import { sessionValidation } from "../../middlewares/session";
 import { rateLimitByIp } from "../../middlewares/rate-limit";
 import { sendMail } from "../../lib/mail";
 import { verifyEmailTemplate } from "../../lib/email-templates";
+import { readCreateBody } from "../../lib/avatar";
 
 export const users = new Hono<AppEnv>();
 
 /** Register as a new user. */
 users.post("/", rateLimitByIp("create-user", 5), async (c) => {
-  const input = await c.req.json();
-  const result = await createUserService(c.env).create(input);
+  const { fields, avatar } = await readCreateBody(c.req.raw);
+  const result = await createUserService(c.env).create(fields, avatar);
   if (result && "verificationToken" in result) {
+    const email = typeof fields.email === "string" ? fields.email : "";
     c.executionCtx.waitUntil(
-      sendMail(verifyEmailTemplate({ to: input.email, token: result.verificationToken })),
+      sendMail(verifyEmailTemplate({ to: email, token: result.verificationToken })),
     );
   }
   return c.json({}, 201);
@@ -27,6 +29,52 @@ users.post("/verify", rateLimitByIp("verify-email", 10), async (c) => {
   if (!verified) {
     return c.json({ error: "invalid verification" }, 400);
   }
+  return c.json({}, 200);
+});
+
+/** Update the authenticated user's name or display name. */
+users.patch("/me", sessionValidation, async (c) => {
+  const input = await c.req.json();
+  await createUserService(c.env).updateProfile(c.get("userId"), input);
+  return c.json({}, 200);
+});
+
+/** Change the authenticated user's password. */
+users.patch("/me/password", sessionValidation, rateLimitByIp("change-password", 5), async (c) => {
+  const input = await c.req.json();
+  await createUserService(c.env).changePassword(c.get("userId"), c.get("sessionToken"), input);
+  return c.json({}, 200);
+});
+
+/** Stream the authenticated user's avatar from R2. */
+users.get("/me/avatar", sessionValidation, async (c) => {
+  const object = await createUserService(c.env).getAvatar(c.get("userId"));
+  if (!object) {
+    return c.json({ error: "avatar not found" }, 404);
+  }
+  const headers = new Headers();
+  headers.set("content-type", object.httpMetadata?.contentType ?? "application/octet-stream");
+  headers.set("cache-control", "private, no-cache");
+  if (object.httpEtag) {
+    headers.set("etag", object.httpEtag);
+  }
+  return new Response(object.body, { status: 200, headers });
+});
+
+/** Replace the authenticated user's avatar. */
+users.put("/me/avatar", sessionValidation, async (c) => {
+  const form = await c.req.formData();
+  const file = form.get("avatar");
+  if (!(file instanceof File) || file.size === 0) {
+    return c.json({ error: "missing avatar" }, 400);
+  }
+  await createUserService(c.env).putAvatar(c.get("userId"), file);
+  return c.json({}, 200);
+});
+
+/** Remove the authenticated user's avatar. */
+users.delete("/me/avatar", sessionValidation, async (c) => {
+  await createUserService(c.env).deleteAvatar(c.get("userId"));
   return c.json({}, 200);
 });
 

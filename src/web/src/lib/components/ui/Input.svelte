@@ -13,7 +13,17 @@
 		class?: string;
 	} & Omit<HTMLInputAttributes, "id" | "class">;
 
-	let { label, error, hint, icon, id, class: className = "", required, ...rest }: Props = $props();
+	let {
+		label,
+		error,
+		hint,
+		icon,
+		id,
+		class: className = "",
+		required,
+		value = $bindable(),
+		...rest
+	}: Props = $props();
 
 	const describedBy = $derived(
 		[error ? `${id}-error` : null, hint && !error ? `${id}-hint` : null]
@@ -39,6 +49,7 @@
 		<input
 			{id}
 			{required}
+			bind:value
 			aria-invalid={error ? true : undefined}
 			aria-describedby={describedBy}
 			class="h-11 w-full rounded-xl border bg-white px-3.5 text-base text-sand-900 focus-ring placeholder:text-sand-400 {icon

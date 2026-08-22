@@ -2,8 +2,11 @@
 	import type { PageProps } from "./$types";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
+	import { enhance } from "$app/forms";
+	import { browser } from "$app/environment";
 	import { m } from "$lib/paraglide/messages";
 	import AuthCard from "$lib/components/auth/AuthCard.svelte";
+	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
 	import Textarea from "$lib/components/ui/Textarea.svelte";
@@ -13,17 +16,111 @@
 
 	let { form }: PageProps = $props();
 
-	// preselect shelter form via ?type=shelter (e.g. from the hero CTA)
+	// preselect shelter form via ?type=shelter
 	function initialType(): "adopter" | "shelter" {
 		return form?.values?.accountType === "shelter" ||
 			page.url.searchParams.get("type") === "shelter"
 			? "shelter"
 			: "adopter";
 	}
+
+	function seed() {
+		return form?.values;
+	}
+
 	let accountType = $state<"adopter" | "shelter">(initialType());
+	let wizard = $state(browser);
+	let step = $state(0);
+	let name = $state(seed()?.name ?? "");
+	let displayName = $state(seed()?.displayName ?? "");
+	let email = $state(seed()?.email ?? "");
+	let password = $state("");
+	let orgName = $state(seed()?.orgName ?? "");
+	let street = $state(seed()?.street ?? "");
+	let zip = $state(seed()?.zip ?? "");
+	let city = $state(seed()?.city ?? "");
+	let website = $state(seed()?.website ?? "");
+	let registrationNumber = $state(seed()?.registrationNumber ?? "");
+	let description = $state(seed()?.description ?? "");
+	let previewUrl = $state<string | null>(null);
+	let stepError = $state(false);
+	let avatarInput: HTMLInputElement | undefined = $state();
+
+	$effect(() => {
+		const url = previewUrl;
+		return () => {
+			if (url) URL.revokeObjectURL(url);
+		};
+	});
+
+	const steps = $derived(
+		accountType === "shelter"
+			? (["type", "account", "shelter", "review", "picture"] as const)
+			: (["type", "account", "review", "picture"] as const),
+	);
+	const total = $derived(steps.length);
+	const current = $derived(steps[step] ?? "type");
 
 	function onTypeChange(value: "adopter" | "shelter") {
 		accountType = value;
+		if (step >= (value === "shelter" ? 5 : 4)) step = 0;
+	}
+
+	function validAccount() {
+		return (
+			name.trim().length > 0 &&
+			/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) &&
+			password.length >= 8 &&
+			password.length <= 128 &&
+			/[A-Za-z]/.test(password) &&
+			/\d/.test(password)
+		);
+	}
+
+	function validShelter() {
+		return (
+			orgName.trim().length > 0 &&
+			street.trim().length > 0 &&
+			zip.trim().length > 0 &&
+			city.trim().length > 0
+		);
+	}
+
+	function next() {
+		if (current === "account" && !validAccount()) {
+			stepError = true;
+			return;
+		}
+		if (current === "shelter" && !validShelter()) {
+			stepError = true;
+			return;
+		}
+		stepError = false;
+		if (step < total - 1) step += 1;
+	}
+
+	function back() {
+		stepError = false;
+		if (step > 0) step -= 1;
+	}
+
+	function onAvatarChange(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		if (previewUrl) URL.revokeObjectURL(previewUrl);
+		const file = input.files?.[0];
+		previewUrl = file ? URL.createObjectURL(file) : null;
+	}
+
+	function skipPicture() {
+		if (avatarInput) avatarInput.value = "";
+		if (previewUrl) {
+			URL.revokeObjectURL(previewUrl);
+			previewUrl = null;
+		}
+	}
+
+	function show(id: (typeof steps)[number]) {
+		return !wizard || current === id;
 	}
 
 	const errorMessages = {
@@ -33,8 +130,6 @@
 		generic: () => m.error_generic(),
 	};
 </script>
-
-<svelte:head><title>{m.auth_register_title()} – {m.brand_name()}</title></svelte:head>
 
 {#if form?.registerSuccess}
 	<AuthCard title={m.auth_register_success_title()}>
@@ -53,9 +148,28 @@
 		</Button>
 	</AuthCard>
 {:else}
-	<AuthCard title={m.auth_register_title()} subtitle={m.auth_register_subtitle()}>
-		<form method="POST" class="flex flex-col gap-5">
-			<fieldset>
+	<AuthCard title={m.auth_register_title()} subtitle={m.auth_register_subtitle()} wide>
+		{#if wizard}
+			<p class="mb-4 text-sm font-semibold text-sand-600">
+				{m.wizard_step({ current: step + 1, total })}
+			</p>
+			<ol class="mb-6 flex gap-2" aria-hidden="true">
+				{#each steps as _, index (index)}
+					<li
+						class="h-1.5 flex-1 rounded-full {index <= step ? 'bg-coral-600' : 'bg-sand-200'}"
+					></li>
+				{/each}
+			</ol>
+		{/if}
+
+		<form method="POST" enctype="multipart/form-data" class="flex flex-col gap-5" use:enhance>
+			{#if form?.registerError}
+				<FormStatus type="error">{errorMessages[form.registerError]()}</FormStatus>
+			{:else if stepError}
+				<FormStatus type="error">{m.error_invalid_input()}</FormStatus>
+			{/if}
+
+			<fieldset class="wizard-step" class:hidden={!show("type")}>
 				<legend class="sr-only">{m.auth_register_subtitle()}</legend>
 				<div class="grid grid-cols-2 gap-3">
 					<label
@@ -97,11 +211,7 @@
 				</div>
 			</fieldset>
 
-			{#if form?.registerError}
-				<FormStatus type="error">{errorMessages[form.registerError]()}</FormStatus>
-			{/if}
-
-			<div class="flex flex-col gap-5">
+			<div class="wizard-step flex flex-col gap-5" class:hidden={!show("account")}>
 				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
 					{m.auth_register_account_section()}
 				</h2>
@@ -109,18 +219,26 @@
 					id="register-name"
 					name="name"
 					label={m.auth_name()}
-					required
+					required={!wizard || current === "account"}
 					autocomplete="name"
-					value={form?.values?.name ?? ""}
+					bind:value={name}
+				/>
+				<Input
+					id="register-display-name"
+					name="displayName"
+					label={m.auth_display_name()}
+					hint={m.auth_display_name_hint()}
+					autocomplete="nickname"
+					bind:value={displayName}
 				/>
 				<Input
 					id="register-email"
 					name="email"
 					type="email"
 					label={m.auth_email()}
-					required
+					required={!wizard || current === "account"}
 					autocomplete="email"
-					value={form?.values?.email ?? ""}
+					bind:value={email}
 				/>
 				<Input
 					id="register-password"
@@ -128,78 +246,154 @@
 					type="password"
 					label={m.auth_password()}
 					hint={m.auth_password_hint()}
-					required
+					required={!wizard || current === "account"}
 					minlength={8}
 					maxlength={128}
 					autocomplete="new-password"
+					bind:value={password}
 				/>
 			</div>
 
-			{#if accountType === "shelter"}
-				<div class="flex flex-col gap-5">
-					<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
-						{m.auth_register_shelter_section()}
-					</h2>
+			<div class="wizard-step flex flex-col gap-5" class:hidden={!show("shelter")}>
+				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+					{m.auth_register_shelter_section()}
+				</h2>
+				<Input
+					id="register-org-name"
+					name="orgName"
+					label={m.auth_org_name()}
+					required={accountType === "shelter" && (!wizard || current === "shelter")}
+					autocomplete="organization"
+					bind:value={orgName}
+				/>
+				<Input
+					id="register-street"
+					name="street"
+					label={m.auth_street()}
+					required={accountType === "shelter" && (!wizard || current === "shelter")}
+					autocomplete="street-address"
+					bind:value={street}
+				/>
+				<div class="grid grid-cols-[7rem_1fr] gap-3">
 					<Input
-						id="register-org-name"
-						name="orgName"
-						label={m.auth_org_name()}
-						required
-						autocomplete="organization"
-						value={form?.values?.orgName ?? ""}
+						id="register-zip"
+						name="zip"
+						label={m.auth_zip()}
+						required={accountType === "shelter" && (!wizard || current === "shelter")}
+						autocomplete="postal-code"
+						bind:value={zip}
 					/>
 					<Input
-						id="register-street"
-						name="street"
-						label={m.auth_street()}
-						required
-						autocomplete="street-address"
-						value={form?.values?.street ?? ""}
-					/>
-					<div class="grid grid-cols-[7rem_1fr] gap-3">
-						<Input
-							id="register-zip"
-							name="zip"
-							label={m.auth_zip()}
-							required
-							autocomplete="postal-code"
-							value={form?.values?.zip ?? ""}
-						/>
-						<Input
-							id="register-city"
-							name="city"
-							label={m.auth_city()}
-							required
-							autocomplete="address-level2"
-							value={form?.values?.city ?? ""}
-						/>
-					</div>
-					<Input
-						id="register-website"
-						name="website"
-						type="url"
-						label={m.auth_website()}
-						autocomplete="url"
-						placeholder="https://"
-						value={form?.values?.website ?? ""}
-					/>
-					<Input
-						id="register-registration-number"
-						name="registrationNumber"
-						label={m.auth_registration_number()}
-						value={form?.values?.registrationNumber ?? ""}
-					/>
-					<Textarea
-						id="register-description"
-						name="description"
-						label={m.auth_description()}
-						rows={3}
-						value={form?.values?.description ?? ""}
+						id="register-city"
+						name="city"
+						label={m.auth_city()}
+						required={accountType === "shelter" && (!wizard || current === "shelter")}
+						autocomplete="address-level2"
+						bind:value={city}
 					/>
 				</div>
-			{/if}
+				<Input
+					id="register-website"
+					name="website"
+					type="url"
+					label={m.auth_website()}
+					autocomplete="url"
+					placeholder="https://"
+					bind:value={website}
+				/>
+				<Input
+					id="register-registration-number"
+					name="registrationNumber"
+					label={m.auth_registration_number()}
+					bind:value={registrationNumber}
+				/>
+				<Textarea
+					id="register-description"
+					name="description"
+					label={m.auth_description()}
+					rows={3}
+					bind:value={description}
+				/>
+			</div>
 
-			<Button type="submit" fullWidth>{m.auth_register_submit()}</Button>
+			<div class="wizard-step flex flex-col gap-4" class:hidden={!show("review")}>
+				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+					{m.wizard_review_title()}
+				</h2>
+				<p class="text-sm text-sand-700">{m.wizard_review_subtitle()}</p>
+				<dl class="divide-y divide-sand-200 rounded-xl border border-sand-200 bg-sand-50">
+					<div class="px-4 py-3">
+						<dt class="text-xs font-bold tracking-wide text-sand-600 uppercase">
+							{m.wizard_review_account()}
+						</dt>
+						<dd class="mt-1 text-sm text-sand-900">
+							{name}{displayName ? ` (${displayName})` : ""}
+							<br />
+							{email}
+						</dd>
+					</div>
+					{#if accountType === "shelter"}
+						<div class="px-4 py-3">
+							<dt class="text-xs font-bold tracking-wide text-sand-600 uppercase">
+								{m.auth_register_shelter_section()}
+							</dt>
+							<dd class="mt-1 text-sm text-sand-900">
+								{orgName}<br />
+								{street}<br />
+								{zip}
+								{city}
+								{#if website}<br />{website}{/if}
+							</dd>
+						</div>
+					{/if}
+				</dl>
+			</div>
+
+			<div class="wizard-step flex flex-col items-center gap-4" class:hidden={!show("picture")}>
+				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+					{m.wizard_picture_title()}
+				</h2>
+				<p class="text-center text-sm text-sand-700">{m.wizard_picture_subtitle()}</p>
+				<Avatar name={displayName || name} src={previewUrl} size="lg" />
+				<label class="inline-flex">
+					<span class="sr-only"
+						>{previewUrl ? m.wizard_picture_change() : m.wizard_picture_choose()}</span
+					>
+					<input
+						bind:this={avatarInput}
+						class="sr-only"
+						type="file"
+						name="avatar"
+						accept="image/jpeg,image/png,image/webp"
+						onchange={onAvatarChange}
+					/>
+					<span
+						class="inline-flex h-10 cursor-pointer items-center justify-center rounded-full bg-peach-200 px-4 text-sm font-semibold text-coral-950 hover:bg-peach-300"
+					>
+						{previewUrl ? m.wizard_picture_change() : m.wizard_picture_choose()}
+					</span>
+				</label>
+				<p class="text-sm text-sand-600">{m.wizard_picture_hint()}</p>
+			</div>
+
+			{#if wizard}
+				<div class="wizard-nav flex flex-col gap-3">
+					{#if current === "picture"}
+						<Button type="submit" fullWidth>{m.auth_register_submit()}</Button>
+						<Button type="submit" variant="ghost" fullWidth onclick={skipPicture}
+							>{m.wizard_skip()}</Button
+						>
+					{:else}
+						<Button type="button" fullWidth onclick={next}>{m.wizard_next()}</Button>
+					{/if}
+					{#if step > 0}
+						<Button type="button" variant="ghost" fullWidth onclick={back}>{m.wizard_back()}</Button
+						>
+					{/if}
+				</div>
+			{:else}
+				<Button type="submit" fullWidth>{m.auth_register_submit()}</Button>
+			{/if}
 
 			<p class="text-center text-sm text-sand-700">
 				{m.auth_register_have_account()}

@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/d1";
 import { sessionsTable } from "../schema";
 import { getDb, type Env } from "../config/env";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 export function createSessionRepo(env: Env) {
   const db = drizzle(getDb(env), { schema: { sessionsTable } });
@@ -43,6 +43,15 @@ export function createSessionRepo(env: Env) {
       return db
         .delete(sessionsTable)
         .where(eq(sessionsTable.userId, userId))
+        .returning({ id: sessionsTable.id })
+        .all();
+    },
+    deleteOthersWithUserId(userId: string, keepSessionToken: string) {
+      return db
+        .delete(sessionsTable)
+        .where(
+          and(eq(sessionsTable.userId, userId), ne(sessionsTable.sessionToken, keepSessionToken)),
+        )
         .returning({ id: sessionsTable.id })
         .all();
     },

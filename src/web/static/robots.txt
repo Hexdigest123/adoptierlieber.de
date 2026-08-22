@@ -1,3 +1,11 @@
-# allow crawling everything by default
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /api/
+Disallow: /profile
+Disallow: /app
+Disallow: /logout
+Disallow: /verify
+Disallow: /forgot-password
+Disallow: /reset-password
+
+Sitemap: https://adoptierlieber.de/sitemap.xml

@@ -6,7 +6,7 @@
 	import Reviews from "$lib/components/landing/Reviews.svelte";
 	import ContactSection from "$lib/components/landing/ContactSection.svelte";
 
-	let { form }: PageProps = $props();
+	let { data, form }: PageProps = $props();
 </script>
 
 <svelte:head>
@@ -14,7 +14,9 @@
 	<meta name="description" content={m.meta_home_description()} />
 </svelte:head>
 
-<Hero />
-<Showcase />
-<Reviews />
-<ContactSection {form} />
+<Hero user={data.user} />
+<div class="relative z-10 rounded-t-3xl bg-peach-50 shadow-[0_-16px_48px_rgb(39_33_29/0.1)]">
+	<Showcase />
+	<Reviews />
+	<ContactSection {form} />
+</div>
