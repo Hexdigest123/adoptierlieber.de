@@ -1,15 +1,33 @@
 <script lang="ts">
+	import LogOut from "lucide-svelte/icons/log-out";
 	import Menu from "lucide-svelte/icons/menu";
 	import X from "lucide-svelte/icons/x";
 	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
 	import { getLocale, setLocale, locales } from "$lib/paraglide/runtime";
 	import Logo from "$lib/components/ui/Logo.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
+	import Avatar from "$lib/components/ui/Avatar.svelte";
 
 	let { user }: { user: App.Locals["user"] } = $props();
 
 	let menuOpen = $state(false);
+	/** Home: hidden until first scroll, then stays. Other routes: always on. */
+	let homeRevealed = $state(false);
+
+	const isHome = $derived(page.route.id === "/");
+	const pinned = $derived(!isHome || homeRevealed);
+
+	$effect(() => {
+		if (!isHome) return;
+		homeRevealed = window.scrollY > 24;
+		function onScroll() {
+			if (window.scrollY > 24) homeRevealed = true;
+		}
+		window.addEventListener("scroll", onScroll, { passive: true });
+		return () => window.removeEventListener("scroll", onScroll);
+	});
 
 	const navItems = [
 		{ label: () => m.header_nav_animals(), href: "/#showcase" },
@@ -29,9 +47,23 @@
 	{m.skip_to_content()}
 </a>
 
-<header class="sticky top-0 z-40 border-b border-sand-200 bg-white/90 backdrop-blur">
-	<div class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-		<a href={resolve("/")} class="rounded-full focus-ring" aria-label={m.brand_name()}>
+<header
+	class="z-40 border-b border-sand-200 bg-white/90 backdrop-blur transition-transform duration-300 ease-out {pinned
+		? isHome
+			? 'fixed inset-x-0 top-0'
+			: 'sticky top-0'
+		: 'pointer-events-none fixed inset-x-0 top-0 -translate-y-full'}"
+	aria-hidden={!pinned}
+	inert={!pinned}
+>
+	<div
+		class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr]"
+	>
+		<a
+			href={resolve("/")}
+			class="justify-self-start rounded-full focus-ring"
+			aria-label={m.brand_name()}
+		>
 			<Logo />
 		</a>
 
@@ -46,7 +78,7 @@
 			{/each}
 		</nav>
 
-		<div class="hidden items-center gap-2 md:flex">
+		<div class="hidden items-center gap-2 justify-self-end md:flex">
 			<div
 				class="mr-1 flex items-center rounded-full border border-sand-200 p-0.5"
 				role="group"
@@ -68,11 +100,21 @@
 			</div>
 
 			{#if user}
-				<span class="max-w-40 truncate text-sm font-semibold text-sand-800">
-					{user.displayName ?? user.name}
-				</span>
+				<a
+					href={resolve("/profile")}
+					class="rounded-full focus-ring"
+					aria-label={user.displayName ?? user.name}
+				>
+					<Avatar name={user.displayName ?? user.name} hasAvatar={user.hasAvatar} size="sm" />
+				</a>
 				<form method="POST" action={resolve("/logout")} class="inline">
-					<Button type="submit" variant="ghost" size="sm">{m.header_logout()}</Button>
+					<button
+						type="submit"
+						class="flex size-10 cursor-pointer items-center justify-center rounded-full text-coral-700 focus-ring hover:bg-coral-50"
+						aria-label={m.header_logout()}
+					>
+						<LogOut class="size-5" aria-hidden="true" />
+					</button>
 				</form>
 			{:else}
 				<Button href={resolve("/login")} variant="ghost" size="sm">{m.header_login()}</Button>
@@ -113,15 +155,21 @@
 				{/each}
 				<hr class="my-2 border-sand-200" />
 				{#if user}
-					<span class="px-4 py-2 text-sm font-semibold text-sand-800"
-						>{user.displayName ?? user.name}</span
+					<a
+						href={resolve("/profile")}
+						onclick={closeMenu}
+						class="flex items-center gap-3 rounded-xl px-4 py-3 focus-ring hover:bg-peach-100"
 					>
+						<Avatar name={user.displayName ?? user.name} hasAvatar={user.hasAvatar} size="sm" />
+						<span class="text-base font-semibold text-sand-800">{m.header_profile()}</span>
+					</a>
 					<form method="POST" action={resolve("/logout")}>
 						<button
 							type="submit"
-							class="w-full cursor-pointer rounded-xl px-4 py-3 text-left text-base font-semibold text-coral-700 focus-ring hover:bg-coral-50"
+							class="flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-coral-700 focus-ring hover:bg-coral-50"
+							aria-label={m.header_logout()}
 						>
-							{m.header_logout()}
+							<LogOut class="size-5" aria-hidden="true" />
 						</button>
 					</form>
 				{:else}

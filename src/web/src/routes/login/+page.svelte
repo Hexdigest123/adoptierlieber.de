@@ -10,8 +10,6 @@
 	let { form }: PageProps = $props();
 </script>
 
-<svelte:head><title>{m.auth_login_title()} – {m.brand_name()}</title></svelte:head>
-
 <AuthCard title={m.auth_login_title()} subtitle={m.auth_login_subtitle()}>
 	<form method="POST" class="flex flex-col gap-5">
 		{#if form?.loginError}

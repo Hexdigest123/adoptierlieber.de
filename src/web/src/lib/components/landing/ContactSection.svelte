@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ActionData } from "../../../routes/$types";
+	import { enhance } from "$app/forms";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
@@ -10,6 +11,21 @@
 	import FormStatus from "$lib/components/ui/FormStatus.svelte";
 
 	let { form }: { form: ActionData } = $props();
+
+	let dismissed = $state(false);
+	let timer: ReturnType<typeof setTimeout> | undefined;
+
+	const showSuccess = $derived(Boolean(form?.contactSuccess) && !dismissed);
+
+	$effect(() => {
+		if (!form?.contactSuccess || dismissed) return;
+		timer = setTimeout(() => {
+			dismissed = true;
+		}, 10_000);
+		return () => {
+			if (timer) clearTimeout(timer);
+		};
+	});
 </script>
 
 <section
@@ -26,13 +42,23 @@
 		</div>
 
 		<Card class="mt-10" padding="lg">
-			{#if form?.contactSuccess}
+			{#if showSuccess}
 				<FormStatus type="success">{m.contact_success()}</FormStatus>
 			{:else}
 				{#if form?.contactError}
 					<FormStatus type="error" class="mb-6">{m.contact_error()}</FormStatus>
 				{/if}
-				<form method="POST" action="?/contact" class="flex flex-col gap-5">
+				<form
+					method="POST"
+					action="?/contact#contact"
+					class="flex flex-col gap-5"
+					use:enhance={() => {
+						return async ({ result, update }) => {
+							dismissed = false;
+							await update({ reset: result.type === "success" });
+						};
+					}}
+				>
 					<Input
 						id="contact-name"
 						name="name"
