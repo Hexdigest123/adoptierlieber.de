@@ -28,6 +28,9 @@
 	<h2>{m.legal_privacy_account_heading()}</h2>
 	<p>{m.legal_privacy_account_text()}</p>
 
+	<h2>{m.legal_privacy_deletion_heading()}</h2>
+	<p>{m.legal_privacy_deletion_text()}</p>
+
 	<h2>{m.legal_privacy_cookie_heading()}</h2>
 	<p>{m.legal_privacy_cookie_text()}</p>
 

@@ -198,6 +198,80 @@
 
 				<Button type="submit" variant="secondary" fullWidth>{m.profile_password_save()}</Button>
 			</form>
+
+			<section
+				class="flex flex-col gap-5 border-t border-sand-200 pt-8"
+				aria-labelledby="profile-delete-title"
+			>
+				<div>
+					<h2 id="profile-delete-title" class="text-lg font-bold text-sand-950">
+						{m.profile_delete_title()}
+					</h2>
+					<p class="mt-1 text-sm text-sand-700">{m.profile_delete_subtitle()}</p>
+				</div>
+
+				{#if form?.deletionRequested}
+					<form
+						method="POST"
+						action="?/confirmDeletion"
+						class="flex flex-col gap-5"
+						use:enhance={() => {
+							return async ({ update }) => {
+								await update();
+							};
+						}}
+					>
+						{#if form?.deleteError}
+							<FormStatus type="error">
+								{#if form.deleteError === "token"}
+									{m.profile_delete_token_error()}
+								{:else if form.deleteError === "rate_limited"}
+									{m.error_rate_limited()}
+								{:else}
+									{m.error_invalid_input()}
+								{/if}
+							</FormStatus>
+						{:else}
+							<FormStatus type="success">{m.profile_delete_requested()}</FormStatus>
+						{/if}
+
+						<Input
+							id="profile-deletion-token"
+							name="deletionToken"
+							label={m.profile_delete_token()}
+							required
+							autocomplete="one-time-code"
+						/>
+
+						<Button type="submit" variant="outline" fullWidth>{m.profile_delete_confirm()}</Button>
+					</form>
+				{:else}
+					<form
+						method="POST"
+						action="?/requestDeletion"
+						class="flex flex-col gap-5"
+						use:enhance={() => {
+							return async ({ update }) => {
+								await update();
+							};
+						}}
+					>
+						{#if form?.deleteError}
+							<FormStatus type="error">
+								{#if form.deleteError === "mail"}
+									{m.profile_delete_mail_error()}
+								{:else if form.deleteError === "rate_limited"}
+									{m.error_rate_limited()}
+								{:else}
+									{m.error_generic()}
+								{/if}
+							</FormStatus>
+						{/if}
+
+						<Button type="submit" variant="outline" fullWidth>{m.profile_delete_request()}</Button>
+					</form>
+				{/if}
+			</section>
 		</section>
 	</div>
 </AuthCard>

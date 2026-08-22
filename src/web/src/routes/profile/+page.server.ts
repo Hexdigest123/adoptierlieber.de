@@ -1,6 +1,7 @@
 import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { checkAvatarFile } from "$lib/server/avatar";
+import { clearSessionCookie } from "$lib/server/session-cookie";
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -120,5 +121,61 @@ export const actions: Actions = {
 		}
 
 		return { passwordSuccess: true };
+	},
+
+	requestDeletion: async ({ fetch, locals }) => {
+		if (!locals.user) {
+			redirect(303, "/login");
+		}
+
+		const response = await fetch("/api/users/delete", {
+			method: "DELETE",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({}),
+		});
+
+		if (!response.ok) {
+			if (response.status === 429) {
+				return fail(429, { deleteError: "rate_limited" as const });
+			}
+			if (response.status >= 500) {
+				return fail(502, { deleteError: "mail" as const });
+			}
+			return fail(response.status === 400 ? 400 : 502, { deleteError: "invalid" as const });
+		}
+
+		return { deletionRequested: true };
+	},
+
+	confirmDeletion: async ({ request, fetch, locals, cookies }) => {
+		if (!locals.user) {
+			redirect(303, "/login");
+		}
+
+		const data = await request.formData();
+		const deletionToken = String(data.get("deletionToken") ?? "").trim();
+
+		if (!deletionToken) {
+			return fail(400, { deleteError: "invalid" as const, deletionRequested: true });
+		}
+
+		const response = await fetch("/api/users/delete", {
+			method: "DELETE",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ deletionToken }),
+		});
+
+		if (!response.ok) {
+			if (response.status === 429) {
+				return fail(429, { deleteError: "rate_limited" as const, deletionRequested: true });
+			}
+			if (response.status === 400 || response.status === 401) {
+				return fail(400, { deleteError: "token" as const, deletionRequested: true });
+			}
+			return fail(502, { deleteError: "invalid" as const, deletionRequested: true });
+		}
+
+		clearSessionCookie(cookies);
+		redirect(303, "/");
 	},
 };

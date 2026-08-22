@@ -79,7 +79,7 @@ users.delete("/me/avatar", sessionValidation, async (c) => {
 });
 
 /** Delete an authenticated user. */
-users.delete("/delete", sessionValidation, async (c) => {
+users.delete("/delete", sessionValidation, rateLimitByIp("delete-user", 5), async (c) => {
   const input = await c.req.json();
   await createUserService(c.env).delete(input, c.get("sessionToken"));
   return c.json("", 200);
