@@ -19,7 +19,7 @@ shelters.post("/", rateLimitByIp("create-shelter", 5), async (c) => {
       sendMail(verifyEmailTemplate({ to: input.email, token: result.verificationToken })),
     );
     // empty string must fall back to the default receiver
-    const teamInbox = process.env.SECRET_CONTACT_RECEIVER || process.env.SECRET_RECEIVER_INFO;
+    const teamInbox = process.env.SECRET_CONTACT_TO;
     if (teamInbox) {
       c.executionCtx.waitUntil(
         sendMail(
