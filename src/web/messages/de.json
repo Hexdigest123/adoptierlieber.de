@@ -191,8 +191,8 @@
 	"meta_reset_description": "Setze mit dem Code aus der E-Mail ein neues Passwort für dein Adoptier Lieber Konto.",
 	"meta_error_title": "Seite nicht gefunden – Adoptier Lieber",
 	"meta_error_description": "Diese Seite gibt es nicht oder sie ist gerade nicht erreichbar.",
-	"meta_app_title": "Deine App – Adoptier Lieber",
-	"meta_app_description": "Entdecke Tiere aus Tierheimen in deiner Nähe auf Adoptier Lieber.",
+	"meta_app_title": "Coming soon – Adoptier Lieber",
+	"meta_app_description": "Die App kommt bald – präsentiert von LogiQ IT.",
 	"header_profile": "Profil",
 	"wizard_next": "Weiter",
 	"wizard_back": "Zurück",
@@ -224,6 +224,9 @@
 	"profile_password_save": "Passwort ändern",
 	"profile_password_saved": "Passwort geändert.",
 	"profile_password_current_error": "Das aktuelle Passwort ist falsch.",
-	"app_title": "Deine App",
-	"app_subtitle": "Hier findest du bald Freunde aus Tierheimen in deiner Nähe."
+	"app_title": "Coming soon",
+	"app_subtitle": "Brought to you by LogiQ IT",
+	"app_collab": "Adoptier Lieber × LogiQ IT",
+	"app_follow": "Folge mir auf X, um keine Updates zu verpassen.",
+	"app_follow_cta": "Auf X folgen"
 }

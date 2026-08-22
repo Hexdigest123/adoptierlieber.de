@@ -191,8 +191,8 @@
 	"meta_reset_description": "Use the code from the email to set a new password for your Adoptier Lieber account.",
 	"meta_error_title": "Page not found – Adoptier Lieber",
 	"meta_error_description": "This page does not exist or is temporarily unavailable.",
-	"meta_app_title": "Your app – Adoptier Lieber",
-	"meta_app_description": "Discover animals from shelters near you on Adoptier Lieber.",
+	"meta_app_title": "Coming soon – Adoptier Lieber",
+	"meta_app_description": "The app is coming soon — brought to you by LogiQ IT.",
 	"header_profile": "Profile",
 	"wizard_next": "Continue",
 	"wizard_back": "Back",
@@ -224,6 +224,9 @@
 	"profile_password_save": "Change password",
 	"profile_password_saved": "Password changed.",
 	"profile_password_current_error": "The current password is incorrect.",
-	"app_title": "Your app",
-	"app_subtitle": "Soon you'll find friends from shelters near you here."
+	"app_title": "Coming soon",
+	"app_subtitle": "Brought to you by LogiQ IT",
+	"app_collab": "Adoptier Lieber × LogiQ IT",
+	"app_follow": "Follow me on X so you never miss an update.",
+	"app_follow_cta": "Follow on X"
 }
