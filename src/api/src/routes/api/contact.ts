@@ -18,7 +18,7 @@ contact.post("/", rateLimitByIp("contact", 5), async (c) => {
   }
 
   // empty string must fall back to the default receiver
-  const receiver = process.env.SECRET_CONTACT_RECEIVER || process.env.SECRET_RECEIVER_INFO;
+  const receiver = process.env.SECRET_CONTACT_TO;
   if (receiver) {
     await sendMail(
       contactRequestTemplate({
