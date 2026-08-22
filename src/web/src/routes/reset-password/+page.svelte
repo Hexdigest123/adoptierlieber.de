@@ -10,8 +10,6 @@
 	let { data, form }: PageProps = $props();
 </script>
 
-<svelte:head><title>{m.auth_reset_title()} – {m.brand_name()}</title></svelte:head>
-
 {#if form?.resetSuccess}
 	<AuthCard title={m.auth_reset_success_title()}>
 		<FormStatus type="success">{m.auth_reset_success_text()}</FormStatus>

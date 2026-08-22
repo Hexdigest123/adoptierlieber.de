@@ -1,35 +1,25 @@
 <script lang="ts">
 	import ArrowRight from "lucide-svelte/icons/arrow-right";
+	import ChevronDown from "lucide-svelte/icons/chevron-down";
 	import PawPrint from "lucide-svelte/icons/paw-print";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
 
-	const stats = [
-		{ value: () => m.hero_stat_animals_value(), label: () => m.hero_stat_animals_label() },
-		{ value: () => m.hero_stat_shelters_value(), label: () => m.hero_stat_shelters_label() },
-		{ value: () => m.hero_stat_adoptions_value(), label: () => m.hero_stat_adoptions_label() },
-	];
+	let { user }: { user: App.Locals["user"] } = $props();
 </script>
 
 <section
-	class="relative overflow-hidden bg-gradient-to-br from-peach-100 via-peach-50 to-coral-100 px-4 py-16 sm:px-6 sm:py-24"
+	class="sticky top-0 z-0 flex h-dvh min-h-dvh items-center justify-center overflow-hidden bg-gradient-to-br from-peach-100 via-peach-50 to-coral-100 px-4 py-16 sm:px-6"
 	aria-labelledby="hero-title"
 >
-	<!-- Decorative soft glow -->
-	<div
-		class="pointer-events-none absolute -top-32 left-1/2 h-96 w-[42rem] -translate-x-1/2 rounded-full bg-peach-300/40 blur-3xl"
-		aria-hidden="true"
-	></div>
-
-	<!-- Fade into the next section (showcase) -->
-	<div
-		class="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-peach-50"
-		aria-hidden="true"
-	></div>
-
-	<!-- Floating paws (decorative) -->
 	<div class="pointer-events-none absolute inset-0" aria-hidden="true">
+		<!-- Decorative soft glow -->
+		<div
+			class="absolute -top-32 left-1/2 h-96 w-[42rem] -translate-x-1/2 rounded-full bg-peach-300/40 blur-3xl"
+		></div>
+
+		<!-- Floating paws (decorative) -->
 		<PawPrint
 			class="absolute top-[12%] left-[8%] size-10 rotate-[-18deg] animate-float text-coral-300"
 			style="--float-rotate: -18deg"
@@ -51,37 +41,28 @@
 	<div class="relative mx-auto max-w-4xl text-center">
 		<h1
 			id="hero-title"
-			class="text-4xl font-black tracking-tight text-balance text-sand-950 sm:text-6xl"
+			class="animate-hero-in text-5xl font-black tracking-tight text-balance text-sand-950 sm:text-7xl"
 		>
 			{m.hero_title()}
 		</h1>
-		<p class="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-pretty text-sand-800">
+		<p
+			class="mx-auto mt-6 max-w-2xl animate-hero-in-delayed text-lg leading-relaxed text-pretty text-sand-800 sm:text-xl"
+		>
 			{m.hero_subtitle()}
 		</p>
-		<div class="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-			<Button href={resolve("/register")} size="lg" class="w-full sm:w-auto">
+		<div class="mt-10 flex animate-hero-in-late items-center justify-center">
+			<Button href={resolve(user ? "/app" : "/register")} size="lg" class="w-full sm:w-auto">
 				{m.hero_cta_adopter()}
 				{#snippet iconRight()}<ArrowRight class="size-5" />{/snippet}
 			</Button>
-			<Button
-				href="{resolve('/register')}?type=shelter"
-				variant="outline"
-				size="lg"
-				class="w-full bg-white/60 sm:w-auto"
-			>
-				{m.hero_cta_shelter()}
-			</Button>
 		</div>
-
-		<dl class="mx-auto mt-14 grid max-w-2xl grid-cols-1 gap-6 sm:grid-cols-3">
-			{#each stats as stat (stat.label())}
-				<div
-					class="flex flex-col items-center gap-1 rounded-2xl bg-white/60 px-4 py-5 shadow-sm backdrop-blur"
-				>
-					<dt class="order-2 text-sm font-medium text-sand-700">{stat.label()}</dt>
-					<dd class="order-1 text-3xl font-black text-coral-700">{stat.value()}</dd>
-				</div>
-			{/each}
-		</dl>
 	</div>
+
+	<a
+		href="#showcase"
+		class="absolute inset-x-0 bottom-5 z-10 mx-auto flex w-fit flex-col items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-sand-700 focus-ring hover:text-coral-700"
+	>
+		{m.hero_scroll()}
+		<ChevronDown class="size-5 animate-hero-hint" aria-hidden="true" />
+	</a>
 </section>

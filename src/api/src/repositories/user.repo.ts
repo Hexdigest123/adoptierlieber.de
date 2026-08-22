@@ -14,6 +14,7 @@ export function createUserRepo(env: Env) {
           name: usersTable.name,
           displayName: usersTable.displayName,
           email: usersTable.email,
+          avatarKey: usersTable.avatarKey,
         })
         .from(usersTable)
         .all();
@@ -25,6 +26,7 @@ export function createUserRepo(env: Env) {
       password: string;
       emailVerificationToken?: string | null;
       emailVerificationTokenExpiresAt?: Date | null;
+      avatarKey?: string | null;
     }) {
       return db
         .insert(usersTable)
@@ -34,6 +36,7 @@ export function createUserRepo(env: Env) {
           name: usersTable.name,
           displayName: usersTable.displayName,
           email: usersTable.email,
+          avatarKey: usersTable.avatarKey,
         })
         .get();
     },
@@ -90,6 +93,37 @@ export function createUserRepo(env: Env) {
           name: usersTable.name,
           displayName: usersTable.displayName,
           email: usersTable.email,
+          avatarKey: usersTable.avatarKey,
+        })
+        .get();
+    },
+
+    updateProfile(
+      userId: string,
+      values: { name?: string; displayName?: string | null },
+    ) {
+      return db
+        .update(usersTable)
+        .set(values)
+        .where(eq(usersTable.id, userId))
+        .returning({
+          id: usersTable.id,
+          name: usersTable.name,
+          displayName: usersTable.displayName,
+          email: usersTable.email,
+          avatarKey: usersTable.avatarKey,
+        })
+        .get();
+    },
+
+    updateAvatarKey(userId: string, avatarKey: string | null) {
+      return db
+        .update(usersTable)
+        .set({ avatarKey })
+        .where(eq(usersTable.id, userId))
+        .returning({
+          id: usersTable.id,
+          avatarKey: usersTable.avatarKey,
         })
         .get();
     },

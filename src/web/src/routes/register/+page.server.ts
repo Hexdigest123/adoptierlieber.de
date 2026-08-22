@@ -1,5 +1,6 @@
 import { fail } from "@sveltejs/kit";
 import type { Actions } from "./$types";
+import { checkAvatarFile } from "$lib/server/avatar";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,14 +25,17 @@ export const actions: Actions = {
 		const accountType = data.get("accountType") === "shelter" ? "shelter" : "adopter";
 
 		const name = String(data.get("name") ?? "").trim();
+		const displayName = String(data.get("displayName") ?? "").trim();
 		const email = String(data.get("email") ?? "")
 			.trim()
 			.toLowerCase();
 		const password = String(data.get("password") ?? "");
+		const avatar = data.get("avatar");
 
 		const values = {
 			accountType,
 			name,
+			displayName,
 			email,
 			orgName: String(data.get("orgName") ?? "").trim(),
 			street: String(data.get("street") ?? "").trim(),
@@ -61,26 +65,31 @@ export const actions: Actions = {
 		}
 
 		const endpoint = accountType === "shelter" ? "/api/shelters" : "/api/users";
-		const payload =
-			accountType === "shelter"
-				? {
-						name,
-						email,
-						password,
-						orgName: values.orgName,
-						street: values.street,
-						zip: values.zip,
-						city: values.city,
-						...(values.website ? { website: values.website } : {}),
-						...(values.registrationNumber ? { registrationNumber: values.registrationNumber } : {}),
-						...(values.description ? { description: values.description } : {}),
-					}
-				: { name, email, password };
+		const body = new FormData();
+		body.set("name", name);
+		body.set("email", email);
+		body.set("password", password);
+		if (displayName) body.set("displayName", displayName);
+		if (accountType === "shelter") {
+			body.set("orgName", values.orgName);
+			body.set("street", values.street);
+			body.set("zip", values.zip);
+			body.set("city", values.city);
+			if (values.website) body.set("website", values.website);
+			if (values.registrationNumber) body.set("registrationNumber", values.registrationNumber);
+			if (values.description) body.set("description", values.description);
+		}
+		if (avatar instanceof File && avatar.size > 0) {
+			const check = await checkAvatarFile(avatar);
+			if (!check.ok) {
+				return fail(400, { registerError: "invalid" as const, values });
+			}
+			body.set("avatar", avatar);
+		}
 
 		const response = await fetch(endpoint, {
 			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify(payload),
+			body,
 		});
 
 		if (!response.ok) {

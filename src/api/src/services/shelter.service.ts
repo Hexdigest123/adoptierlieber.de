@@ -7,6 +7,7 @@ import { createUserRepo } from "../repositories/user.repo";
 import { createShelterRepo } from "../repositories/shelter.repo";
 import { createShelterMemberRepo } from "../repositories/shelter-member.repo";
 import type { ShelterMember } from "../types";
+import { parseAvatarFile, putAvatar } from "../lib/avatar";
 
 export function createShelterService(env: Env) {
   const userRepo = createUserRepo(env);
@@ -18,8 +19,12 @@ export function createShelterService(env: Env) {
      * Register a new shelter together with its owner account.
      * Creates user (+ email-verification token) + shelter (pending) + membership (OWNER).
      */
-    async create(input: unknown): Promise<{ verificationToken: string } | null> {
+    async create(
+      input: unknown,
+      avatarFile: File | null = null,
+    ): Promise<{ verificationToken: string } | null> {
       const data = createShelterSchema.parse(input);
+      const parsedAvatar = avatarFile ? await parseAvatarFile(avatarFile) : null;
 
       const hashedPassword = await hashPassword(data.password);
       const { token, hashedToken } = await generateToken();
@@ -29,6 +34,7 @@ export function createShelterService(env: Env) {
       try {
         user = await userRepo.create({
           name: data.name,
+          displayName: data.displayName,
           email: data.email,
           password: hashedPassword,
           emailVerificationToken: hashedToken,
@@ -71,6 +77,15 @@ export function createShelterService(env: Env) {
         await userRepo.delete(user.id);
         await shelterRepo.delete(shelter.id);
         throw e;
+      }
+
+      if (parsedAvatar) {
+        try {
+          const avatarKey = await putAvatar(env, user.id, parsedAvatar);
+          await userRepo.updateAvatarKey(user.id, avatarKey);
+        } catch (e: unknown) {
+          console.error(e);
+        }
       }
 
       return { verificationToken: token };

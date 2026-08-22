@@ -7,16 +7,23 @@ import {
   shelterRegistrationNotificationTemplate,
   verifyEmailTemplate,
 } from "../../lib/email-templates";
+import { readCreateBody } from "../../lib/avatar";
 
 export const shelters = new Hono<AppEnv>();
 
+function asString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 /** Register a new shelter together with its owner account. */
 shelters.post("/", rateLimitByIp("create-shelter", 5), async (c) => {
-  const input = await c.req.json();
-  const result = await createShelterService(c.env).create(input);
+  const { fields, avatar } = await readCreateBody(c.req.raw);
+  const result = await createShelterService(c.env).create(fields, avatar);
   if (result && "verificationToken" in result) {
     c.executionCtx.waitUntil(
-      sendMail(verifyEmailTemplate({ to: input.email, token: result.verificationToken })),
+      sendMail(
+        verifyEmailTemplate({ to: asString(fields.email), token: result.verificationToken }),
+      ),
     );
     // empty string must fall back to the default receiver
     const teamInbox = process.env.SECRET_CONTACT_TO;
@@ -25,15 +32,15 @@ shelters.post("/", rateLimitByIp("create-shelter", 5), async (c) => {
         sendMail(
           shelterRegistrationNotificationTemplate({
             to: teamInbox,
-            orgName: input.orgName,
-            street: input.street,
-            zip: input.zip,
-            city: input.city,
-            website: input.website,
-            registrationNumber: input.registrationNumber,
-            name: input.name,
-            email: input.email,
-            description: input.description,
+            orgName: asString(fields.orgName),
+            street: asString(fields.street),
+            zip: asString(fields.zip),
+            city: asString(fields.city),
+            website: asString(fields.website) || undefined,
+            registrationNumber: asString(fields.registrationNumber) || undefined,
+            name: asString(fields.name),
+            email: asString(fields.email),
+            description: asString(fields.description) || undefined,
           }),
         ),
       );
