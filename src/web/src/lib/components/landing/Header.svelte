@@ -56,18 +56,15 @@
 	aria-hidden={!pinned}
 	inert={!pinned}
 >
-	<div
-		class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr]"
-	>
-		<a
-			href={resolve("/")}
-			class="justify-self-start rounded-full focus-ring"
-			aria-label={m.brand_name()}
-		>
+	<div class="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+		<a href={resolve("/")} class="relative z-10 rounded-full focus-ring" aria-label={m.brand_name()}>
 			<Logo />
 		</a>
 
-		<nav aria-label={m.brand_name()} class="hidden items-center gap-1 md:flex">
+		<nav
+			aria-label={m.brand_name()}
+			class="absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-1 md:flex"
+		>
 			{#each navItems as item (item.href)}
 				<a
 					href={item.href}
@@ -78,7 +75,7 @@
 			{/each}
 		</nav>
 
-		<div class="hidden items-center gap-2 justify-self-end md:flex">
+		<div class="relative z-10 hidden items-center gap-2 md:flex">
 			<div
 				class="mr-1 flex items-center rounded-full border border-sand-200 p-0.5"
 				role="group"

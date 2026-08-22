@@ -2,6 +2,21 @@
   "name": "adoptierlieber-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-14",
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true,
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1,
+    },
+  },
   "routes": [
     {
       "pattern": "api.adoptierlieber.de",
@@ -51,6 +66,21 @@
           "binding": "adoptierlieber_images",
         },
       ],
+      "observability": {
+        "enabled": false,
+        "head_sampling_rate": 1,
+        "logs": {
+          "enabled": true,
+          "head_sampling_rate": 1,
+          "persist": true,
+          "invocation_logs": true,
+        },
+        "traces": {
+          "enabled": false,
+          "persist": true,
+          "head_sampling_rate": 1,
+        },
+      },
       "vars": {
         "ENVIRONMENT": "staging",
         "BASIC_AUTH_USER": "staging",
