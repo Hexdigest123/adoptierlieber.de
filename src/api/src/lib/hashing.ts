@@ -1,5 +1,7 @@
-const PBKDF2_ITERATIONS = 600_000;
-const MIN_ITERATIONS = 600_000;
+// Workers reject PBKDF2 above 100k (NotSupportedError). OWASP wants 600k;
+// that throws on the edge and register/login 500s.
+const PBKDF2_ITERATIONS = 100_000;
+const MIN_ITERATIONS = 100_000;
 const KEY_LENGTH = 32;
 const SALT_LENGTH = 16;
 const MAX_ITERATIONS = 10_000_000;
