@@ -1,23 +1,130 @@
-import { drizzle } from 'drizzle-orm/d1'
-import { usersTable } from '../schema'
-import type { Env } from '../config/env'
+import { drizzle } from "drizzle-orm/d1";
+import { usersTable } from "../schema";
+import { getDb, type Env } from "../config/env";
+import { eq, sql } from "drizzle-orm";
 
 export function createUserRepo(env: Env) {
-  const db = drizzle(env.adoptierlieber, { schema: { usersTable } })
+  const db = drizzle(getDb(env), { schema: { usersTable } });
 
   return {
     list() {
       return db
-        .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
+        .select({
+          id: usersTable.id,
+          name: usersTable.name,
+          displayName: usersTable.displayName,
+          email: usersTable.email,
+        })
         .from(usersTable)
-        .all()
+        .all();
     },
-    create(input: { name: string; email: string; password: string }) {
+    create(input: {
+      name: string;
+      displayName?: string;
+      email: string;
+      password: string;
+      emailVerificationToken?: string | null;
+      emailVerificationTokenExpiresAt?: Date | null;
+    }) {
       return db
         .insert(usersTable)
         .values(input)
-        .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
-        .get()
-    }
-  }
+        .returning({
+          id: usersTable.id,
+          name: usersTable.name,
+          displayName: usersTable.displayName,
+          email: usersTable.email,
+        })
+        .get();
+    },
+    findById(id: string) {
+      return db.select().from(usersTable).where(eq(usersTable.id, id)).get();
+    },
+    findByEmail(email: string) {
+      // sql`` binds the value; column ref is an identifier, not interpolation
+      return db
+        .select()
+        .from(usersTable)
+        .where(sql`lower(${usersTable.email}) = ${email.toLowerCase()}`)
+        .get();
+    },
+    updateDeletionToken(
+      userId: string,
+      accountDeletionToken: string,
+      accountDeletionTokenExpiresAt: Date,
+    ) {
+      return db
+        .update(usersTable)
+        .set({ accountDeletionToken, accountDeletionTokenExpiresAt })
+        .where(eq(usersTable.id, userId))
+        .returning({
+          accountDeletionToken: usersTable.accountDeletionToken,
+          accountDeletionTokenExpiresAt: usersTable.accountDeletionTokenExpiresAt,
+        })
+        .get();
+    },
+
+    updateResetToken(
+      userId: string,
+      passwordResetToken: string,
+      passwordResetTokenExpiresAt: Date,
+    ) {
+      return db
+        .update(usersTable)
+        .set({ passwordResetToken, passwordResetTokenExpiresAt })
+        .where(eq(usersTable.id, userId))
+        .returning({
+          accountResetToken: usersTable.passwordResetToken,
+          accountResetTokenExpiresAt: usersTable.passwordResetTokenExpiresAt,
+        })
+        .get();
+    },
+
+    updatePassword(userId: string, password: string) {
+      return db
+        .update(usersTable)
+        .set({ password: password, passwordChangedAt: new Date() })
+        .where(eq(usersTable.id, userId))
+        .returning({
+          id: usersTable.id,
+          name: usersTable.name,
+          displayName: usersTable.displayName,
+          email: usersTable.email,
+        })
+        .get();
+    },
+
+    delete(id: string) {
+      return db.delete(usersTable).where(eq(usersTable.id, id)).run();
+    },
+
+    unsetPasswordReset(userId: string) {
+      return db
+        .update(usersTable)
+        .set({ passwordResetToken: null, passwordResetTokenExpiresAt: null })
+        .where(eq(usersTable.id, userId))
+        .run();
+    },
+
+    unsetAccountDeletion(userId: string) {
+      return db
+        .update(usersTable)
+        .set({ accountDeletionToken: null, accountDeletionTokenExpiresAt: null })
+        .where(eq(usersTable.id, userId))
+        .run();
+    },
+
+    verifyEmail(userId: string) {
+      return db
+        .update(usersTable)
+        .set({
+          emailVerifiedAt: new Date(),
+          emailVerificationToken: null,
+          emailVerificationTokenExpiresAt: null,
+        })
+        .where(eq(usersTable.id, userId))
+        .returning({ id: usersTable.id })
+        .get();
+    },
+  };
 }
