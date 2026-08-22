@@ -1,20 +1,244 @@
-import { createUserRepo } from '../repositories/user.repo'
-import { createUserSchema } from '../lib/zod'
-import type { Env } from '../config/env'
-import type { User } from '../types'
+import { createUserRepo } from "../repositories/user.repo";
+import {
+  createUserSchema,
+  authenticateSchema,
+  deleteUserSchema,
+  resetUserSchema as resetPasswordUserSchema,
+} from "../lib/zod";
+import type { Env } from "../config/env";
+import type { PublicSession, PublicUser } from "../types";
+import {
+  generateToken,
+  hashPassword,
+  verifyPassword,
+  hashToken,
+  verifyDummyPassword,
+  tokensEqual,
+  passwordNeedsRehash,
+} from "../lib/hashing";
+import { HTTPException } from "hono/http-exception";
+import { createSessionService } from "./session.service";
+import { sendMail } from "../lib/mail";
+import {
+  accountDeletionTemplate,
+  passwordChangedTemplate,
+  passwordResetTemplate,
+} from "../lib/email-templates";
+import { verifyEmailSchema } from "../lib/zod";
 
 export function createUserService(env: Env) {
-  const repo = createUserRepo(env)
+  const repo = createUserRepo(env);
 
   return {
-    async list(): Promise<User[]> {
-      const rows = await repo.list()
-      return rows.map((row) => ({ id: row.id, name: row.name, email: row.email }))
+    async create(input: unknown): Promise<{ verificationToken: string } | null> {
+      const data = createUserSchema.parse(input);
+
+      data.password = await hashPassword(data.password);
+
+      const { token, hashedToken } = await generateToken();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      let row: PublicUser;
+      try {
+        row = await repo.create({
+          ...data,
+          emailVerificationToken: hashedToken,
+          emailVerificationTokenExpiresAt: expiresAt,
+        });
+      } catch (e: unknown) {
+        if (await repo.findByEmail(data.email)) {
+          throw new HTTPException(409, { message: "email already registered" });
+        }
+        throw e;
+      }
+
+      if (!row) {
+        return null;
+      }
+      return { verificationToken: token };
     },
-    async create(input: unknown): Promise<User> {
-      const data = createUserSchema.parse(input)
-      const row = await repo.create(data)
-      return { id: row.id, name: row.name, email: row.email }
-    }
-  }
+
+    async verifyEmail(input: unknown): Promise<boolean> {
+      const data = verifyEmailSchema.parse(input);
+      const user = await repo.findByEmail(data.email);
+      if (!user) {
+        return false;
+      }
+      if (
+        !user.emailVerificationToken ||
+        !user.emailVerificationTokenExpiresAt ||
+        user.emailVerificationTokenExpiresAt.getTime() < Date.now()
+      ) {
+        return false;
+      }
+      if (!tokensEqual(await hashToken(data.token), user.emailVerificationToken)) {
+        return false;
+      }
+      await repo.verifyEmail(user.id);
+      return true;
+    },
+
+    async delete(input: unknown, sessionToken: string): Promise<boolean> {
+      const data = deleteUserSchema.parse(input);
+      const session = await createSessionService(env).findByToken(sessionToken);
+      const user = await repo.findById(session.userId);
+      if (!session || !user) {
+        throw new HTTPException(404, { message: "session or user not found" });
+      }
+
+      if (data.deletionToken) {
+        if (await this.compareDeletionToken(data.deletionToken, session.userId)) {
+          await repo.unsetAccountDeletion(session.userId);
+          await createSessionService(env).deleteAllWithUserId(session.userId);
+          await repo.delete(session.userId);
+        }
+      } else {
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+        const { token, hashedToken } = await generateToken();
+
+        try {
+          await sendMail(accountDeletionTemplate({ to: user.email, token }));
+        } catch (e: unknown) {
+          console.error(e);
+          throw new HTTPException(500, { message: "failed to send deletion email" });
+        }
+
+        if (!(await repo.updateDeletionToken(session.userId, hashedToken, expiresAt))) {
+          return false;
+        }
+      }
+
+      return true;
+    },
+
+    async reset(input: unknown): Promise<boolean> {
+      const data = resetPasswordUserSchema.parse(input);
+      if (!data.email) {
+        throw new HTTPException(422, { message: "missing values in the body" });
+      }
+      const user = await repo.findByEmail(data.email);
+      if (!user) {
+        await verifyDummyPassword();
+        return true;
+      }
+
+      if (data.resetToken && data.newPassword) {
+        if (await this.comparePasswordResetToken(data.resetToken, user.id)) {
+          await repo.unsetPasswordReset(user.id);
+          await createSessionService(env).deleteAllWithUserId(user.id);
+          const newHashedPassword = await hashPassword(data.newPassword);
+          if (!(await repo.updatePassword(user.id, newHashedPassword))) {
+            throw new HTTPException(500, { message: "failed to update password" });
+          }
+          try {
+            await sendMail(passwordChangedTemplate({ to: user.email }));
+          } catch (e: unknown) {
+            console.error(e);
+          }
+          return true;
+        }
+      } else {
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+        const { token, hashedToken } = await generateToken();
+
+        try {
+          await sendMail(passwordResetTemplate({ to: user.email, token }));
+        } catch (e: unknown) {
+          console.error(e);
+          throw new HTTPException(500, { message: "failed to send reset email" });
+        }
+
+        if (!(await repo.updateResetToken(user.id, hashedToken, expiresAt))) {
+          return false;
+        }
+      }
+
+      return true;
+    },
+
+    async getById(userId: string): Promise<PublicUser> {
+      const row = await repo.findById(userId);
+      if (!row) {
+        throw new HTTPException(404, { message: "user not found" });
+      }
+      return { id: row.id, name: row.name, displayName: row.displayName, email: row.email };
+    },
+
+    async compareDeletionToken(deletionToken: string, userId: string) {
+      const row = await repo.findById(userId);
+      if (!row) {
+        throw new HTTPException(404, { message: "user not found" });
+      }
+      if (
+        !row.accountDeletionToken ||
+        !row.accountDeletionTokenExpiresAt ||
+        row.accountDeletionTokenExpiresAt.getTime() < Date.now()
+      ) {
+        throw new HTTPException(400, { message: "deletion token expired" });
+      }
+
+      if (!tokensEqual(await hashToken(deletionToken), row.accountDeletionToken)) {
+        throw new HTTPException(401, { message: "invalid deletion token" });
+      }
+
+      return true;
+    },
+
+    async comparePasswordResetToken(passwordResetToken: string, userId: string) {
+      const row = await repo.findById(userId);
+      if (!row) {
+        throw new HTTPException(404, { message: "user not found" });
+      }
+      if (
+        !row.passwordResetToken ||
+        !row.passwordResetTokenExpiresAt ||
+        row.passwordResetTokenExpiresAt.getTime() < Date.now()
+      ) {
+        throw new HTTPException(400, { message: "reset token expired" });
+      }
+
+      if (!tokensEqual(await hashToken(passwordResetToken), row.passwordResetToken)) {
+        throw new HTTPException(401, { message: "invalid reset token" });
+      }
+
+      return true;
+    },
+
+    async authenticate(input: unknown, userAgent: string | null): Promise<PublicSession> {
+      const data = authenticateSchema.parse(input);
+      const user = await repo.findByEmail(data.email);
+      if (!user) {
+        await verifyDummyPassword(data.password);
+        throw new HTTPException(401, { message: "invalid email or password" });
+      }
+
+      const valid = await verifyPassword(data.password, user.password);
+      if (!valid) {
+        throw new HTTPException(401, { message: "invalid email or password" });
+      }
+
+      if (!user.emailVerifiedAt) {
+        throw new HTTPException(401, { message: "invalid email or password" });
+      }
+
+      if (passwordNeedsRehash(user.password)) {
+        await repo.updatePassword(user.id, await hashPassword(data.password));
+      }
+
+      const session = await createSessionService(env).create(
+        {
+          userId: user.id,
+        },
+        userAgent,
+      );
+      return session;
+    },
+
+    async logout(sessionToken: string): Promise<void> {
+      await createSessionService(env).deleteWithSessionToken(sessionToken);
+    },
+    async logoutAll(userId: string): Promise<void> {
+      await createSessionService(env).deleteAllWithUserId(userId);
+    },
+  };
 }
