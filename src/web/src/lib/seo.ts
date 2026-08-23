@@ -13,6 +13,7 @@ const NOINDEX_ROUTES = new Set([
 	"/verify",
 	"/forgot-password",
 	"/reset-password",
+	"/delete-account",
 ]);
 
 type PageMeta = {
@@ -60,6 +61,10 @@ const pages: Record<string, PageMeta> = {
 	"/reset-password": {
 		title: () => m.meta_reset_title(),
 		description: () => m.meta_reset_description(),
+	},
+	"/delete-account": {
+		title: () => m.meta_delete_account_title(),
+		description: () => m.meta_delete_account_description(),
 	},
 };
 

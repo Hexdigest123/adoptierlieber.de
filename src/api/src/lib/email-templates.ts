@@ -3,6 +3,23 @@ import type { MailOptions } from "./mail";
 export const BRAND_NAME = "Adoptier Lieber";
 export const BRAND_URL = "https://adoptierlieber.de";
 const BRAND_DOMAIN = "adoptierlieber.de";
+const STAGING_URL = "https://staging.adoptierlieber.de";
+
+/** Public web origin for links in mail. Local: PUBLIC_SITE_URL. Staging: ENVIRONMENT=staging. */
+export function siteUrl(): string {
+	const fromEnv = process.env.PUBLIC_SITE_URL?.trim().replace(/\/+$/, "");
+	if (fromEnv) return fromEnv;
+	if (process.env.ENVIRONMENT === "staging") return STAGING_URL;
+	return BRAND_URL;
+}
+
+function actionUrl(path: string, params: Record<string, string>): string {
+	const url = new URL(path, `${siteUrl()}/`);
+	for (const [key, value] of Object.entries(params)) {
+		url.searchParams.set(key, value);
+	}
+	return url.toString();
+}
 
 // PNG render of src/web/src/lib/assets/logo.svg (128px, generated via rsvg-convert).
 // PNG data URI is used because SVG <img> is not supported in Gmail/Outlook.
@@ -99,6 +116,17 @@ function tokenBox(token: string): string {
 	return `<div style="margin:24px 0 0;padding:16px 20px;background-color:${COLORS.codeBg};border:1px dashed ${COLORS.borderStrong};border-radius:10px;font-family:${MONO_STACK};font-size:18px;font-weight:600;letter-spacing:2px;text-align:center;color:${COLORS.heading};">${escapeHtml(token)}</div>`;
 }
 
+/** Outlook-safe pill button. href is already built; still escape for the attribute. */
+function ctaButton(href: string, label: string): string {
+	return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 0;">
+		<tr>
+			<td align="center" bgcolor="${COLORS.brand}" style="border-radius:999px;">
+				<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:14px 28px;font-family:${FONT_STACK};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:999px;background-color:${COLORS.brand};">${escapeHtml(label)}</a>
+			</td>
+		</tr>
+	</table>`;
+}
+
 function note(text: string): string {
 	return `<p style="margin:16px 0 0;font-family:${FONT_STACK};font-size:13px;line-height:1.6;color:${COLORS.note};">${escapeHtml(text)}</p>`;
 }
@@ -132,34 +160,42 @@ export type VerifyEmailInput = EmailTemplateInput & {
 	expiresInHours?: number;
 };
 
-/** Verification code for new user and shelter owner accounts (24h default). */
+/** Verification link for new user and shelter owner accounts (24h default). */
 export function verifyEmailTemplate({
 	to,
 	token,
 	expiresInHours = 24,
 }: VerifyEmailInput): MailOptions {
 	const expiry = expiryLabel(expiresInHours);
+	const recipient = Array.isArray(to) ? to[0] : to;
+	const href = actionUrl("/verify", { email: recipient, token });
 	const subject = "Bestätige deine E-Mail-Adresse";
 	return {
 		to,
 		subject,
 		text: `Bestätige deine E-Mail-Adresse
 
-Schön, dass du bei Adoptier Lieber dabei bist! Um dein Konto zu aktivieren, bestätige bitte deine E-Mail-Adresse mit dem folgenden Code:
+Schön, dass du bei Adoptier Lieber dabei bist! Um dein Konto zu aktivieren, öffne diesen Link:
+
+${href}
+
+Oder gib auf der Bestätigungsseite diesen Code ein:
 
 ${token}
 
-Der Code ist ${expiry} gültig. Solltest du keine Registrierung vorgenommen haben, kannst du diese E-Mail einfach ignorieren.`,
+Der Link ist ${expiry} gültig. Solltest du keine Registrierung vorgenommen haben, kannst du diese E-Mail einfach ignorieren.`,
 		html: layout({
 			preview: "Fast geschafft – bestätige deine E-Mail-Adresse, um dein Konto zu aktivieren.",
 			body: [
 				heading("Bestätige deine E-Mail-Adresse"),
 				paragraph(
-					"Schön, dass du bei Adoptier Lieber dabei bist! Um dein Konto zu aktivieren, bestätige bitte deine E-Mail-Adresse mit dem folgenden Code:",
+					"Schön, dass du bei Adoptier Lieber dabei bist! Um dein Konto zu aktivieren, klicke auf den Button:",
 				),
+				ctaButton(href, "E-Mail bestätigen"),
+				note("Falls der Button nicht funktioniert, nutze diesen Code auf der Bestätigungsseite:"),
 				tokenBox(token),
 				note(
-					`Der Code ist ${expiry} gültig. Solltest du keine Registrierung vorgenommen haben, kannst du diese E-Mail einfach ignorieren.`,
+					`Der Link ist ${expiry} gültig. Solltest du keine Registrierung vorgenommen haben, kannst du diese E-Mail einfach ignorieren.`,
 				),
 			].join(""),
 		}),
@@ -270,34 +306,41 @@ export type AccountDeletionInput = EmailTemplateInput & {
 	expiresInHours?: number;
 };
 
-/** Confirmation code to complete an account deletion request (1h default). */
+/** Confirmation link to complete an account deletion request (1h default). */
 export function accountDeletionTemplate({
 	to,
 	token,
 	expiresInHours = 1,
 }: AccountDeletionInput): MailOptions {
 	const expiry = expiryLabel(expiresInHours);
+	const href = actionUrl("/delete-account", { token });
 	const subject = "Konto löschen – Bestätigung";
 	return {
 		to,
 		subject,
 		text: `Konto löschen – Bestätigung
 
-Du hast die Löschung deines Kontos angefordert. Gib den folgenden Code ein, um die Löschung abzuschließen:
+Du hast die Löschung deines Kontos angefordert. Öffne diesen Link und bestätige die Löschung dort. Du musst angemeldet sein:
+
+${href}
+
+Oder gib auf der Profilseite diesen Code ein:
 
 ${token}
 
-Achtung: Die Löschung ist endgültig und kann nicht rückgängig gemacht werden. Der Code ist ${expiry} gültig. Falls du die Löschung nicht angefordert hast, kannst du diese E-Mail ignorieren.`,
+Achtung: Die Löschung ist endgültig und kann nicht rückgängig gemacht werden. Der Link ist ${expiry} gültig. Falls du die Löschung nicht angefordert hast, kannst du diese E-Mail ignorieren.`,
 		html: layout({
-			preview: "Gib den Code ein, um die Löschung deines Kontos abzuschließen.",
+			preview: "Bestätige die Löschung deines Kontos über den Button.",
 			body: [
 				heading("Konto löschen"),
 				paragraph(
-					"Du hast die Löschung deines Kontos angefordert. Gib den folgenden Code ein, um die Löschung abzuschließen:",
+					"Du hast die Löschung deines Kontos angefordert. Klicke auf den Button und bestätige die Löschung auf der nächsten Seite. Du musst angemeldet sein.",
 				),
+				ctaButton(href, "Löschung bestätigen"),
+				note("Falls der Button nicht funktioniert, nutze diesen Code auf der Profilseite:"),
 				tokenBox(token),
 				note(
-					`Achtung: Die Löschung ist endgültig und kann nicht rückgängig gemacht werden. Der Code ist ${expiry} gültig. Falls du die Löschung nicht angefordert hast, kannst du diese E-Mail ignorieren.`,
+					`Achtung: Die Löschung ist endgültig und kann nicht rückgängig gemacht werden. Der Link ist ${expiry} gültig. Falls du die Löschung nicht angefordert hast, kannst du diese E-Mail ignorieren.`,
 				),
 			].join(""),
 		}),
@@ -330,34 +373,42 @@ Das Passwort deines Adoptier-Lieber-Kontos wurde gerade geändert. Falls du das 
 	};
 }
 
-/** Reset code for the password reset flow (1h default). */
+/** Reset link for the password reset flow (1h default). */
 export function passwordResetTemplate({
 	to,
 	token,
 	expiresInHours = 1,
 }: PasswordResetInput): MailOptions {
 	const expiry = expiryLabel(expiresInHours);
+	const recipient = Array.isArray(to) ? to[0] : to;
+	const href = actionUrl("/reset-password", { email: recipient, token });
 	const subject = "Passwort zurücksetzen";
 	return {
 		to,
 		subject,
 		text: `Passwort zurücksetzen
 
-Du hast ein Zurücksetzen deines Passworts angefordert. Gib den folgenden Code zusammen mit deinem neuen Passwort ein:
+Du hast ein Zurücksetzen deines Passworts angefordert. Öffne diesen Link und setze dort dein neues Passwort:
+
+${href}
+
+Oder gib auf der Seite diesen Code zusammen mit deinem neuen Passwort ein:
 
 ${token}
 
-Der Code ist ${expiry} gültig. Falls du das Zurücksetzen nicht angefordert hast, kannst du diese E-Mail ignorieren.`,
+Der Link ist ${expiry} gültig. Falls du das Zurücksetzen nicht angefordert hast, kannst du diese E-Mail ignorieren.`,
 		html: layout({
-			preview: "Gib den Code zusammen mit deinem neuen Passwort ein.",
+			preview: "Setze dein Passwort über den Button zurück.",
 			body: [
 				heading("Passwort zurücksetzen"),
 				paragraph(
-					"Du hast ein Zurücksetzen deines Passworts angefordert. Gib den folgenden Code zusammen mit deinem neuen Passwort ein:",
+					"Du hast ein Zurücksetzen deines Passworts angefordert. Klicke auf den Button und setze dort dein neues Passwort:",
 				),
+				ctaButton(href, "Passwort zurücksetzen"),
+				note("Falls der Button nicht funktioniert, nutze diesen Code auf der Seite:"),
 				tokenBox(token),
 				note(
-					`Der Code ist ${expiry} gültig. Falls du das Zurücksetzen nicht angefordert hast, kannst du diese E-Mail ignorieren.`,
+					`Der Link ist ${expiry} gültig. Falls du das Zurücksetzen nicht angefordert hast, kannst du diese E-Mail ignorieren.`,
 				),
 			].join(""),
 		}),

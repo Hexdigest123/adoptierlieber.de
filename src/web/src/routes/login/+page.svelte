@@ -7,11 +7,15 @@
 	import Input from "$lib/components/ui/Input.svelte";
 	import FormStatus from "$lib/components/ui/FormStatus.svelte";
 
-	let { form }: PageProps = $props();
+	let { data, form }: PageProps = $props();
+	const next = $derived(form?.next || data.next);
 </script>
 
 <AuthCard title={m.auth_login_title()} subtitle={m.auth_login_subtitle()}>
 	<form method="POST" class="flex flex-col gap-5">
+		{#if next}
+			<input type="hidden" name="next" value={next} />
+		{/if}
 		{#if form?.loginError}
 			<FormStatus type="error">
 				{form.loginError === "rate_limited" ? m.error_rate_limited() : m.auth_login_error()}
