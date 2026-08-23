@@ -11,6 +11,7 @@ import { chats } from "./api/chats";
 import { likes } from "./api/likes";
 import { swipes } from "./api/swipes";
 import { geo } from "./api/geo";
+import { reviews } from "./api/reviews";
 
 const api = new Hono<AppEnv>();
 api.route("/users", users);
@@ -24,6 +25,7 @@ api.route("/chats", chats);
 api.route("/likes", likes);
 api.route("/swipes", swipes);
 api.route("/geo", geo);
+api.route("/reviews", reviews);
 
 const routes = new Hono<AppEnv>();
 routes.route("/api", api);

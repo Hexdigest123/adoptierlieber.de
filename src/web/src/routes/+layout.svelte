@@ -6,6 +6,7 @@
 	import Footer from "$lib/components/landing/Footer.svelte";
 	import SeoHead from "$lib/components/SeoHead.svelte";
 	import SupportWidget from "$lib/components/ui/SupportWidget.svelte";
+	import ReviewWidget from "$lib/components/ui/ReviewWidget.svelte";
 
 	import { page } from "$app/state";
 
@@ -35,4 +36,5 @@
 	</div>
 {/if}
 
+<ReviewWidget user={data.user} />
 <SupportWidget user={data.user} />

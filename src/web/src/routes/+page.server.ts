@@ -1,20 +1,39 @@
 import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import type { PublicExcerpt } from "$lib/types/catalog";
+import type { PublicReview } from "$lib/types/review";
 import { excerptsToCards } from "$lib/data/excerpts";
 
 export const load: PageServerLoad = async ({ fetch }) => {
+	const [showcase, reviews] = await Promise.all([loadShowcase(fetch), loadReviews(fetch)]);
+	return { showcase, reviews };
+};
+
+async function loadShowcase(fetchFn: typeof fetch) {
 	try {
-		const response = await fetch("/api/animals/excerpts");
+		const response = await fetchFn("/api/animals/excerpts");
 		if (response.ok) {
 			const body = (await response.json()) as { items?: PublicExcerpt[] };
-			return { showcase: excerptsToCards(body.items ?? []) };
+			return excerptsToCards(body.items ?? []);
 		}
 	} catch {
 		// empty showcase
 	}
-	return { showcase: [] };
-};
+	return [];
+}
+
+async function loadReviews(fetchFn: typeof fetch): Promise<PublicReview[]> {
+	try {
+		const response = await fetchFn("/api/reviews");
+		if (response.ok) {
+			const body = (await response.json()) as { items?: PublicReview[] };
+			return (body.items ?? []).slice(0, 10);
+		}
+	} catch {
+		// empty reviews
+	}
+	return [];
+}
 
 export const actions: Actions = {
 	contact: async ({ request, fetch }) => {

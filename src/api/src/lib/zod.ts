@@ -174,6 +174,13 @@ export const contactSchema = z.object({
   website: z.string().max(200).optional(),
 });
 
+export const createReviewSchema = z.object({
+  body: text(800),
+  stars: z.coerce.number().int().min(1).max(5),
+  // honeypot: must stay empty; filled by bots only
+  website: z.string().max(200).optional(),
+});
+
 export const speciesSchema = z.enum([
   "cat",
   "dog",
@@ -367,6 +374,8 @@ export const AUDIT_ACTIONS = [
   "ban_lookup_hit",
   "transfer_shelter",
   "archive_shelter",
+  "approve_review",
+  "delete_review",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

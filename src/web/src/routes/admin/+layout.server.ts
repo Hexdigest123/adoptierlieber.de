@@ -12,15 +12,24 @@ export const load: LayoutServerLoad = async ({ locals, url, fetch }) => {
 	}
 
 	let pendingCount = 0;
+	let pendingReviewCount = 0;
 	try {
-		const response = await fetch("/api/admin/applications?verification_status=pending&per_page=1");
-		if (response.ok) {
-			const body = (await response.json()) as ListEnvelope<unknown>;
+		const [applications, reviews] = await Promise.all([
+			fetch("/api/admin/applications?verification_status=pending&per_page=1"),
+			fetch("/api/admin/reviews?status=pending&per_page=1"),
+		]);
+		if (applications.ok) {
+			const body = (await applications.json()) as ListEnvelope<unknown>;
 			pendingCount = body.total;
+		}
+		if (reviews.ok) {
+			const body = (await reviews.json()) as ListEnvelope<unknown>;
+			pendingReviewCount = body.total;
 		}
 	} catch {
 		pendingCount = 0;
+		pendingReviewCount = 0;
 	}
 
-	return { pendingCount };
+	return { pendingCount, pendingReviewCount };
 };
