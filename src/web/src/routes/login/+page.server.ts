@@ -2,11 +2,13 @@ import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { setSessionCookie } from "$lib/server/session-cookie";
 import { safeNextPath } from "$lib/server/safe-next";
+import { loginHomePath } from "$lib/server/login-home";
+import type { SessionUser } from "$lib/types/session";
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals, url, cookies }) => {
 	const next = safeNextPath(url.searchParams.get("next"));
 	if (locals.user) {
-		redirect(303, next ?? "/");
+		redirect(303, next ?? loginHomePath(locals.user, cookies));
 	}
 	return { next: next ?? "" };
 };
@@ -38,6 +40,16 @@ export const actions: Actions = {
 		const session = (await response.json()) as { sessionToken: string; expiresAt: string };
 		setSessionCookie(cookies, session.sessionToken, new Date(session.expiresAt));
 
-		redirect(303, next ?? "/");
+		if (next) {
+			redirect(303, next);
+		}
+
+		const me = await fetch("/api/sessions/me");
+		if (me.ok) {
+			const user = (await me.json()) as SessionUser;
+			redirect(303, loginHomePath(user, cookies));
+		}
+
+		redirect(303, "/app");
 	},
 };

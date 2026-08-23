@@ -4,15 +4,55 @@
 	import PawPrint from "lucide-svelte/icons/paw-print";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
+	import { getLocale, setLocale, locales } from "$lib/paraglide/runtime";
 	import Button from "$lib/components/ui/Button.svelte";
+	import Logo from "$lib/components/ui/Logo.svelte";
+	import AccountMenu from "$lib/components/ui/AccountMenu.svelte";
 
 	let { user }: { user: App.Locals["user"] } = $props();
 </script>
 
 <section
-	class="sticky top-0 z-0 flex h-dvh min-h-dvh items-center justify-center overflow-hidden bg-gradient-to-br from-peach-100 via-peach-50 to-coral-100 px-4 py-16 sm:px-6"
+	class="sticky top-0 z-0 flex h-dvh min-h-dvh items-center justify-center overflow-hidden bg-gradient-to-br from-peach-100 via-peach-50 to-coral-100 px-4 pt-24 pb-16 sm:px-6"
 	aria-labelledby="hero-title"
 >
+	<div
+		class="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 px-4 py-3 sm:px-6"
+	>
+		<a href={resolve("/")} class="rounded-full focus-ring" aria-label={m.brand_name()}>
+			<Logo />
+		</a>
+		<div class="flex items-center gap-2">
+			<div
+				class="flex items-center rounded-full border border-sand-200/80 bg-white/70 p-0.5"
+				role="group"
+				aria-label={m.header_locale_label()}
+			>
+				{#each locales as locale (locale)}
+					<button
+						type="button"
+						onclick={() => setLocale(locale)}
+						aria-pressed={getLocale() === locale}
+						class="min-h-11 min-w-11 cursor-pointer rounded-full px-2 text-xs font-bold uppercase focus-ring {getLocale() ===
+						locale
+							? 'bg-coral-600 text-white'
+							: 'text-sand-600 hover:text-coral-700'}"
+					>
+						{locale}
+					</button>
+				{/each}
+			</div>
+			{#if user}
+				<AccountMenu {user} />
+			{:else}
+				<Button href={resolve("/login")} variant="ghost" size="sm">{m.header_login()}</Button>
+				<Button href={resolve("/register")} size="sm" class="hidden sm:inline-flex"
+					>{m.header_register()}</Button
+				>
+			{/if}
+		</div>
+	</div>
+
 	<div class="pointer-events-none absolute inset-0" aria-hidden="true">
 		<!-- Decorative soft glow -->
 		<div

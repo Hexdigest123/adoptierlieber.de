@@ -47,7 +47,7 @@
 		<div class="flex flex-col items-center gap-2 text-center text-sm text-sand-700">
 			<a
 				href={resolve("/forgot-password")}
-				class="font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
+				class="inline-flex min-h-11 items-center font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
 			>
 				{m.auth_forgot_password_link()}
 			</a>
@@ -55,7 +55,7 @@
 				{m.auth_login_no_account()}
 				<a
 					href={resolve("/register")}
-					class="font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
+					class="inline-flex min-h-11 items-center font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
 				>
 					{m.auth_login_register_link()}
 				</a>

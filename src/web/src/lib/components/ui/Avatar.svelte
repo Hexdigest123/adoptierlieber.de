@@ -6,6 +6,7 @@
 	type Props = {
 		name: string;
 		src?: string | null;
+		userId?: string | null;
 		hasAvatar?: boolean;
 		size?: Size;
 		alt?: string;
@@ -15,6 +16,7 @@
 	let {
 		name,
 		src = null,
+		userId = null,
 		hasAvatar = false,
 		size = "md",
 		alt = "",
@@ -34,7 +36,21 @@
 		return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
 	});
 
-	const imageSrc = $derived(src ?? (hasAvatar ? "/api/users/me/avatar" : null));
+	const imageSrc = $derived(
+		src ??
+			(hasAvatar && userId
+				? `/api/users/${userId}/avatar`
+				: hasAvatar
+					? "/api/users/me/avatar"
+					: null),
+	);
+
+	let broken = $state(false);
+
+	$effect(() => {
+		void imageSrc;
+		broken = false;
+	});
 </script>
 
 <span
@@ -43,8 +59,8 @@
 	]} {className}"
 	aria-hidden={alt === "" ? "true" : undefined}
 >
-	{#if imageSrc}
-		<img src={imageSrc} {alt} class="size-full object-cover" />
+	{#if imageSrc && !broken}
+		<img src={imageSrc} {alt} class="size-full object-cover" onerror={() => (broken = true)} />
 	{:else if initials}
 		{initials}
 	{:else}

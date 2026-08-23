@@ -2,40 +2,51 @@
 	import Heart from "lucide-svelte/icons/heart";
 	import X from "lucide-svelte/icons/x";
 	import RotateCcw from "lucide-svelte/icons/rotate-ccw";
+	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
-	import { animals } from "$lib/data/animals";
 	import Button from "$lib/components/ui/Button.svelte";
+	import type { ShowcaseCard } from "$lib/data/excerpts";
 
 	const SWIPE_THRESHOLD = 100;
+	const TAP_SLOP = 8;
+
+	let {
+		cards,
+		loggedIn = false,
+	}: {
+		cards: ShowcaseCard[];
+		loggedIn?: boolean;
+	} = $props();
 
 	let index = $state(0);
 	let offsetX = $state(0);
 	let offsetY = $state(0);
 	let dragging = $state(false);
-	/** Direction of the fling-out animation, or null when idle. */
+	let moved = $state(0);
 	let fling = $state<"left" | "right" | null>(null);
-	/** Announced to screen readers via aria-live. */
 	let announcement = $state("");
 
-	const current = $derived(animals[index]);
-	const total = animals.length;
+	const current = $derived(cards[index]);
+	const total = $derived(cards.length);
+	const moreHref = $derived(loggedIn ? resolve("/app") : resolve("/register"));
 
 	function describe(i: number): string {
-		const a = animals[i];
+		const a = cards[i];
 		if (!a) return "";
-		return `${m.showcase_card_position({ current: i + 1, total })}: ${a.name}, ${a.species()}, ${a.age()}, ${a.location}. ${a.tagline()}`;
+		return `${m.showcase_card_position({ current: i + 1, total })}: ${a.name}, ${a.species}, ${a.age}, ${a.location}. ${a.tagline}`;
 	}
 
 	function completeSwipe(direction: "left" | "right") {
 		const gone = index;
 		fling = direction;
-		announcement = `${direction === "right" ? m.showcase_like() : m.showcase_nope()}: ${animals[gone]?.name ?? ""}`;
+		announcement = `${direction === "right" ? m.showcase_like() : m.showcase_nope()}: ${cards[gone]?.name ?? ""}`;
 		setTimeout(() => {
 			index = gone + 1;
 			offsetX = 0;
 			offsetY = 0;
+			moved = 0;
 			fling = null;
-			if (animals[gone + 1]) {
+			if (cards[gone + 1]) {
 				announcement = describe(gone + 1);
 			}
 		}, 250);
@@ -45,6 +56,7 @@
 		index = 0;
 		offsetX = 0;
 		offsetY = 0;
+		moved = 0;
 		fling = null;
 		announcement = describe(0);
 	}
@@ -52,6 +64,7 @@
 	function onPointerDown(event: PointerEvent) {
 		if (!current || fling) return;
 		dragging = true;
+		moved = 0;
 		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
 	}
 
@@ -59,11 +72,18 @@
 		if (!dragging) return;
 		offsetX += event.movementX;
 		offsetY += event.movementY;
+		moved += Math.abs(event.movementX) + Math.abs(event.movementY);
 	}
 
 	function onPointerUp() {
 		if (!dragging) return;
 		dragging = false;
+		if (moved <= TAP_SLOP) {
+			offsetX = 0;
+			offsetY = 0;
+			window.location.href = moreHref;
+			return;
+		}
 		if (Math.abs(offsetX) > SWIPE_THRESHOLD) {
 			completeSwipe(offsetX > 0 ? "right" : "left");
 		} else {
@@ -80,6 +100,9 @@
 		} else if (event.key === "ArrowLeft") {
 			event.preventDefault();
 			completeSwipe("left");
+		} else if (event.key === "Enter") {
+			event.preventDefault();
+			window.location.href = moreHref;
 		}
 	}
 
@@ -95,13 +118,11 @@
 </script>
 
 <div class="flex w-full flex-col items-center gap-6">
-	<!-- Screen-reader live region: announces current card and swipe results. -->
 	<p aria-live="polite" class="sr-only">
 		{announcement || (current ? describe(index) : m.showcase_empty_title())}
 	</p>
 
 	<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-	<!-- Intentionally keyboard-focusable: arrow keys swipe the deck (plan: keyboard + SR swipe). -->
 	<div
 		class="relative h-135 w-full max-w-md"
 		role="group"
@@ -112,7 +133,7 @@
 	>
 		<p id="swipe-deck-hint" class="sr-only">{m.showcase_keyboard_hint()}</p>
 
-		{#each animals as animal, i (animal.id)}
+		{#each cards as animal, i (animal.id)}
 			{@const position = i - index}
 			{#if position >= 0 && position < 3}
 				<div
@@ -139,12 +160,13 @@
 					/>
 					<div class="flex flex-col gap-1.5 p-6">
 						<p class="text-3xl font-bold text-sand-950">
-							{animal.name}<span class="text-xl font-medium text-sand-600">, {animal.age()}</span>
+							{animal.name}<span class="text-xl font-medium text-sand-600">, {animal.age}</span>
 						</p>
 						<p class="text-base font-semibold text-coral-700">
-							{animal.species()} · {animal.location}
+							{animal.species}
+							{animal.location}
 						</p>
-						<p class="text-base text-sand-700">{animal.tagline()}</p>
+						<p class="text-base text-sand-700">{animal.tagline}</p>
 					</div>
 
 					{#if position === 0}
@@ -173,10 +195,15 @@
 			>
 				<p class="text-xl font-bold text-sand-900">{m.showcase_empty_title()}</p>
 				<p class="text-sm text-sand-700">{m.showcase_empty_text()}</p>
-				<Button variant="outline" size="sm" onclick={restart}>
-					{#snippet iconLeft()}<RotateCcw class="size-4" />{/snippet}
-					{m.showcase_restart()}
-				</Button>
+				<div class="flex flex-wrap justify-center gap-2">
+					<Button href={moreHref} size="sm">
+						{loggedIn ? m.showcase_cta_app() : m.showcase_cta_register()}
+					</Button>
+					<Button variant="outline" size="sm" onclick={restart}>
+						{#snippet iconLeft()}<RotateCcw class="size-4" />{/snippet}
+						{m.showcase_restart()}
+					</Button>
+				</div>
 			</div>
 		{/if}
 	</div>

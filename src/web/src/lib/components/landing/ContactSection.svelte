@@ -100,7 +100,7 @@
 						{m.contact_privacy()}
 						<a
 							href={resolve("/datenschutz")}
-							class="font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
+							class="inline-flex min-h-11 items-center font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
 							>{m.contact_privacy_link_text()}</a
 						>.
 					</Checkbox>

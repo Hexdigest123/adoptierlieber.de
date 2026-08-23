@@ -15,6 +15,9 @@
 
 	const displayName = $derived(form?.displayName ?? data.user.displayName ?? "");
 	const name = $derived(form?.name ?? data.user.name);
+	const street = $derived(form?.street ?? data.user.street ?? "");
+	const zip = $derived(form?.zip ?? data.user.zip ?? "");
+	const city = $derived(form?.city ?? data.user.city ?? "");
 	const hasAvatar = $derived(
 		form?.avatarRemoved ? false : Boolean(form?.avatarSuccess) || data.user.hasAvatar,
 	);
@@ -134,9 +137,84 @@
 					autocomplete="nickname"
 					value={displayName}
 				/>
+				<Input
+					id="profile-street"
+					name="street"
+					label={m.auth_street()}
+					required
+					autocomplete="street-address"
+					value={street}
+				/>
+				<div class="grid grid-cols-[7rem_1fr] gap-3">
+					<Input
+						id="profile-zip"
+						name="zip"
+						label={m.auth_zip()}
+						required
+						autocomplete="postal-code"
+						value={zip}
+					/>
+					<Input
+						id="profile-city"
+						name="city"
+						label={m.auth_city()}
+						required
+						autocomplete="address-level2"
+						value={city}
+					/>
+				</div>
 
 				<Button type="submit" fullWidth>{m.profile_save()}</Button>
 			</form>
+
+			<section class="flex flex-col gap-3" aria-labelledby="profile-home-title">
+				<div>
+					<h2 id="profile-home-title" class="text-lg font-bold text-sand-950">
+						{m.app_profile_home()}
+					</h2>
+					<p class="mt-1 text-sm text-sand-700">{m.app_profile_home_hint()}</p>
+				</div>
+				{#if form?.homeSuccess}
+					<FormStatus type="success">{m.app_profile_home_saved()}</FormStatus>
+				{:else if form?.homeError}
+					<FormStatus type="error">{m.error_invalid_input()}</FormStatus>
+				{/if}
+				<form method="POST" action="?/home" class="flex flex-col gap-3" use:enhance>
+					<Input
+						id="profile-home"
+						name="home_query"
+						label={m.app_location_place()}
+						hint={m.app_location_place_hint()}
+						value={data.user.home_query ?? data.user.home_label ?? ""}
+					/>
+					<Button type="submit" variant="secondary" fullWidth>{m.app_profile_home_save()}</Button>
+				</form>
+				<Button
+					type="button"
+					variant="ghost"
+					fullWidth
+					onclick={() => {
+						if (!navigator.geolocation) return;
+						navigator.geolocation.getCurrentPosition(async (pos) => {
+							await fetch("/api/users/me", {
+								method: "PATCH",
+								headers: { "content-type": "application/json" },
+								body: JSON.stringify({
+									home_lat: pos.coords.latitude,
+									home_lng: pos.coords.longitude,
+									location_precision: "gps",
+								}),
+							});
+							await invalidateAll();
+						});
+					}}>{m.app_profile_gps()}</Button
+				>
+				{#if data.user.home_label || data.user.home_lat}
+					<form method="POST" action="?/homeClear" use:enhance>
+						<Button type="submit" variant="ghost" fullWidth>{m.app_profile_home_clear()}</Button>
+					</form>
+				{/if}
+			</section>
 		</div>
 
 		<section
@@ -200,6 +278,43 @@
 			</form>
 
 			<section
+				class="flex flex-col gap-3 border-t border-sand-200 pt-8"
+				aria-labelledby="profile-taste-title"
+			>
+				<div>
+					<h2 id="profile-taste-title" class="text-lg font-bold text-sand-950">
+						{m.app_profile_taste()}
+					</h2>
+					<p class="mt-1 text-sm text-sand-700">{m.app_profile_taste_hint()}</p>
+				</div>
+				{#if form?.tasteReset}
+					<FormStatus type="success">{m.app_profile_taste_reset()}</FormStatus>
+				{:else if form?.tasteError}
+					<FormStatus type="error">{m.error_generic()}</FormStatus>
+				{/if}
+				<form method="POST" action="?/resetTaste" use:enhance>
+					<Button type="submit" variant="ghost" fullWidth>{m.app_profile_taste_reset_cta()}</Button>
+				</form>
+			</section>
+
+			<section class="flex flex-col gap-3" aria-labelledby="profile-seen-title">
+				<div>
+					<h2 id="profile-seen-title" class="text-lg font-bold text-sand-950">
+						{m.app_profile_seen()}
+					</h2>
+					<p class="mt-1 text-sm text-sand-700">{m.app_profile_seen_hint()}</p>
+				</div>
+				{#if form?.seenReset}
+					<FormStatus type="success">{m.app_profile_seen_reset()}</FormStatus>
+				{:else if form?.seenError}
+					<FormStatus type="error">{m.error_generic()}</FormStatus>
+				{/if}
+				<form method="POST" action="?/resetSeen" use:enhance>
+					<Button type="submit" variant="ghost" fullWidth>{m.app_profile_seen_reset_cta()}</Button>
+				</form>
+			</section>
+
+			<section
 				class="flex flex-col gap-5 border-t border-sand-200 pt-8"
 				aria-labelledby="profile-delete-title"
 			>
@@ -227,6 +342,8 @@
 									{m.profile_delete_token_error()}
 								{:else if form.deleteError === "rate_limited"}
 									{m.error_rate_limited()}
+								{:else if form.deleteError === "last_owner"}
+									{m.shelter_last_owner()}
 								{:else}
 									{m.error_invalid_input()}
 								{/if}

@@ -1,46 +1,128 @@
 <script lang="ts">
+	import { invalidateAll, goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { untrack } from "svelte";
+	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
-	import Card from "$lib/components/ui/Card.svelte";
-	import Button from "$lib/components/ui/Button.svelte";
-	import logoMark from "$lib/assets/logo.svg";
-	import logiqLogo from "$lib/assets/logiq-logo.webp";
+	import AppSwipeDeck from "$lib/components/app/AppSwipeDeck.svelte";
+	import AnimalDetail from "$lib/components/app/AnimalDetail.svelte";
+	import { selectedSpecies, setSelectedSpecies, speciesQuery } from "$lib/app/filters.svelte";
+	import type { ListEnvelope, PublicAnimal } from "$lib/types/catalog";
+	import { RANGE_STOPS } from "$lib/types/catalog";
 
-	const twitterUrl = "https://x.com/h3xdigest";
+	let animals = $state<PublicAnimal[]>([]);
+	let pageNo = $state(1);
+	let total = $state(0);
+	let inRange = $state(0);
+	let loading = $state(true);
+	let error = $state(false);
+	let exhausted = $state(false);
+	let focused = $state<PublicAnimal | null>(null);
+
+	const user = $derived(page.data.user);
+	const rangeLabel = $derived(
+		user?.max_range_km == null
+			? m.app_range_unlimited()
+			: m.app_range_km({ count: user.max_range_km }),
+	);
+
+	const emptyKind = $derived.by(() => {
+		if (animals.length > 0) return null;
+		if (error) return "error" as const;
+		if (loading) return null;
+		if (total === 0 && selectedSpecies().length > 0) return "filters" as const;
+		if (total === 0 && inRange === 0) return "catalog" as const;
+		return "caught_up" as const;
+	});
+
+	async function load(reset: boolean) {
+		if (reset) {
+			pageNo = 1;
+			exhausted = false;
+			animals = [];
+		}
+		if (exhausted && !reset) return;
+		loading = true;
+		error = false;
+		const params = new URLSearchParams({
+			mode: "deck",
+			page: String(pageNo),
+			per_page: "15",
+			sort: "best",
+		});
+		const species = speciesQuery();
+		if (species) params.set("species", species);
+		try {
+			const res = await fetch(`/api/animals?${params}`);
+			if (!res.ok) {
+				error = true;
+				return;
+			}
+			const body = (await res.json()) as ListEnvelope<PublicAnimal>;
+			total = body.total;
+			inRange = body.in_range ?? body.total;
+			const seen = new Set(animals.map((row) => row.id));
+			const next = body.items.filter((row) => !seen.has(row.id));
+			animals = reset ? body.items : [...animals, ...next];
+			if (body.items.length < body.per_page) exhausted = true;
+			else pageNo += 1;
+		} catch {
+			error = true;
+		} finally {
+			loading = false;
+		}
+	}
+
+	$effect(() => {
+		void user?.max_range_km;
+		void user?.home_lat;
+		void user?.home_lng;
+		void speciesQuery();
+		untrack(() => {
+			void load(true);
+		});
+	});
+
+	async function widen() {
+		const current = user?.max_range_km ?? 25;
+		const next = RANGE_STOPS.find((stop) => stop > current) ?? null;
+		await fetch("/api/users/me", {
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ max_range_km: next }),
+		});
+		await invalidateAll();
+	}
+
+	async function resetSeen() {
+		const res = await fetch("/api/swipes", { method: "DELETE" });
+		if (!res.ok) return;
+		await load(true);
+	}
 </script>
 
-<div class="flex flex-1 items-center justify-center bg-peach-50 px-4 py-12 sm:px-6">
-	<Card class="w-full max-w-md text-center" padding="lg">
-		<div
-			class="flex items-center justify-center gap-4 sm:gap-5"
-			role="img"
-			aria-label={m.app_collab()}
-		>
-			<img src={logoMark} alt="" class="size-14 shrink-0" width="56" height="56" />
-			<span class="text-2xl font-black text-sand-400" aria-hidden="true">×</span>
-			<img src={logiqLogo} alt="" class="h-10 w-auto sm:h-11" width="200" height="71" />
+<h1 class="sr-only">{m.app_tab_discover()}</h1>
+<div class="flex min-h-0 w-full flex-1 items-center justify-center gap-6">
+	<AppSwipeDeck
+		bind:animals
+		{emptyKind}
+		{rangeLabel}
+		onneedmore={() => void load(false)}
+		onretry={() => void load(true)}
+		onwiden={() => void widen()}
+		onresetseen={() => void resetSeen()}
+		onclear={() => {
+			setSelectedSpecies([]);
+			void load(true);
+		}}
+		onfocus={(animal) => {
+			if (window.matchMedia("(min-width: 1024px)").matches) focused = animal;
+			else void goto(resolve(`/app/animals/${animal.id}`));
+		}}
+	/>
+	{#if focused}
+		<div class="hidden max-h-[calc(100dvh-8rem)] w-full max-w-md overflow-y-auto lg:block">
+			<AnimalDetail bind:animal={focused} {user} compact showBack={false} />
 		</div>
-
-		<h1 class="mt-8 text-3xl font-black tracking-tight text-sand-950">{m.app_title()}</h1>
-		<p class="mt-2 text-sm leading-relaxed text-sand-700">{m.app_subtitle()}</p>
-
-		<p class="mt-6 text-sm leading-relaxed text-sand-700">{m.app_follow()}</p>
-		<div class="mt-4">
-			<Button href={twitterUrl} target="_blank" rel="me noopener noreferrer">
-				{#snippet iconLeft()}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 0 24 24"
-						fill="currentColor"
-						class="size-4"
-						aria-hidden="true"
-					>
-						<path
-							d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.725-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"
-						/>
-					</svg>
-				{/snippet}
-				{m.app_follow_cta()}
-			</Button>
-		</div>
-	</Card>
+	{/if}
 </div>

@@ -43,7 +43,7 @@
 			<p class="text-center text-sm text-sand-700">
 				<a
 					href={resolve("/login")}
-					class="font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
+					class="inline-flex min-h-11 items-center font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
 				>
 					{m.auth_back_to_login()}
 				</a>

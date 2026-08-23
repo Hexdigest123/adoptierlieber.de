@@ -9,6 +9,9 @@ export const OG_IMAGE_HEIGHT = 630;
 const NOINDEX_ROUTES = new Set([
 	"/profile",
 	"/app",
+	"/admin",
+	"/shelter",
+	"/invite",
 	"/logout",
 	"/verify",
 	"/forgot-password",
@@ -50,6 +53,26 @@ const pages: Record<string, PageMeta> = {
 		title: () => m.meta_app_title(),
 		description: () => m.meta_app_description(),
 	},
+	"/app/map": {
+		title: () => m.meta_app_map_title(),
+		description: () => m.meta_app_description(),
+	},
+	"/app/catalog": {
+		title: () => m.meta_app_catalog_title(),
+		description: () => m.meta_app_description(),
+	},
+	"/app/likes": {
+		title: () => m.meta_app_likes_title(),
+		description: () => m.meta_app_description(),
+	},
+	"/app/search": {
+		title: () => m.meta_app_search_title(),
+		description: () => m.meta_app_description(),
+	},
+	"/app/messages": {
+		title: () => m.meta_app_messages_title(),
+		description: () => m.meta_app_description(),
+	},
 	"/verify": {
 		title: () => m.meta_verify_title(),
 		description: () => m.meta_verify_description(),
@@ -65,6 +88,18 @@ const pages: Record<string, PageMeta> = {
 	"/delete-account": {
 		title: () => m.meta_delete_account_title(),
 		description: () => m.meta_delete_account_description(),
+	},
+	"/admin": {
+		title: () => m.meta_admin_title(),
+		description: () => m.meta_admin_description(),
+	},
+	"/shelter": {
+		title: () => m.meta_shelter_title(),
+		description: () => m.meta_shelter_description(),
+	},
+	"/invite": {
+		title: () => m.meta_invite_title(),
+		description: () => m.meta_invite_description(),
 	},
 };
 
@@ -95,15 +130,28 @@ export function seoForRoute(routeId: string | null, pathname: string, status = 2
 		};
 	}
 
-	const page = (routeId && pages[routeId]) || {
+	const pageKey = routeId
+		? pages[routeId]
+			? routeId
+			: (["/admin", "/invite", "/app", "/shelter"].find(
+					(prefix) => routeId === prefix || routeId.startsWith(`${prefix}/`),
+				) ?? routeId)
+		: null;
+	const page = (pageKey && pages[pageKey]) || {
 		title: () => m.meta_home_title(),
 		description: () => m.meta_home_description(),
 	};
+	const noindex =
+		Boolean(pageKey && NOINDEX_ROUTES.has(pageKey)) ||
+		Boolean(
+			routeId &&
+			(routeId.startsWith("/admin") || routeId.startsWith("/invite") || routeId.startsWith("/app")),
+		);
 
 	return {
 		title: page.title(),
 		description: page.description(),
-		robots: routeId && NOINDEX_ROUTES.has(routeId) ? "noindex, nofollow" : "index, follow",
+		robots: noindex ? "noindex, nofollow" : "index, follow",
 		canonical,
 		image,
 	};

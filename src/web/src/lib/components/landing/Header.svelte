@@ -1,5 +1,4 @@
 <script lang="ts">
-	import LogOut from "lucide-svelte/icons/log-out";
 	import Menu from "lucide-svelte/icons/menu";
 	import X from "lucide-svelte/icons/x";
 	import { resolve } from "$app/paths";
@@ -8,7 +7,7 @@
 	import { getLocale, setLocale, locales } from "$lib/paraglide/runtime";
 	import Logo from "$lib/components/ui/Logo.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
-	import Avatar from "$lib/components/ui/Avatar.svelte";
+	import AccountMenu from "$lib/components/ui/AccountMenu.svelte";
 
 	let { user }: { user: App.Locals["user"] } = $props();
 
@@ -17,6 +16,7 @@
 	let homeRevealed = $state(false);
 
 	const isHome = $derived(page.route.id === "/");
+	const isApp = $derived(page.url.pathname.startsWith("/app"));
 	const pinned = $derived(!isHome || homeRevealed);
 
 	$effect(() => {
@@ -57,23 +57,29 @@
 	inert={!pinned}
 >
 	<div class="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-		<a href={resolve("/")} class="relative z-10 rounded-full focus-ring" aria-label={m.brand_name()}>
+		<a
+			href={resolve("/")}
+			class="relative z-10 rounded-full focus-ring"
+			aria-label={m.brand_name()}
+		>
 			<Logo />
 		</a>
 
-		<nav
-			aria-label={m.brand_name()}
-			class="absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-1 md:flex"
-		>
-			{#each navItems as item (item.href)}
-				<a
-					href={item.href}
-					class="rounded-full px-3 py-2 text-sm font-semibold text-sand-800 focus-ring hover:bg-peach-100 hover:text-coral-700"
-				>
-					{item.label()}
-				</a>
-			{/each}
-		</nav>
+		{#if !isApp}
+			<nav
+				aria-label={m.brand_name()}
+				class="absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-1 md:flex"
+			>
+				{#each navItems as item (item.href)}
+					<a
+						href={item.href}
+						class="rounded-full px-3 py-2 text-sm font-semibold text-sand-800 focus-ring hover:bg-peach-100 hover:text-coral-700"
+					>
+						{item.label()}
+					</a>
+				{/each}
+			</nav>
+		{/if}
 
 		<div class="relative z-10 hidden items-center gap-2 md:flex">
 			<div
@@ -86,7 +92,7 @@
 						type="button"
 						onclick={() => setLocale(locale)}
 						aria-pressed={getLocale() === locale}
-						class="cursor-pointer rounded-full px-2.5 py-1 text-xs font-bold uppercase focus-ring {getLocale() ===
+						class="min-h-11 min-w-11 cursor-pointer rounded-full px-2.5 text-xs font-bold uppercase focus-ring {getLocale() ===
 						locale
 							? 'bg-coral-600 text-white'
 							: 'text-sand-600 hover:text-coral-700'}"
@@ -97,41 +103,31 @@
 			</div>
 
 			{#if user}
-				<a
-					href={resolve("/profile")}
-					class="rounded-full focus-ring"
-					aria-label={user.displayName ?? user.name}
-				>
-					<Avatar name={user.displayName ?? user.name} hasAvatar={user.hasAvatar} size="sm" />
-				</a>
-				<form method="POST" action={resolve("/logout")} class="inline">
-					<button
-						type="submit"
-						class="flex size-10 cursor-pointer items-center justify-center rounded-full text-coral-700 focus-ring hover:bg-coral-50"
-						aria-label={m.header_logout()}
-					>
-						<LogOut class="size-5" aria-hidden="true" />
-					</button>
-				</form>
+				<AccountMenu {user} />
 			{:else}
 				<Button href={resolve("/login")} variant="ghost" size="sm">{m.header_login()}</Button>
 				<Button href={resolve("/register")} size="sm">{m.header_register()}</Button>
 			{/if}
 		</div>
 
-		<button
-			type="button"
-			class="flex size-11 cursor-pointer items-center justify-center rounded-full text-sand-900 focus-ring hover:bg-peach-100 md:hidden"
-			aria-expanded={menuOpen}
-			aria-controls="mobile-menu"
-			aria-label={menuOpen ? m.header_menu_close() : m.header_menu_open()}
-			onclick={() => (menuOpen = !menuOpen)}
-		>
-			{#if menuOpen}<X class="size-6" aria-hidden="true" />{:else}<Menu
-					class="size-6"
-					aria-hidden="true"
-				/>{/if}
-		</button>
+		<div class="flex items-center gap-1 md:hidden">
+			{#if user}
+				<AccountMenu {user} onNavigate={closeMenu} />
+			{/if}
+			<button
+				type="button"
+				class="flex size-11 cursor-pointer items-center justify-center rounded-full text-sand-900 focus-ring hover:bg-peach-100"
+				aria-expanded={menuOpen}
+				aria-controls="mobile-menu"
+				aria-label={menuOpen ? m.header_menu_close() : m.header_menu_open()}
+				onclick={() => (menuOpen = !menuOpen)}
+			>
+				{#if menuOpen}<X class="size-6" aria-hidden="true" />{:else}<Menu
+						class="size-6"
+						aria-hidden="true"
+					/>{/if}
+			</button>
+		</div>
 	</div>
 
 	{#if menuOpen}
@@ -141,35 +137,19 @@
 			class="border-t border-sand-200 bg-white md:hidden"
 		>
 			<div class="flex flex-col gap-1 px-4 py-4">
-				{#each navItems as item (item.href)}
-					<a
-						href={item.href}
-						onclick={closeMenu}
-						class="rounded-xl px-4 py-3 text-base font-semibold text-sand-800 focus-ring hover:bg-peach-100"
-					>
-						{item.label()}
-					</a>
-				{/each}
-				<hr class="my-2 border-sand-200" />
-				{#if user}
-					<a
-						href={resolve("/profile")}
-						onclick={closeMenu}
-						class="flex items-center gap-3 rounded-xl px-4 py-3 focus-ring hover:bg-peach-100"
-					>
-						<Avatar name={user.displayName ?? user.name} hasAvatar={user.hasAvatar} size="sm" />
-						<span class="text-base font-semibold text-sand-800">{m.header_profile()}</span>
-					</a>
-					<form method="POST" action={resolve("/logout")}>
-						<button
-							type="submit"
-							class="flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-coral-700 focus-ring hover:bg-coral-50"
-							aria-label={m.header_logout()}
+				{#if !isApp}
+					{#each navItems as item (item.href)}
+						<a
+							href={item.href}
+							onclick={closeMenu}
+							class="rounded-xl px-4 py-3 text-base font-semibold text-sand-800 focus-ring hover:bg-peach-100"
 						>
-							<LogOut class="size-5" aria-hidden="true" />
-						</button>
-					</form>
-				{:else}
+							{item.label()}
+						</a>
+					{/each}
+					<hr class="my-2 border-sand-200" />
+				{/if}
+				{#if !user}
 					<a
 						href={resolve("/login")}
 						onclick={closeMenu}

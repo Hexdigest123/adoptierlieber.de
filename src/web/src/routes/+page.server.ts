@@ -1,5 +1,20 @@
 import { fail } from "@sveltejs/kit";
-import type { Actions } from "./$types";
+import type { Actions, PageServerLoad } from "./$types";
+import type { PublicExcerpt } from "$lib/types/catalog";
+import { excerptsToCards } from "$lib/data/excerpts";
+
+export const load: PageServerLoad = async ({ fetch }) => {
+	try {
+		const response = await fetch("/api/animals/excerpts");
+		if (response.ok) {
+			const body = (await response.json()) as { items?: PublicExcerpt[] };
+			return { showcase: excerptsToCards(body.items ?? []) };
+		}
+	} catch {
+		// empty showcase
+	}
+	return { showcase: [] };
+};
 
 export const actions: Actions = {
 	contact: async ({ request, fetch }) => {
