@@ -60,7 +60,7 @@
 	{#if open}
 		<ul
 			role="menu"
-			class="absolute top-full right-0 z-50 mt-1 min-w-48 rounded-xl border border-sand-200 bg-white py-1 shadow-md"
+			class="absolute top-full right-0 z-50 mt-1 min-w-48 overflow-hidden rounded-xl border border-sand-200 bg-white py-1 shadow-md"
 		>
 			<li role="none" class="px-2 py-1 sm:hidden">
 				<div

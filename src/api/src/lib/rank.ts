@@ -12,12 +12,40 @@ export type RankedAnimal = {
   bucket: string;
 };
 
+export type PrefSpeciesTag = "dog" | "cat" | "small" | "bird" | "open";
+
 export type UserPreferences = {
-  species?: "dog" | "cat" | "small" | "bird" | "open" | string;
+  species?: PrefSpeciesTag | PrefSpeciesTag[] | string;
   home?: string;
   with?: unknown;
   lifestyle?: string;
 };
+
+function prefSpeciesTags(raw: unknown): PrefSpeciesTag[] {
+  const parts = typeof raw === "string" ? [raw] : Array.isArray(raw) ? raw : [];
+  const out: PrefSpeciesTag[] = [];
+  for (const part of parts) {
+    if (
+      (part === "dog" || part === "cat" || part === "small" || part === "bird" || part === "open") &&
+      !out.includes(part)
+    ) {
+      out.push(part);
+    }
+  }
+  return out;
+}
+
+/** null = open / no species filter. */
+export function prefSpeciesExpanded(raw: unknown): Animal["species"][] | null {
+  const tags = prefSpeciesTags(raw);
+  if (tags.length === 0 || tags.includes("open")) return null;
+  const out: Animal["species"][] = [];
+  for (const tag of tags) {
+    if (tag === "small") out.push("rabbit", "guinea_pig");
+    else if (tag === "dog" || tag === "cat" || tag === "bird") out.push(tag);
+  }
+  return out.length > 0 ? out : null;
+}
 
 function ageBucket(months: number | null): string {
   if (months == null) return "unknown";
@@ -87,11 +115,10 @@ function prefsOverlap(prefs: UserPreferences | null | undefined, animal: Animal)
   let hits = 0;
   let checks = 0;
 
-  if (prefs.species && prefs.species !== "open") {
+  const wanted = prefSpeciesExpanded(prefs.species);
+  if (wanted) {
     checks += 1;
-    const small = animal.species === "rabbit" || animal.species === "guinea_pig";
-    if (prefs.species === "small" && small) hits += 1;
-    else if (prefs.species === animal.species) hits += 1;
+    if (wanted.includes(animal.species)) hits += 1;
   }
 
   const withWho = Array.isArray(prefs.with) ? prefs.with.filter((v) => typeof v === "string") : [];

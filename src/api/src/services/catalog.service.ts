@@ -10,7 +10,7 @@ import {
   type PublicExcerpt,
 } from "../lib/public-animal";
 import { partnerMap, type BondedPartner } from "../lib/bond";
-import { applyTaste, diversify, scoreAnimal } from "../lib/rank";
+import { applyTaste, diversify, prefSpeciesExpanded, scoreAnimal } from "../lib/rank";
 import { animalSpeciesSchema } from "../lib/zod";
 import { createAnimalRepo } from "../repositories/animal.repo";
 import { createCatalogRepo, type AnimalWithShelter } from "../repositories/catalog.repo";
@@ -182,11 +182,7 @@ function applyHardFilters(
 function seedSpecies(user: User): Animal["species"][] | null {
   const prefs = user.preferences;
   if (!prefs || typeof prefs !== "object") return null;
-  const species = prefs.species;
-  if (typeof species !== "string" || species === "open") return null;
-  if (species === "small") return ["rabbit", "guinea_pig"];
-  if (species === "dog" || species === "cat" || species === "bird") return [species];
-  return null;
+  return prefSpeciesExpanded(prefs.species);
 }
 
 export function createCatalogService(env: Env) {

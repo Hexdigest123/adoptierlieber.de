@@ -79,10 +79,12 @@ export type GeocodeHit = {
 	country: string | null;
 };
 
+export type PrefSpecies = "dog" | "cat" | "small" | "bird" | "open";
+
 export type UserPreferences = {
 	onboarded?: boolean;
 	prefs_done?: boolean;
-	species?: "dog" | "cat" | "small" | "bird" | "open";
+	species?: PrefSpecies | PrefSpecies[];
 	home?: "apartment" | "house" | "yard";
 	with?: Array<"kids" | "dog" | "cat" | "alone">;
 	lifestyle?: "active" | "cuddle" | "first";

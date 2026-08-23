@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
-	import type { UserPreferences } from "$lib/types/catalog";
+	import type { PrefSpecies, UserPreferences } from "$lib/types/catalog";
 	import { dialog } from "$lib/dialog";
 
 	let {
@@ -13,10 +13,24 @@
 	} = $props();
 
 	let step = $state(0);
-	let species = $state<UserPreferences["species"]>("open");
+	let species = $state<PrefSpecies[]>(["open"]);
 	let home = $state<UserPreferences["home"]>("apartment");
 	let withWho = $state<NonNullable<UserPreferences["with"]>>([]);
 	let lifestyle = $state<UserPreferences["lifestyle"]>("cuddle");
+
+	function toggleSpecies(tag: PrefSpecies) {
+		if (tag === "open") {
+			species = ["open"];
+			return;
+		}
+		const withoutOpen = species.filter((v) => v !== "open");
+		if (withoutOpen.includes(tag)) {
+			const next = withoutOpen.filter((v) => v !== tag);
+			species = next.length === 0 ? ["open"] : next;
+		} else {
+			species = [...withoutOpen, tag];
+		}
+	}
 
 	function toggleWith(tag: NonNullable<UserPreferences["with"]>[number]) {
 		if (withWho.includes(tag)) withWho = withWho.filter((v) => v !== tag);
@@ -79,14 +93,14 @@
 	];
 
 	function selected(id: string): boolean {
-		if (step === 0) return species === id;
+		if (step === 0) return species.includes(id as PrefSpecies);
 		if (step === 1) return home === id;
 		if (step === 2) return withWho.includes(id as NonNullable<UserPreferences["with"]>[number]);
 		return lifestyle === id;
 	}
 
 	function choose(id: string) {
-		if (step === 0) species = id as UserPreferences["species"];
+		if (step === 0) toggleSpecies(id as PrefSpecies);
 		else if (step === 1) home = id as UserPreferences["home"];
 		else if (step === 2) toggleWith(id as NonNullable<UserPreferences["with"]>[number]);
 		else lifestyle = id as UserPreferences["lifestyle"];
