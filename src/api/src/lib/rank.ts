@@ -9,6 +9,9 @@ export type RankedAnimal = {
   animal: Animal;
   score: number;
   implicit: number;
+  waiting: number;
+  longStay: boolean;
+  senior: boolean;
   bucket: string;
 };
 
@@ -56,11 +59,9 @@ function ageBucket(months: number | null): string {
 }
 
 function traitKeys(animal: Animal): string[] {
+  // coat color stays a catalog filter; swipe taste must not learn it
   const keys = [`species:${animal.species}`, `age:${ageBucket(animal.ageMonths)}`];
   if (animal.size) keys.push(`size:${animal.size}`);
-  for (const color of animal.colors ?? []) {
-    keys.push(`color:${color.toLowerCase()}`);
-  }
   for (const trait of animal.traits ?? []) {
     keys.push(`trait:${trait.toLowerCase()}`);
   }
@@ -76,7 +77,7 @@ function decayWeights(weights: Record<string, number>, now: number): Record<stri
   const factor = 0.5 ** (days / HALF_LIFE_DAYS);
   const next: Record<string, number> = { [UPDATED_AT_KEY]: now };
   for (const [key, value] of Object.entries(weights)) {
-    if (key === UPDATED_AT_KEY) continue;
+    if (key === UPDATED_AT_KEY || key.startsWith("color:")) continue;
     const scaled = value * factor;
     if (Math.abs(scaled) >= 0.01) next[key] = scaled;
   }
@@ -173,15 +174,25 @@ function implicitAffinity(weights: Record<string, number> | null | undefined, an
   return 1 / (1 + Math.exp(-sum / Math.max(1, n)));
 }
 
-function waitingBoost(publishedAt: Date | null, now: number): number {
+function listedDays(publishedAt: Date | null, now: number): number {
   if (!publishedAt) return 0;
-  const days = Math.max(0, (now - publishedAt.getTime()) / (24 * 60 * 60 * 1000));
-  return Math.min(1, days / 365);
+  return Math.max(0, (now - publishedAt.getTime()) / (24 * 60 * 60 * 1000));
 }
 
-function freshness(publishedAt: Date | null, now: number): number {
-  if (!publishedAt) return 0;
-  return now - publishedAt.getTime() <= 14 * 24 * 60 * 60 * 1000 ? 1 : 0;
+function waitingBoost(days: number): number {
+  if (days <= 0) return 0;
+  return Math.min(1, Math.log1p(days) / Math.log1p(180));
+}
+
+function seniorBoost(months: number | null): number {
+  if (months == null) return 0;
+  if (months >= 84) return 1;
+  if (months < 60) return 0;
+  return (months - 60) / 24;
+}
+
+function freshness(days: number): number {
+  return days > 0 && days <= 14 ? 1 : 0;
 }
 
 export function scoreAnimal(
@@ -191,11 +202,13 @@ export function scoreAnimal(
   rangeKm: number | null,
   animalLat: number | null,
   animalLng: number | null,
+  skipSenior = false,
 ): RankedAnimal {
   const now = Date.now();
   const prefs = (user.preferences ?? null) as UserPreferences | null;
   const explicit = prefsOverlap(prefs, animal);
-  const implicit = implicitAffinity(user.tasteWeights, animal);
+  const rawImplicit = implicitAffinity(user.tasteWeights, animal);
+  const implicit = 0.5 + (rawImplicit - 0.5) * 0.7;
 
   let distanceDecay = 0.5;
   if (origin && animalLat != null && animalLng != null) {
@@ -204,36 +217,52 @@ export function scoreAnimal(
     distanceDecay = 1 / (1 + km / scale);
   }
 
+  const days = listedDays(animal.publishedAt, now);
+  const waiting = waitingBoost(days);
+  const senior = skipSenior ? 0 : seniorBoost(animal.ageMonths);
+
   const score =
-    0.35 * explicit +
-    0.3 * implicit +
-    0.2 * distanceDecay +
-    0.1 * waitingBoost(animal.publishedAt, now) +
-    0.05 * freshness(animal.publishedAt, now);
+    0.3 * explicit +
+    0.18 * implicit +
+    0.18 * distanceDecay +
+    0.16 * waiting +
+    0.12 * senior +
+    0.06 * freshness(days);
 
   return {
     animal,
     score,
     implicit,
+    waiting,
+    longStay: days >= 90,
+    senior: animal.ageMonths != null && animal.ageMonths >= 84,
     bucket: `${animal.species}:${animal.size ?? "u"}`,
   };
 }
 
-/** No more than 2 consecutive same species+size. ~1 in 6 exploration. */
+function fairnessScore(row: RankedAnimal): number {
+  return row.waiting * (1 - row.implicit);
+}
+
+function needsFairSlot(row: RankedAnimal): boolean {
+  return row.senior || row.longStay;
+}
+
+/** No more than 2 consecutive same species+size. Every 5th card: long stay taste would bury. */
 export function diversify(ranked: RankedAnimal[]): RankedAnimal[] {
   const remaining = [...ranked];
   const out: RankedAnimal[] = [];
 
   while (remaining.length > 0) {
-    const explore = out.length > 0 && (out.length + 1) % 6 === 0;
+    const explore = out.length > 0 && (out.length + 1) % 5 === 0;
     let pickAt = -1;
 
     if (explore) {
-      let lowest = Infinity;
+      let best = -Infinity;
       for (let i = 0; i < remaining.length; i++) {
-        const row = remaining[i];
-        if (row.implicit < lowest) {
-          lowest = row.implicit;
+        const value = fairnessScore(remaining[i]);
+        if (value > best) {
+          best = value;
           pickAt = i;
         }
       }
@@ -253,6 +282,15 @@ export function diversify(ranked: RankedAnimal[]): RankedAnimal[] {
 
     const [picked] = remaining.splice(pickAt, 1);
     if (picked) out.push(picked);
+  }
+
+  const head = out.slice(0, 8);
+  if (head.length === 8 && !head.some(needsFairSlot)) {
+    const swapAt = out.findIndex((row, i) => i >= 8 && needsFairSlot(row));
+    if (swapAt > 0) {
+      const [fair] = out.splice(swapAt, 1);
+      if (fair) out.splice(7, 0, fair);
+    }
   }
 
   return out;

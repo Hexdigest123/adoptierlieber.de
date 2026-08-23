@@ -1,6 +1,5 @@
-import { and, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm";
 import { sheltersTable } from "../schema";
 import { getDb, type Env } from "../config/env";
 import type { ApplicationField, ShelterChecklist } from "../types";
@@ -65,6 +64,35 @@ export function createShelterRepo(env: Env) {
             eq(sheltersTable.verificationStatus, "verified"),
             isNotNull(sheltersTable.notifyEmail),
             isNull(sheltersTable.archivedAt),
+          ),
+        )
+        .all();
+    },
+
+    listPublicMap() {
+      return db
+        .select({
+          id: sheltersTable.id,
+          orgName: sheltersTable.orgName,
+          city: sheltersTable.city,
+          zip: sheltersTable.zip,
+          website: sheltersTable.website,
+          logoKey: sheltersTable.logoKey,
+          lat: sheltersTable.lat,
+          lng: sheltersTable.lng,
+          liveCount: sql<number>`(
+            select count(*) from animals
+            where animals.shelter_id = ${sheltersTable.id}
+            and animals.status = 'live'
+          )`,
+        })
+        .from(sheltersTable)
+        .where(
+          and(
+            eq(sheltersTable.verificationStatus, "verified"),
+            isNull(sheltersTable.archivedAt),
+            isNotNull(sheltersTable.lat),
+            isNotNull(sheltersTable.lng),
           ),
         )
         .all();

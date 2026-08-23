@@ -85,6 +85,14 @@
 		});
 	});
 
+	$effect(() => {
+		if (!focused?.liked) return;
+		const id = focused.id;
+		untrack(() => {
+			animals = animals.filter((row) => row.id !== id);
+		});
+	});
+
 	async function widen() {
 		const current = user?.max_range_km ?? 25;
 		const next = RANGE_STOPS.find((stop) => stop > current) ?? null;

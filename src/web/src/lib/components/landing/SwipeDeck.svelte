@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Heart from "lucide-svelte/icons/heart";
+	import Eye from "lucide-svelte/icons/eye";
 	import X from "lucide-svelte/icons/x";
 	import RotateCcw from "lucide-svelte/icons/rotate-ccw";
 	import { resolve } from "$app/paths";
@@ -33,13 +33,22 @@
 	function describe(i: number): string {
 		const a = cards[i];
 		if (!a) return "";
-		return `${m.showcase_card_position({ current: i + 1, total })}: ${a.name}, ${a.species}, ${a.age}, ${a.location}. ${a.tagline}`;
+		const bond = a.bonded ? ` ${m.showcase_card_bonded({ name: a.bonded })}.` : "";
+		return `${m.showcase_card_position({ current: i + 1, total })}: ${a.name}, ${a.species}, ${a.age}, ${a.location}. ${a.tagline}${bond}`;
+	}
+
+	function openProfile() {
+		window.location.href = moreHref;
 	}
 
 	function completeSwipe(direction: "left" | "right") {
+		if (direction === "right") {
+			openProfile();
+			return;
+		}
 		const gone = index;
 		fling = direction;
-		announcement = `${direction === "right" ? m.showcase_like() : m.showcase_nope()}: ${cards[gone]?.name ?? ""}`;
+		announcement = `${m.showcase_nope()}: ${cards[gone]?.name ?? ""}`;
 		setTimeout(() => {
 			index = gone + 1;
 			offsetX = 0;
@@ -81,7 +90,7 @@
 		if (moved <= TAP_SLOP) {
 			offsetX = 0;
 			offsetY = 0;
-			window.location.href = moreHref;
+			openProfile();
 			return;
 		}
 		if (Math.abs(offsetX) > SWIPE_THRESHOLD) {
@@ -102,7 +111,7 @@
 			completeSwipe("left");
 		} else if (event.key === "Enter") {
 			event.preventDefault();
-			window.location.href = moreHref;
+			openProfile();
 		}
 	}
 
@@ -166,6 +175,22 @@
 							{animal.species}
 							{animal.location}
 						</p>
+						{#if animal.bonded}
+							<p class="text-sm font-semibold text-sand-800">
+								{m.showcase_card_bonded({ name: animal.bonded })}
+							</p>
+						{/if}
+						{#if animal.needs.length > 0}
+							<ul class="flex flex-wrap gap-2">
+								{#each animal.needs as trait (trait)}
+									<li
+										class="rounded-xl bg-peach-100 px-3 py-1.5 text-xs font-semibold text-coral-900"
+									>
+										{trait}
+									</li>
+								{/each}
+							</ul>
+						{/if}
 						<p class="text-base text-sand-700">{animal.tagline}</p>
 					</div>
 
@@ -223,9 +248,9 @@
 			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-emerald-700 bg-white text-emerald-700 shadow-sm focus-ring transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
 			aria-label={m.showcase_like_action()}
 			disabled={!current || !!fling}
-			onclick={() => completeSwipe("right")}
+			onclick={openProfile}
 		>
-			<Heart class="size-7" aria-hidden="true" />
+			<Eye class="size-7" aria-hidden="true" />
 		</button>
 	</div>
 </div>

@@ -191,6 +191,12 @@
 		return m.shelter_unset();
 	}
 
+	function neuteredFieldLabel(sex: AnimalSex | ""): string {
+		if (sex === "female") return m.shelter_field_neutered_female();
+		if (sex === "male") return m.shelter_field_neutered_male();
+		return m.shelter_field_neutered();
+	}
+
 	function listFrom(text: string): string[] {
 		return text
 			.split(",")
@@ -341,7 +347,7 @@
 		if (field === "tagline") return m.shelter_field_tagline();
 		if (field === "description") return m.shelter_field_description();
 		if (field === "vaccinated") return m.shelter_field_vaccinated();
-		if (field === "neutered") return m.shelter_field_neutered();
+		if (field === "neutered") return neuteredFieldLabel(primary.sex);
 		if (field === "chipped") return m.shelter_field_chipped();
 		return m.shelter_field_house();
 	}
@@ -743,7 +749,7 @@
 			},
 			{
 				id: "neutered",
-				label: m.shelter_field_neutered(),
+				label: neuteredFieldLabel(draft.sex),
 				value: draft.neutered,
 				set: (value: Triad | "") => (draft.neutered = value),
 			},

@@ -4,7 +4,14 @@
 	import { m } from "$lib/paraglide/messages";
 	import type { PublicAnimal } from "$lib/types/catalog";
 	import { withFrom, type AnimalOrigin } from "$lib/app/return";
-	import { ageLabel, coverPhoto, distanceLabel, speciesLabel } from "$lib/app/format";
+	import {
+		ageLabel,
+		bondedNames,
+		coverPhoto,
+		distanceLabel,
+		needTraits,
+		speciesLabel,
+	} from "$lib/app/format";
 	import AnimalPhoto from "./AnimalPhoto.svelte";
 
 	let {
@@ -21,6 +28,8 @@
 	const meta = $derived(
 		`${speciesLabel(animal.species)} ${distanceLabel(animal.distance_km, animal.shelter.city)}`,
 	);
+	const bond = $derived(bondedNames(animal.bonded_partners, animal.bonded_partner));
+	const needs = $derived(needTraits(animal.traits, animal.age_months, animal.age_unknown));
 </script>
 
 <article
@@ -50,9 +59,14 @@
 				>
 			</p>
 			<p class="text-sm font-semibold text-coral-700">{meta}</p>
-			{#if animal.traits.length > 0}
+			{#if bond}
+				<p class="text-xs font-semibold text-sand-800">
+					{m.showcase_card_bonded({ name: bond })}
+				</p>
+			{/if}
+			{#if needs.length > 0}
 				<ul class="flex flex-wrap gap-2">
-					{#each animal.traits.slice(0, 3) as trait (trait)}
+					{#each needs as trait (trait)}
 						<li class="rounded-xl bg-peach-100 px-3 py-1.5 text-xs font-semibold text-coral-900">
 							{trait}
 						</li>

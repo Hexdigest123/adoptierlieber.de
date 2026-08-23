@@ -13,6 +13,18 @@ export type PublicShelter = {
 	lng: number | null;
 };
 
+export type PublicMapShelter = {
+	id: string;
+	org_name: string;
+	city: string;
+	zip: string;
+	website: string | null;
+	has_logo: boolean;
+	lat: number | null;
+	lng: number | null;
+	live_count: number;
+};
+
 export type PublicAnimal = {
 	id: string;
 	name: string;
@@ -55,6 +67,9 @@ export type PublicExcerpt = {
 	age_unknown: boolean;
 	tagline: string | null;
 	photos: string[];
+	traits: string[];
+	bonded_partner: string | null;
+	bonded_partners: { id: string; name: string }[];
 	shelter: {
 		id: string;
 		org_name: string;

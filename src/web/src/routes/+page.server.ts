@@ -1,12 +1,16 @@
 import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
-import type { PublicExcerpt } from "$lib/types/catalog";
+import type { PublicExcerpt, PublicMapShelter } from "$lib/types/catalog";
 import type { PublicReview } from "$lib/types/review";
 import { excerptsToCards } from "$lib/data/excerpts";
 
 export const load: PageServerLoad = async ({ fetch }) => {
-	const [showcase, reviews] = await Promise.all([loadShowcase(fetch), loadReviews(fetch)]);
-	return { showcase, reviews };
+	const [showcase, shelters, reviews] = await Promise.all([
+		loadShowcase(fetch),
+		loadShelters(fetch),
+		loadReviews(fetch),
+	]);
+	return { showcase, shelters, reviews };
 };
 
 async function loadShowcase(fetchFn: typeof fetch) {
@@ -18,6 +22,19 @@ async function loadShowcase(fetchFn: typeof fetch) {
 		}
 	} catch {
 		// empty showcase
+	}
+	return [];
+}
+
+async function loadShelters(fetchFn: typeof fetch): Promise<PublicMapShelter[]> {
+	try {
+		const response = await fetchFn("/api/shelters/map");
+		if (response.ok) {
+			const body = (await response.json()) as { items?: PublicMapShelter[] };
+			return body.items ?? [];
+		}
+	} catch {
+		// empty map
 	}
 	return [];
 }

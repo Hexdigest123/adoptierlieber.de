@@ -11,6 +11,7 @@
 	import {
 		ageLabel,
 		distanceLabel,
+		neuteredLabel,
 		practicalLabel,
 		sexLabel,
 		sizeLabel,
@@ -301,7 +302,7 @@
 				<dd class="font-semibold text-sand-950">{practicalLabel(animal.vaccinated)}</dd>
 			</div>
 			<div class="rounded-xl bg-white px-3 py-2">
-				<dt class="text-sand-600">{m.app_detail_neutered()}</dt>
+				<dt class="text-sand-600">{neuteredLabel(animal.sex)}</dt>
 				<dd class="font-semibold text-sand-950">{practicalLabel(animal.neutered)}</dd>
 			</div>
 			<div class="rounded-xl bg-white px-3 py-2">

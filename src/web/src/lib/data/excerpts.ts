@@ -1,6 +1,6 @@
 import { m } from "$lib/paraglide/messages";
 import type { PublicExcerpt } from "$lib/types/catalog";
-import { speciesLabel } from "$lib/app/format";
+import { bondedNames, needTraits, speciesLabel } from "$lib/app/format";
 
 export type ShowcaseCard = {
 	id: string;
@@ -11,9 +11,9 @@ export type ShowcaseCard = {
 	location: string;
 	shelterId: string;
 	shelterName: string;
-	lat: number | null;
-	lng: number | null;
 	tagline: string;
+	needs: string[];
+	bonded: string | null;
 };
 
 function ageFromMonths(months: number | null, unknown: boolean): string {
@@ -32,8 +32,8 @@ export function excerptsToCards(items: PublicExcerpt[]): ShowcaseCard[] {
 		location: item.shelter.city,
 		shelterId: item.shelter.id,
 		shelterName: item.shelter.org_name,
-		lat: item.lat,
-		lng: item.lng,
 		tagline: item.tagline ?? "",
+		needs: needTraits(item.traits ?? [], item.age_months, item.age_unknown),
+		bonded: bondedNames(item.bonded_partners, item.bonded_partner),
 	}));
 }

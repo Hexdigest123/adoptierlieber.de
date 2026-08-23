@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Heart from "lucide-svelte/icons/heart";
+	import Eye from "lucide-svelte/icons/eye";
 	import X from "lucide-svelte/icons/x";
 	import RotateCcw from "lucide-svelte/icons/rotate-ccw";
 	import { resolve } from "$app/paths";
@@ -8,7 +8,14 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import EmptyAnimals from "$lib/components/EmptyAnimals.svelte";
 	import type { PublicAnimal } from "$lib/types/catalog";
-	import { ageLabel, coverPhoto, distanceLabel, speciesLabel } from "$lib/app/format";
+	import {
+		ageLabel,
+		bondedNames,
+		coverPhoto,
+		distanceLabel,
+		needTraits,
+		speciesLabel,
+	} from "$lib/app/format";
 	import AnimalPhoto from "./AnimalPhoto.svelte";
 
 	const SWIPE_THRESHOLD = 100;
@@ -60,7 +67,14 @@
 
 	function describe(animal: PublicAnimal | undefined): string {
 		if (!animal) return "";
-		return `${animal.name}, ${speciesLabel(animal.species)}, ${ageLabel(animal.age_months, animal.age_unknown)}`;
+		const bond = bondedNames(animal.bonded_partners, animal.bonded_partner);
+		const bondText = bond ? ` ${m.showcase_card_bonded({ name: bond })}.` : "";
+		return `${animal.name}, ${speciesLabel(animal.species)}, ${ageLabel(animal.age_months, animal.age_unknown)}${bondText}`;
+	}
+
+	function openProfile(animal: PublicAnimal) {
+		if (onfocus) onfocus(animal);
+		else void goto(resolve(`/app/animals/${animal.id}`));
 	}
 
 	function reducedMotion(): boolean {
@@ -98,9 +112,13 @@
 
 	function completeSwipe(direction: "left" | "right") {
 		if (!current || fling) return;
+		if (direction === "right") {
+			openProfile(current);
+			return;
+		}
 		const gone = current;
 		fling = direction;
-		announcement = `${direction === "right" ? m.showcase_like() : m.showcase_nope()}: ${gone.name}`;
+		announcement = `${m.showcase_nope()}: ${gone.name}`;
 		const delay = reducedMotion() ? 0 : 250;
 		setTimeout(() => {
 			animals = animals.filter((row) => row.id !== gone.id);
@@ -111,19 +129,13 @@
 			if (animals[0]) announcement = describe(animals[0]);
 			if (animals.length < 5) onneedmore();
 		}, delay);
-		if (direction === "left") {
-			if (pendingSkip) void sendReason();
-			pendingSkip = gone;
-			askReason = true;
-			clearTimeout(reasonTimer);
-			reasonTimer = setTimeout(() => {
-				void sendReason();
-			}, 4000);
-		} else {
-			void writeSwipe("like", gone.id).then((ok) => {
-				if (!ok) setTimeout(() => restore(gone), delay);
-			});
-		}
+		if (pendingSkip) void sendReason();
+		pendingSkip = gone;
+		askReason = true;
+		clearTimeout(reasonTimer);
+		reasonTimer = setTimeout(() => {
+			void sendReason();
+		}, 4000);
 		clearTimeout(undoTimer);
 		undoUntil = Date.now() + 5000;
 		undoTimer = setTimeout(() => {
@@ -189,8 +201,7 @@
 		if (moved <= TAP_SLOP && current) {
 			offsetX = 0;
 			offsetY = 0;
-			if (onfocus) onfocus(current);
-			else void goto(resolve(`/app/animals/${current.id}`));
+			openProfile(current);
 			return;
 		}
 		if (Math.abs(offsetX) > SWIPE_THRESHOLD) {
@@ -211,8 +222,7 @@
 			completeSwipe("left");
 		} else if (event.key === "Enter") {
 			event.preventDefault();
-			if (onfocus) onfocus(current);
-			else void goto(resolve(`/app/animals/${current.id}`));
+			openProfile(current);
 		}
 	}
 
@@ -246,6 +256,8 @@
 		<p id="app-deck-hint" class="sr-only">{m.showcase_keyboard_hint()}</p>
 
 		{#each animals.slice(0, 3) as animal, position (animal.id)}
+			{@const bond = bondedNames(animal.bonded_partners, animal.bonded_partner)}
+			{@const needs = needTraits(animal.traits, animal.age_months, animal.age_unknown)}
 			<div
 				class="absolute inset-0 overflow-hidden rounded-3xl border border-sand-200 bg-white shadow-lg select-none {position ===
 					0 && !fling
@@ -286,9 +298,14 @@
 						{speciesLabel(animal.species)}
 						{distanceLabel(animal.distance_km, animal.shelter.city)}
 					</p>
-					{#if animal.traits.length > 0}
+					{#if bond}
+						<p class="text-sm font-semibold text-sand-800">
+							{m.showcase_card_bonded({ name: bond })}
+						</p>
+					{/if}
+					{#if needs.length > 0}
 						<ul class="flex flex-wrap gap-2">
-							{#each animal.traits.slice(0, 3) as trait (trait)}
+							{#each needs as trait (trait)}
 								<li
 									class="rounded-xl bg-peach-100 px-3 py-1.5 text-xs font-semibold text-coral-900"
 								>
@@ -384,11 +401,11 @@
 		<button
 			type="button"
 			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-emerald-700 bg-white text-emerald-700 shadow-sm focus-ring transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
-			aria-label={m.app_like()}
+			aria-label={m.app_open_profile()}
 			disabled={!current || !!fling}
-			onclick={() => completeSwipe("right")}
+			onclick={() => current && openProfile(current)}
 		>
-			<Heart class="size-7" aria-hidden="true" />
+			<Eye class="size-7" aria-hidden="true" />
 		</button>
 	</div>
 
