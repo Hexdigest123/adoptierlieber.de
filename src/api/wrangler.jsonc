@@ -84,6 +84,7 @@
       "vars": {
         "ENVIRONMENT": "staging",
         "BASIC_AUTH_USER": "staging",
+        "PUBLIC_SITE_URL": "https://staging.adoptierlieber.de",
       },
       "kv_namespaces": [
         {

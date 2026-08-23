@@ -96,6 +96,9 @@ export function createUserService(env: Env) {
       if (!user) {
         return false;
       }
+      if (user.emailVerifiedAt) {
+        return true;
+      }
       if (
         !user.emailVerificationToken ||
         !user.emailVerificationTokenExpiresAt ||
