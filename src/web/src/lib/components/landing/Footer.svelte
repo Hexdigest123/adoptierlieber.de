@@ -34,11 +34,7 @@
 		class="mx-auto flex max-w-6xl flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left"
 	>
 		<div class="flex flex-col items-center gap-3 sm:items-start">
-			<a
-				href={resolve("/")}
-				class="rounded-full focus-ring"
-				aria-label={m.brand_name()}
-			>
+			<a href={resolve("/")} class="rounded-full focus-ring" aria-label={m.brand_name()}>
 				<Logo />
 			</a>
 			<p class="max-w-md text-sm text-sand-700">{m.footer_tagline()}</p>
@@ -90,5 +86,13 @@
 	</div>
 	<p class="mx-auto mt-8 max-w-6xl text-center text-xs text-sand-600 sm:text-left">
 		{m.footer_copyright({ year })}
+		<a
+			href="https://www.geoapify.com/"
+			class="inline-flex min-h-11 items-center underline-offset-2 focus-ring hover:text-coral-700 hover:underline"
+			target="_blank"
+			rel="noopener noreferrer"
+		>
+			{m.footer_geoapify()}
+		</a>
 	</p>
 </footer>

@@ -2,6 +2,23 @@ import { drizzle } from "drizzle-orm/d1";
 import { usersTable } from "../schema";
 import { getDb, type Env } from "../config/env";
 import { eq, sql } from "drizzle-orm";
+import { PLATFORM_ROLE } from "../lib/roles";
+
+export type CreateUserInput = {
+  name: string;
+  displayName?: string;
+  email: string;
+  password: string;
+  emailVerificationToken?: string | null;
+  emailVerificationTokenExpiresAt?: Date | null;
+  avatarKey?: string | null;
+  platformRole?: number;
+  street?: string | null;
+  zip?: string | null;
+  city?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+};
 
 export function createUserRepo(env: Env) {
   const db = drizzle(getDb(env), { schema: { usersTable } });
@@ -19,38 +36,38 @@ export function createUserRepo(env: Env) {
         .from(usersTable)
         .all();
     },
-    create(input: {
-      name: string;
-      displayName?: string;
-      email: string;
-      password: string;
-      emailVerificationToken?: string | null;
-      emailVerificationTokenExpiresAt?: Date | null;
-      avatarKey?: string | null;
-    }) {
+
+    hasSuperAdmin() {
       return db
-        .insert(usersTable)
-        .values(input)
-        .returning({
-          id: usersTable.id,
-          name: usersTable.name,
-          displayName: usersTable.displayName,
-          email: usersTable.email,
-          avatarKey: usersTable.avatarKey,
-        })
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.platformRole, PLATFORM_ROLE.SUPER_ADMIN))
         .get();
     },
+
+    create(input: CreateUserInput) {
+      return db
+        .insert(usersTable)
+        .values({
+          ...input,
+          platformRole: input.platformRole ?? PLATFORM_ROLE.USER,
+        })
+        .returning()
+        .get();
+    },
+
     findById(id: string) {
       return db.select().from(usersTable).where(eq(usersTable.id, id)).get();
     },
+
     findByEmail(email: string) {
-      // sql`` binds the value; column ref is an identifier, not interpolation
       return db
         .select()
         .from(usersTable)
         .where(sql`lower(${usersTable.email}) = ${email.toLowerCase()}`)
         .get();
     },
+
     updateDeletionToken(
       userId: string,
       accountDeletionToken: string,
@@ -88,32 +105,32 @@ export function createUserRepo(env: Env) {
         .update(usersTable)
         .set({ password: password, passwordChangedAt: new Date() })
         .where(eq(usersTable.id, userId))
-        .returning({
-          id: usersTable.id,
-          name: usersTable.name,
-          displayName: usersTable.displayName,
-          email: usersTable.email,
-          avatarKey: usersTable.avatarKey,
-        })
+        .returning()
         .get();
     },
 
     updateProfile(
       userId: string,
-      values: { name?: string; displayName?: string | null },
+      values: {
+        name?: string;
+        displayName?: string | null;
+        street?: string;
+        zip?: string;
+        city?: string;
+        lat?: number | null;
+        lng?: number | null;
+        homeQuery?: string | null;
+        homeLabel?: string | null;
+        homeCountry?: string | null;
+        homeLat?: number | null;
+        homeLng?: number | null;
+        locationPrecision?: "place" | "gps" | null;
+        maxRangeKm?: number | null;
+        preferences?: Record<string, unknown> | null;
+        tasteWeights?: Record<string, number> | null;
+      },
     ) {
-      return db
-        .update(usersTable)
-        .set(values)
-        .where(eq(usersTable.id, userId))
-        .returning({
-          id: usersTable.id,
-          name: usersTable.name,
-          displayName: usersTable.displayName,
-          email: usersTable.email,
-          avatarKey: usersTable.avatarKey,
-        })
-        .get();
+      return db.update(usersTable).set(values).where(eq(usersTable.id, userId)).returning().get();
     },
 
     updateAvatarKey(userId: string, avatarKey: string | null) {
@@ -125,6 +142,24 @@ export function createUserRepo(env: Env) {
           id: usersTable.id,
           avatarKey: usersTable.avatarKey,
         })
+        .get();
+    },
+
+    updatePlatformRole(userId: string, platformRole: number) {
+      return db
+        .update(usersTable)
+        .set({ platformRole })
+        .where(eq(usersTable.id, userId))
+        .returning()
+        .get();
+    },
+
+    setSuspendedAt(userId: string, suspendedAt: Date | null) {
+      return db
+        .update(usersTable)
+        .set({ suspendedAt })
+        .where(eq(usersTable.id, userId))
+        .returning()
         .get();
     },
 

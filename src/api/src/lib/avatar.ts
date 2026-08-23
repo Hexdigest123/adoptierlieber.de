@@ -43,6 +43,10 @@ export function avatarObjectKey(userId: string): string {
   return `avatars/${userId}`;
 }
 
+export function shelterLogoKey(shelterId: string): string {
+  return `logos/${shelterId}`;
+}
+
 export type ParsedAvatar = {
   bytes: ArrayBuffer;
   contentType: string;
@@ -77,6 +81,26 @@ export async function putAvatar(
 
 export async function deleteAvatar(env: Env, userId: string): Promise<void> {
   await env.adoptierlieber_images.delete(avatarObjectKey(userId));
+}
+
+export async function putShelterLogo(
+  env: Env,
+  shelterId: string,
+  logo: ParsedAvatar,
+): Promise<string> {
+  const key = shelterLogoKey(shelterId);
+  await env.adoptierlieber_images.put(key, logo.bytes, {
+    httpMetadata: { contentType: logo.contentType },
+  });
+  return key;
+}
+
+export async function deleteShelterLogo(env: Env, shelterId: string): Promise<void> {
+  await env.adoptierlieber_images.delete(shelterLogoKey(shelterId));
+}
+
+export async function getShelterLogoObject(env: Env, shelterId: string) {
+  return env.adoptierlieber_images.get(shelterLogoKey(shelterId));
 }
 
 export async function getAvatarObject(env: Env, userId: string) {

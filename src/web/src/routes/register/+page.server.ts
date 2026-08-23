@@ -6,8 +6,16 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function readApiError(
 	response: Response,
-): Promise<"email_taken" | "rate_limited" | "invalid" | "generic"> {
-	if (response.status === 409) return "email_taken";
+): Promise<"email_taken" | "not_allowed" | "rate_limited" | "invalid" | "generic"> {
+	if (response.status === 409) {
+		try {
+			const body = (await response.clone().json()) as { error?: string };
+			if (body.error === "registration not allowed") return "not_allowed";
+		} catch {
+			// fall through
+		}
+		return "email_taken";
+	}
 	if (response.status === 429) return "rate_limited";
 	if (response.status === 400) return "invalid";
 	try {
@@ -41,6 +49,8 @@ export const actions: Actions = {
 			street: String(data.get("street") ?? "").trim(),
 			zip: String(data.get("zip") ?? "").trim(),
 			city: String(data.get("city") ?? "").trim(),
+			lat: String(data.get("lat") ?? "").trim(),
+			lng: String(data.get("lng") ?? "").trim(),
 			website: String(data.get("website") ?? "").trim(),
 			registrationNumber: String(data.get("registrationNumber") ?? "").trim(),
 			description: String(data.get("description") ?? "").trim(),
@@ -57,10 +67,10 @@ export const actions: Actions = {
 		) {
 			return fail(400, { registerError: "invalid" as const, values });
 		}
-		if (
-			accountType === "shelter" &&
-			(!values.orgName || !values.street || !values.zip || !values.city)
-		) {
+		if (!values.street || !values.zip || !values.city) {
+			return fail(400, { registerError: "invalid" as const, values });
+		}
+		if (accountType === "shelter" && !values.orgName) {
 			return fail(400, { registerError: "invalid" as const, values });
 		}
 
@@ -69,6 +79,11 @@ export const actions: Actions = {
 		body.set("name", name);
 		body.set("email", email);
 		body.set("password", password);
+		body.set("street", values.street);
+		body.set("zip", values.zip);
+		body.set("city", values.city);
+		if (values.lat) body.set("lat", values.lat);
+		if (values.lng) body.set("lng", values.lng);
 		if (displayName) body.set("displayName", displayName);
 		if (accountType === "shelter") {
 			body.set("orgName", values.orgName);

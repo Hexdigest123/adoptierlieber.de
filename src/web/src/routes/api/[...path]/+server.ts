@@ -34,9 +34,19 @@ const proxy: RequestHandler = async ({ params, request, fetch, getClientAddress 
 	const target = `${base}/api/${path}${url.search}`;
 	const ip = request.headers.get("cf-connecting-ip") ?? getClientAddress();
 
+	const upgrade = request.headers.get("upgrade")?.toLowerCase() === "websocket";
 	const headers = new Headers();
 	for (const [key, value] of request.headers) {
-		if (!HOP_BY_HOP.has(key.toLowerCase()) && key.toLowerCase() !== "x-forwarded-for") {
+		const name = key.toLowerCase();
+		if (name === "x-forwarded-for") continue;
+		if (
+			upgrade &&
+			(name === "upgrade" || name === "connection" || name.startsWith("sec-websocket"))
+		) {
+			headers.set(key, value);
+			continue;
+		}
+		if (!HOP_BY_HOP.has(name)) {
 			headers.set(key, value);
 		}
 	}
@@ -50,14 +60,22 @@ const proxy: RequestHandler = async ({ params, request, fetch, getClientAddress 
 		duplex: "half",
 	});
 
+	if (upgrade && (response.status === 101 || "webSocket" in response)) {
+		return response;
+	}
+
 	const responseHeaders = new Headers();
 	for (const [key, value] of response.headers) {
-		if (!HOP_BY_HOP.has(key.toLowerCase())) {
+		const name = key.toLowerCase();
+		// fetch already decoded the body; forwarding content-encoding breaks the browser.
+		if (!HOP_BY_HOP.has(name) && name !== "content-encoding") {
 			responseHeaders.set(key, value);
 		}
 	}
 
-	return new Response(response.body, {
+	// Buffer so SvelteKit can clone the response for the load cache.
+	// A streamed body is one-shot and throws "Body has already been read".
+	return new Response(await response.arrayBuffer(), {
 		status: response.status,
 		statusText: response.statusText,
 		headers: responseHeaders,

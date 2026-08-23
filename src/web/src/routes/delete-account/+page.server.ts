@@ -15,9 +15,7 @@ export const actions: Actions = {
 		if (!locals.user) {
 			const data = await request.formData();
 			const token = String(data.get("deletionToken") ?? "").trim();
-			const next = token
-				? `/delete-account?token=${encodeURIComponent(token)}`
-				: "/delete-account";
+			const next = token ? `/delete-account?token=${encodeURIComponent(token)}` : "/delete-account";
 			redirect(303, `/login?next=${encodeURIComponent(next)}`);
 		}
 

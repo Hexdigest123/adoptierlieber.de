@@ -13,9 +13,12 @@
 		{m.legal_country()}<br />
 		{m.legal_represented_label()}: {m.legal_represented_name()}<br />
 		{m.legal_phone_label()}:
-		<a href="tel:+491759521503">{m.legal_phone()}</a><br />
+		<a class="inline-flex min-h-11 items-center" href="tel:+491759521503">{m.legal_phone()}</a><br
+		/>
 		{m.legal_impressum_email_label()}:
-		<a href="mailto:{m.legal_email()}">{m.legal_email()}</a><br />
+		<a class="inline-flex min-h-11 items-center" href="mailto:{m.legal_email()}"
+			>{m.legal_email()}</a
+		><br />
 		{m.legal_vat_label()}: {m.legal_vat()}<br />
 		{m.legal_content_responsible_label()}: {m.legal_content_responsible()}
 	</p>

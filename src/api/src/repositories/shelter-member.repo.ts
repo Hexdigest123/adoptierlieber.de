@@ -29,5 +29,41 @@ export function createShelterMemberRepo(env: Env) {
         )
         .get();
     },
+
+    listByUser(userId: string) {
+      return db
+        .select()
+        .from(shelterMembersTable)
+        .where(eq(shelterMembersTable.userId, userId))
+        .all();
+    },
+
+    listByShelter(shelterId: string) {
+      return db
+        .select()
+        .from(shelterMembersTable)
+        .where(eq(shelterMembersTable.shelterId, shelterId))
+        .all();
+    },
+
+    updateRole(userId: string, shelterId: string, role: number) {
+      return db
+        .update(shelterMembersTable)
+        .set({ role })
+        .where(
+          and(eq(shelterMembersTable.userId, userId), eq(shelterMembersTable.shelterId, shelterId)),
+        )
+        .returning()
+        .get();
+    },
+
+    delete(userId: string, shelterId: string) {
+      return db
+        .delete(shelterMembersTable)
+        .where(
+          and(eq(shelterMembersTable.userId, userId), eq(shelterMembersTable.shelterId, shelterId)),
+        )
+        .run();
+    },
   };
 }
