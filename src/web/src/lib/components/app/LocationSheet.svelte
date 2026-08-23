@@ -130,7 +130,6 @@
 						home_lng: pos.coords.longitude,
 						location_precision: "gps",
 						max_range_km: 25,
-						home_label: query.trim() || undefined,
 					}),
 				});
 				if (!res.ok) {

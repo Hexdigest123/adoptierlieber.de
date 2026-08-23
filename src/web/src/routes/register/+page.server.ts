@@ -57,15 +57,16 @@ export const actions: Actions = {
 		};
 
 		// client-equivalent server validation so the flow works without JS
+		if (!name || !EMAIL_RE.test(email)) {
+			return fail(400, { registerError: "invalid" as const, values });
+		}
 		if (
-			!name ||
-			!EMAIL_RE.test(email) ||
 			password.length < 8 ||
 			password.length > 128 ||
 			!/[A-Za-z]/.test(password) ||
 			!/\d/.test(password)
 		) {
-			return fail(400, { registerError: "invalid" as const, values });
+			return fail(400, { registerError: "password" as const, values });
 		}
 		if (!values.street || !values.zip || !values.city) {
 			return fail(400, { registerError: "invalid" as const, values });

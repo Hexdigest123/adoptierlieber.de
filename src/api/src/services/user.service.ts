@@ -11,7 +11,7 @@ import type { Env } from "../config/env";
 import type { PublicSession, PublicUser, User } from "../types";
 import { toPublicUser } from "../lib/public-user";
 import { assertRegistrationAllowed, insertRegisteredUser } from "../lib/create-account";
-import { geocodeAddress } from "../lib/geocode";
+import { geocodeAddress, labelFromCoords, resolveHomePlace } from "../lib/geocode";
 import { createShelterMemberRepo } from "../repositories/shelter-member.repo";
 import { createShelterRepo } from "../repositories/shelter.repo";
 import { createShelterInviteRepo } from "../repositories/shelter-invite.repo";
@@ -41,6 +41,75 @@ import {
   passwordResetTemplate,
 } from "../lib/email-templates";
 import { verifyEmailSchema } from "../lib/zod";
+
+type HomePatch = {
+  home_query?: string | null;
+  home_lat?: number | null;
+  home_lng?: number | null;
+  location_precision?: "place" | "gps" | null;
+};
+
+type HomeValues = {
+  homeQuery?: string | null;
+  homeLabel?: string | null;
+  homeCountry?: string | null;
+  homeLat?: number | null;
+  homeLng?: number | null;
+  locationPrecision?: "place" | "gps" | null;
+};
+
+async function resolveHomeUpdate(data: HomePatch): Promise<HomeValues> {
+  const touching =
+    data.home_query !== undefined ||
+    data.home_lat !== undefined ||
+    data.home_lng !== undefined ||
+    data.location_precision !== undefined;
+  if (!touching) return {};
+
+  const query = data.home_query ?? null;
+  const lat = data.home_lat ?? null;
+  const lng = data.home_lng ?? null;
+
+  if (!query && lat == null && lng == null) {
+    return {
+      homeQuery: null,
+      homeLabel: null,
+      homeCountry: null,
+      homeLat: null,
+      homeLng: null,
+      locationPrecision: null,
+    };
+  }
+
+  if (query) {
+    const hit = await resolveHomePlace(query, lat ?? undefined, lng ?? undefined);
+    if (!hit) {
+      throw new HTTPException(400, { message: "unknown place" });
+    }
+    return {
+      homeQuery: query,
+      homeLabel: hit.label,
+      homeCountry: hit.country,
+      homeLat: hit.lat,
+      homeLng: hit.lng,
+      locationPrecision: "place",
+    };
+  }
+
+  if (lat == null || lng == null) {
+    throw new HTTPException(400, { message: "unknown place" });
+  }
+
+  const named = await labelFromCoords(lat, lng);
+  return {
+    homeQuery: null,
+    homeLabel: named?.label ?? null,
+    homeCountry: named?.country ?? null,
+    homeLat: lat,
+    homeLng: lng,
+    locationPrecision: "gps",
+  };
+}
 
 export function createUserService(env: Env) {
   const repo = createUserRepo(env);
@@ -336,6 +405,7 @@ export function createUserService(env: Env) {
         const current = await repo.findById(userId);
         preferences = { ...(current?.preferences ?? {}), ...preferences };
       }
+      const home = await resolveHomeUpdate(data);
       const values = {
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.displayName !== undefined
@@ -346,14 +416,7 @@ export function createUserService(env: Env) {
         ...(data.city !== undefined ? { city: data.city } : {}),
         ...(data.lat !== undefined ? { lat: data.lat } : {}),
         ...(data.lng !== undefined ? { lng: data.lng } : {}),
-        ...(data.home_query !== undefined ? { homeQuery: data.home_query } : {}),
-        ...(data.home_label !== undefined ? { homeLabel: data.home_label } : {}),
-        ...(data.home_country !== undefined ? { homeCountry: data.home_country } : {}),
-        ...(data.home_lat !== undefined ? { homeLat: data.home_lat } : {}),
-        ...(data.home_lng !== undefined ? { homeLng: data.home_lng } : {}),
-        ...(data.location_precision !== undefined
-          ? { locationPrecision: data.location_precision }
-          : {}),
+        ...home,
         ...(data.max_range_km !== undefined ? { maxRangeKm: data.max_range_km } : {}),
         ...(preferences !== undefined ? { preferences } : {}),
         ...(data.taste_weights !== undefined ? { tasteWeights: data.taste_weights } : {}),

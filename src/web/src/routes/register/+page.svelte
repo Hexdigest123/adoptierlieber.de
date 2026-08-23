@@ -71,16 +71,24 @@
 		if (step >= (value === "shelter" ? 5 : 4)) step = 0;
 	}
 
-	function validAccount() {
+	function passwordOk() {
 		return (
-			name.trim().length > 0 &&
-			/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) &&
 			password.length >= 8 &&
 			password.length <= 128 &&
 			/[A-Za-z]/.test(password) &&
 			/\d/.test(password)
 		);
 	}
+
+	function validAccount() {
+		return (
+			name.trim().length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && passwordOk()
+		);
+	}
+
+	const passwordPolicyError = $derived(
+		form?.registerError === "password" || (stepError && current === "account" && !passwordOk()),
+	);
 
 	function validAddress() {
 		return street.trim().length > 0 && zip.trim().length > 0 && city.trim().length > 0;
@@ -179,6 +187,7 @@
 		not_allowed: () => m.error_registration_not_allowed(),
 		rate_limited: () => m.error_rate_limited(),
 		invalid: () => m.error_invalid_input(),
+		password: () => m.auth_password_error(),
 		generic: () => m.error_generic(),
 	};
 </script>
@@ -217,6 +226,8 @@
 		<form method="POST" enctype="multipart/form-data" class="flex flex-col gap-5" use:enhance>
 			{#if form?.registerError}
 				<FormStatus type="error">{errorMessages[form.registerError]()}</FormStatus>
+			{:else if passwordPolicyError}
+				<FormStatus type="error">{m.auth_password_error()}</FormStatus>
 			{:else if stepError}
 				<FormStatus type="error">{m.error_invalid_input()}</FormStatus>
 			{/if}
@@ -298,6 +309,7 @@
 					type="password"
 					label={m.auth_password()}
 					hint={m.auth_password_hint()}
+					error={passwordPolicyError ? m.auth_password_error() : undefined}
 					required={!wizard || current === "account"}
 					minlength={8}
 					maxlength={128}

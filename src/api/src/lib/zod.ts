@@ -27,11 +27,13 @@ export const addressFields = {
   lng: optionalLng,
 };
 
+const prefSpeciesTag = z.enum(["dog", "cat", "small", "bird", "open"]);
+
 const userPreferencesSchema = z
   .object({
     onboarded: z.boolean().optional(),
     prefs_done: z.boolean().optional(),
-    species: z.enum(["dog", "cat", "small", "bird", "open"]).optional(),
+    species: z.union([prefSpeciesTag, z.array(prefSpeciesTag).max(5)]).optional(),
     home: z.enum(["apartment", "house", "yard"]).optional(),
     with: z.array(z.enum(["kids", "dog", "cat", "alone"])).max(4).optional(),
     lifestyle: z.enum(["active", "cuddle", "first"]).optional(),

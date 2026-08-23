@@ -161,14 +161,15 @@
 			</section>
 		{/if}
 
-		<ul class="mt-4 flex flex-col gap-2" aria-live="polite">
+		<ul class="mt-4 flex w-full min-w-0 flex-col gap-2" aria-live="polite">
 			{#each messages as message (message.id)}
 				<li
-					class="max-w-[85%] rounded-2xl px-3 py-2 text-sm {message.kind === 'system'
-						? 'self-center bg-sand-100 text-sand-600'
+					class="max-w-[85%] min-w-0 overflow-hidden [overflow-wrap:anywhere] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm {message.kind ===
+					'system'
+						? 'self-center bg-sand-200 text-sand-700'
 						: message.author_user_id === data.thread.adopter_user_id
 							? 'self-start bg-white'
-							: 'self-end bg-coral-50 text-coral-950'}"
+							: 'self-end bg-coral-200 text-coral-950'}"
 				>
 					{message.kind === "system" ? systemLabel(message.body) : message.body}
 				</li>
@@ -195,17 +196,25 @@
 				</div>
 			{/if}
 			<form
-				class="mt-4 flex gap-2"
+				class="mt-4 flex items-end gap-2"
 				onsubmit={(event) => {
 					event.preventDefault();
 					void send();
 				}}
 			>
-				<input
+				<textarea
 					bind:value={draft}
-					class="h-11 flex-1 rounded-xl border border-sand-300 bg-white px-3.5 focus-ring"
+					rows={3}
+					maxlength={2000}
+					class="min-h-11 min-w-0 flex-1 resize-y rounded-xl border border-sand-300 bg-white px-3.5 py-2.5 focus-ring"
 					placeholder={m.shelter_composer_placeholder()}
-				/>
+					onkeydown={(event) => {
+						if (event.key === "Enter" && !event.shiftKey) {
+							event.preventDefault();
+							void send();
+						}
+					}}
+				></textarea>
 				<Button type="submit" loading={sending}>{m.shelter_send()}</Button>
 			</form>
 		{/if}

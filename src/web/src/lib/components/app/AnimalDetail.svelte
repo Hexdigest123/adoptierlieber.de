@@ -220,8 +220,8 @@
 		</h1>
 		<p class="text-base font-semibold text-coral-700">
 			{speciesLabel(animal.species)}
-			{sexLabel(animal.sex)}{#if animal.breed}
-				{animal.breed}{/if}
+			{sexLabel(animal.sex)}
+			{#if animal.breed}{animal.breed}{/if}
 		</p>
 		<p class="text-sm text-sand-700">
 			{distanceLabel(animal.distance_km, animal.shelter.city)}

@@ -177,7 +177,7 @@
 				{#if form?.homeSuccess}
 					<FormStatus type="success">{m.app_profile_home_saved()}</FormStatus>
 				{:else if form?.homeError}
-					<FormStatus type="error">{m.error_invalid_input()}</FormStatus>
+					<FormStatus type="error">{m.app_location_none()}</FormStatus>
 				{/if}
 				<form method="POST" action="?/home" class="flex flex-col gap-3" use:enhance>
 					<Input
