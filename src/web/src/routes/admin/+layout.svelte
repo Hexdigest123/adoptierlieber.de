@@ -8,6 +8,7 @@
 	import House from "lucide-svelte/icons/house";
 	import LayoutGrid from "lucide-svelte/icons/layout-grid";
 	import ClipboardList from "lucide-svelte/icons/clipboard-list";
+	import Star from "lucide-svelte/icons/star";
 	import Ban from "lucide-svelte/icons/ban";
 	import ScrollText from "lucide-svelte/icons/scroll-text";
 	import Users from "lucide-svelte/icons/users";
@@ -26,11 +27,13 @@
 
 	const user = $derived(data.user);
 	const pending = $derived(data.pendingCount);
+	const pendingReviews = $derived(data.pendingReviewCount);
 
 	type NavHref =
 		| "/admin"
 		| "/admin/catalog"
 		| "/admin/applications"
+		| "/admin/reviews"
 		| "/admin/bans"
 		| "/admin/audit"
 		| "/admin/team";
@@ -62,6 +65,13 @@
 			icon: ClipboardList,
 			badge: pending,
 			match: (path) => path.startsWith("/admin/applications"),
+		},
+		{
+			href: "/admin/reviews",
+			label: () => m.admin_nav_reviews(),
+			icon: Star,
+			badge: pendingReviews,
+			match: (path) => path.startsWith("/admin/reviews"),
 		},
 		{
 			href: "/admin/bans",

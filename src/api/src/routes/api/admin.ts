@@ -4,6 +4,7 @@ import { sessionValidation } from "../../middlewares/session";
 import { requirePlatformAdmin } from "../../middlewares/platform-admin";
 import { rateLimitByIp } from "../../middlewares/rate-limit";
 import { createAdminService } from "../../services/admin.service";
+import { createReviewService } from "../../services/review.service";
 
 export const admin = new Hono<AppEnv>();
 
@@ -152,5 +153,19 @@ admin.delete("/invites/:id", rateLimitByIp("admin-revoke-invite", 20), async (c)
 
 admin.delete("/admins/:id", rateLimitByIp("admin-remove-admin", 10), async (c) => {
   await createAdminService(c.env).removeAdmin(c.get("userId"), c.req.param("id"));
+  return c.json({});
+});
+
+admin.get("/reviews", async (c) => {
+  return c.json(await createReviewService(c.env).listAdmin(new URL(c.req.url).searchParams));
+});
+
+admin.post("/reviews/:id/approval", rateLimitByIp("admin-approve-review", 20), async (c) => {
+  await createReviewService(c.env).approve(c.get("userId"), c.req.param("id"));
+  return c.json({});
+});
+
+admin.delete("/reviews/:id", rateLimitByIp("admin-delete-review", 20), async (c) => {
+  await createReviewService(c.env).remove(c.get("userId"), c.req.param("id"));
   return c.json({});
 });

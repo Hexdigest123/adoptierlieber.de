@@ -3,6 +3,7 @@ import type { Env } from "./config/env";
 import type {
   animalsTable,
   messagesTable,
+  reviewsTable,
   sessionsTable,
   shelterInvitesTable,
   shelterMembersTable,
@@ -57,6 +58,8 @@ export type AnimalSize = Animal["size"];
 export type Thread = InferSelectModel<typeof threadsTable>;
 export type Message = InferSelectModel<typeof messagesTable>;
 export type ShelterInvite = InferSelectModel<typeof shelterInvitesTable>;
+export type Review = InferSelectModel<typeof reviewsTable>;
+export type ReviewStatus = Review["status"];
 
 export type ApplicationFieldType = "short" | "long" | "select" | "yesno";
 

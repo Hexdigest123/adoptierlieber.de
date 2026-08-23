@@ -50,6 +50,8 @@
 		remove_admin: () => m.admin_action_remove_admin_label(),
 		note: () => m.admin_action_note_label(),
 		ban_lookup_hit: () => m.admin_action_ban_lookup_hit_label(),
+		approve_review: () => m.admin_action_approve_review_label(),
+		delete_review: () => m.admin_action_delete_review_label(),
 	};
 </script>
 

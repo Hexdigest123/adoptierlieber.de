@@ -169,6 +169,18 @@ export type AdminNote = {
 	created_at: string;
 };
 
+export type AdminReviewRow = {
+	id: string;
+	user_id: string;
+	name: string;
+	stars: number;
+	body: string;
+	status: "pending" | "approved";
+	decided_at: string | null;
+	decided_by: string | null;
+	created_at: string;
+};
+
 export type InvitePreview = {
 	email: string;
 	expires_at: string;

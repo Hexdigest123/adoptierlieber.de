@@ -460,3 +460,32 @@ export const threadReadsTable = sqliteTable(
     index("thread_reads_user_idx").on(table.userId),
   ],
 );
+
+export const reviewsTable = sqliteTable(
+  "reviews",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .references(() => usersTable.id, { onDelete: "cascade" })
+      .notNull(),
+    name: text("name").notNull(),
+    stars: integer("stars").notNull(),
+    body: text("body").notNull(),
+    status: text("status", { enum: ["pending", "approved"] })
+      .notNull()
+      .$defaultFn(() => "pending"),
+    decidedAt: integer("decided_at", { mode: "timestamp" }),
+    decidedBy: text("decided_by"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("reviews_user_uq").on(table.userId),
+    index("reviews_status_idx").on(table.status),
+    index("reviews_created_idx").on(table.createdAt),
+    index("reviews_status_created_idx").on(table.status, table.createdAt),
+  ],
+);

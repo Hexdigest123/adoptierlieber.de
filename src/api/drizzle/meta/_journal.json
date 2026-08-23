@@ -85,6 +85,20 @@
       "when": 1787498524220,
       "tag": "0011_colossal_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1787508462599,
+      "tag": "0012_eager_midnight",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1787508987180,
+      "tag": "0013_fat_mathemanic",
+      "breakpoints": true
     }
   ]
 }
