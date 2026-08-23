@@ -9,6 +9,7 @@
 	import { withFrom } from "$lib/app/return";
 	import { ageLabel, coverPhoto, distanceLabel, speciesLabel } from "$lib/app/format";
 	import type { ListEnvelope, PublicAnimal } from "$lib/types/catalog";
+	import { listItems } from "$lib/types/catalog";
 	import AnimalPhoto from "$lib/components/app/AnimalPhoto.svelte";
 	import "leaflet/dist/leaflet.css";
 
@@ -26,6 +27,7 @@
 	let animals = $state<PublicAnimal[]>([]);
 	let viewport = $state<PublicAnimal[]>([]);
 	let loading = $state(true);
+	let error = $state(false);
 
 	const user = $derived(page.data.user);
 	const locale = $derived(getLocale());
@@ -48,11 +50,17 @@
 		const params = new URLSearchParams({ mode: "map", per_page: "50", sort: "distance" });
 		const species = speciesQuery();
 		if (species) params.set("species", species);
+		error = false;
 		try {
 			const res = await fetch(`/api/animals?${params}`);
-			if (!res.ok) return;
+			if (!res.ok) {
+				error = true;
+				return;
+			}
 			const body = (await res.json()) as ListEnvelope<PublicAnimal>;
-			animals = body.items;
+			animals = listItems(body);
+		} catch {
+			error = true;
 		} finally {
 			loading = false;
 			placeMarkers();
@@ -251,6 +259,8 @@
 	<h2 id="map-list-title" class="text-sm font-bold text-sand-900">{m.app_map_list()}</h2>
 	{#if loading}
 		<p class="mt-2 text-sm text-sand-600">…</p>
+	{:else if error}
+		<p class="mt-2 text-sm text-coral-700">{m.error_generic()}</p>
 	{:else if viewport.length === 0}
 		<p class="mt-2 text-sm text-sand-600">{m.app_map_empty()}</p>
 	{:else}

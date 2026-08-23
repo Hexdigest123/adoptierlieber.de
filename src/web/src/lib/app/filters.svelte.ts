@@ -9,7 +9,10 @@ function readStored(): AnimalSpecies[] {
 		if (!raw) return [];
 		const parsed: unknown = JSON.parse(raw);
 		if (!Array.isArray(parsed)) return [];
-		return parsed.filter((value): value is AnimalSpecies => typeof value === "string");
+		const allowed = new Set(SPECIES_CHIPS.flatMap((chip) => chip.species));
+		return parsed.filter((value): value is AnimalSpecies =>
+			typeof value === "string" && allowed.has(value as AnimalSpecies),
+		);
 	} catch {
 		return [];
 	}

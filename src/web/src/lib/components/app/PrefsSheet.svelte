@@ -27,11 +27,15 @@
 		const preferences: UserPreferences = skipped
 			? { onboarded: true, prefs_done: true }
 			: { onboarded: true, prefs_done: true, species, home, with: withWho, lifestyle };
-		await fetch("/api/users/me", {
-			method: "PATCH",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ preferences }),
-		});
+		try {
+			await fetch("/api/users/me", {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ preferences }),
+			});
+		} catch {
+			// still close so the sheet cannot trap the user
+		}
 		open = false;
 		ondone();
 	}

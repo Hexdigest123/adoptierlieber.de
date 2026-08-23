@@ -157,8 +157,13 @@ export function seoForRoute(routeId: string | null, pathname: string, status = 2
 	};
 }
 
+/** Escape `<` so JSON-LD cannot break out of the script tag. */
+export function jsonLdText(payload: unknown): string {
+	return JSON.stringify(payload).replaceAll("<", "\\u003c");
+}
+
 export function jsonLd(seo: Seo, locale: string): string {
-	return JSON.stringify({
+	return jsonLdText({
 		"@context": "https://schema.org",
 		"@graph": [
 			{

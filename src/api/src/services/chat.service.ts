@@ -1,4 +1,5 @@
 import { HTTPException } from "hono/http-exception";
+import { isUniqueConstraint } from "../lib/create-account";
 import type { Env } from "../config/env";
 import { assignThreadSchema, createMessageSchema, createThreadSchema } from "../lib/zod";
 import { createAnimalRepo } from "../repositories/animal.repo";
@@ -198,19 +199,28 @@ export function createChatService(env: Env) {
       };
       const answers = collectAnswers(asForm(shelter.applicationForm), data.answers);
 
-      const thread = await threadRepo.create({
-        shelterId: shelter.id,
-        animalId: animal.id,
-        adopterUserId: userId,
-        emailGranted: true,
-        profileGranted: true,
-        grantedAt: new Date(),
-        grantEmail: adopter.email,
-        grantProfile,
-        applicationAnswers: answers,
-        unreadForShelter: true,
-        unreadForAdopter: false,
-      });
+      let thread;
+      try {
+        thread = await threadRepo.create({
+          shelterId: shelter.id,
+          animalId: animal.id,
+          adopterUserId: userId,
+          emailGranted: true,
+          profileGranted: true,
+          grantedAt: new Date(),
+          grantEmail: adopter.email,
+          grantProfile,
+          applicationAnswers: answers,
+          unreadForShelter: true,
+          unreadForAdopter: false,
+        });
+      } catch (error: unknown) {
+        if (isUniqueConstraint(error)) {
+          const raced = await threadRepo.findByAnimalAdopter(data.animal_id, userId);
+          if (raced) return toThreadView(raced, userId);
+        }
+        throw error;
+      }
       if (!thread) {
         throw new HTTPException(500, { message: "something wen't wrong" });
       }
@@ -411,7 +421,7 @@ export function createChatService(env: Env) {
         throw new HTTPException(404, { message: "animal not found" });
       }
       const shelter = await shelterRepo.findById(animal.shelterId);
-      if (!shelter) {
+      if (!shelter || shelter.archivedAt || shelter.verificationStatus !== "verified") {
         throw new HTTPException(404, { message: "animal not found" });
       }
       const existing = await threadRepo.findByAnimalAdopter(animalId, userId);

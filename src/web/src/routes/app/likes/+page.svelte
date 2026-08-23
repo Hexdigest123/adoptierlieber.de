@@ -6,6 +6,7 @@
 	import AnimalCard from "$lib/components/app/AnimalCard.svelte";
 	import { speciesQuery } from "$lib/app/filters.svelte";
 	import type { ListEnvelope, PublicAnimal } from "$lib/types/catalog";
+	import { listItems } from "$lib/types/catalog";
 
 	let animals = $state<PublicAnimal[]>([]);
 	let loading = $state(true);
@@ -26,7 +27,7 @@
 				return;
 			}
 			const body = (await res.json()) as ListEnvelope<PublicAnimal>;
-			animals = body.items;
+			animals = listItems(body);
 		} catch {
 			error = true;
 		} finally {

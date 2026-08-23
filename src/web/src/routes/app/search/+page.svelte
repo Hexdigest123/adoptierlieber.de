@@ -7,6 +7,7 @@
 	import AnimalCard from "$lib/components/app/AnimalCard.svelte";
 	import { speciesQuery } from "$lib/app/filters.svelte";
 	import type { AnimalSex, AnimalSize, ListEnvelope, PublicAnimal } from "$lib/types/catalog";
+	import { listItems } from "$lib/types/catalog";
 
 	const user = $derived(page.data.user);
 
@@ -26,6 +27,7 @@
 	let animals = $state<PublicAnimal[]>([]);
 	let loading = $state(false);
 	let searched = $state(false);
+	let error = $state(false);
 
 	function toggleGood(tag: string) {
 		goodWith = goodWith.includes(tag) ? goodWith.filter((v) => v !== tag) : [...goodWith, tag];
@@ -47,8 +49,8 @@
 		try {
 			const res = await fetch(`/api/animals/breeds?${params}`);
 			if (!res.ok) return;
-			const body = (await res.json()) as { items: string[] };
-			breedHits = body.items;
+			const body = (await res.json()) as { items?: string[] };
+			breedHits = listItems(body);
 		} catch {
 			breedHits = [];
 		}
@@ -57,6 +59,7 @@
 	async function search() {
 		loading = true;
 		searched = true;
+		error = false;
 		const params = new URLSearchParams({
 			mode: "search",
 			sort,
@@ -75,9 +78,15 @@
 		if (breed.trim()) params.set("breed", breed.trim());
 		try {
 			const res = await fetch(`/api/animals?${params}`);
-			if (!res.ok) return;
+			if (!res.ok) {
+				error = true;
+				return;
+			}
 			const body = (await res.json()) as ListEnvelope<PublicAnimal>;
-			animals = body.items;
+			animals = listItems(body);
+			error = false;
+		} catch {
+			error = true;
 		} finally {
 			loading = false;
 		}
@@ -267,7 +276,9 @@
 		<Button type="submit" {loading}>{m.app_search_submit()}</Button>
 	</form>
 
-	{#if searched && !loading && animals.length === 0}
+	{#if searched && !loading && error}
+		<p class="text-sm text-coral-700">{m.error_generic()}</p>
+	{:else if searched && !loading && animals.length === 0}
 		<p class="text-sm text-sand-700">{m.app_search_empty()}</p>
 	{:else if animals.length > 0}
 		<ul class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

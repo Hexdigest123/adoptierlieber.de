@@ -80,11 +80,20 @@
 	});
 
 	async function writeSwipe(action: "like" | "skip", animalId: string, reason?: string) {
-		await fetch("/api/swipes", {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ animal_id: animalId, action, reason }),
-		});
+		try {
+			const res = await fetch("/api/swipes", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ animal_id: animalId, action, reason }),
+			});
+			return res.ok;
+		} catch {
+			return false;
+		}
+	}
+
+	function restore(animal: PublicAnimal) {
+		animals = [animal, ...animals.filter((row) => row.id !== animal.id)];
 	}
 
 	function completeSwipe(direction: "left" | "right") {
@@ -111,7 +120,9 @@
 				void sendReason();
 			}, 4000);
 		} else {
-			void writeSwipe("like", gone.id);
+			void writeSwipe("like", gone.id).then((ok) => {
+				if (!ok) setTimeout(() => restore(gone), delay);
+			});
 		}
 		clearTimeout(undoTimer);
 		undoUntil = Date.now() + 5000;
@@ -129,7 +140,8 @@
 		clearTimeout(reasonTimer);
 		askReason = false;
 		pendingSkip = null;
-		await writeSwipe("skip", gone.id, reason);
+		const ok = await writeSwipe("skip", gone.id, reason);
+		if (!ok) restore(gone);
 	}
 
 	async function undo() {

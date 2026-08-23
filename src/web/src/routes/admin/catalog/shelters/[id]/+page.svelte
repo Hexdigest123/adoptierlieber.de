@@ -12,6 +12,7 @@
 	let { data }: PageProps = $props();
 	const shelter = $derived(data.shelter);
 	const owner = $derived(shelter.members.find((member) => member.role === 1) ?? shelter.members[0]);
+	let actionError = $state(false);
 </script>
 
 <div class="mb-5">
@@ -128,6 +129,7 @@
 					body: JSON.stringify({ user_id: value }),
 				});
 				if (res.ok) location.reload();
+				else actionError = true;
 			}}
 		>
 			<input
@@ -138,6 +140,9 @@
 			/>
 			<Button type="submit" size="sm">{m.admin_shelter_transfer()}</Button>
 		</form>
+		{#if actionError}
+			<p class="mt-2 text-sm text-coral-700">{m.admin_error_generic()}</p>
+		{/if}
 		<div class="mt-3">
 			<Button
 				type="button"
@@ -147,6 +152,7 @@
 					if (!confirm(m.admin_shelter_archive_confirm())) return;
 					const res = await fetch(`/api/admin/shelters/${shelter.id}/archive`, { method: "POST" });
 					if (res.ok) location.reload();
+					else actionError = true;
 				}}
 			>
 				{m.admin_shelter_archive()}

@@ -10,6 +10,7 @@ import {
   verifyEmailTemplate,
 } from "../../lib/email-templates";
 import { readCreateBody } from "../../lib/avatar";
+import { acceptShelterInviteSchema } from "../../lib/zod";
 
 export const shelters = new Hono<AppEnv>();
 
@@ -52,8 +53,8 @@ shelters.post("/", rateLimitByIp("create-shelter", 5), async (c) => {
 });
 
 shelters.post("/invites/accept", sessionValidation, async (c) => {
-  const body = (await c.req.json()) as { token?: string };
-  const result = await createShelterService(c.env).acceptInvite(c.get("userId"), body.token ?? "");
+  const body = acceptShelterInviteSchema.parse(await c.req.json());
+  const result = await createShelterService(c.env).acceptInvite(c.get("userId"), body.token);
   return c.json(result, 200);
 });
 
@@ -196,7 +197,7 @@ shelters.delete("/:id/logo", sessionValidation, async (c) => {
 });
 
 shelters.get("/:id/logo", sessionValidation, async (c) => {
-  const object = await createShelterService(c.env).getLogo(c.req.param("id"));
+  const object = await createShelterService(c.env).getLogo(c.get("userId"), c.req.param("id"));
   if (!object) {
     return c.json({ error: "logo not found" }, 404);
   }
@@ -277,7 +278,7 @@ shelters.post("/:id/animals/:animalId/home", sessionValidation, async (c) => {
     c.get("userId"),
     c.req.param("id"),
     c.req.param("animalId"),
-    await c.req.json().catch(() => ({})),
+    await c.req.json(),
   );
   return c.json(animal, 200);
 });

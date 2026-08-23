@@ -2,7 +2,7 @@
 	import type { PageProps } from "./$types";
 	import AnimalDetail from "$lib/components/app/AnimalDetail.svelte";
 	import { m } from "$lib/paraglide/messages";
-	import { SITE_ORIGIN } from "$lib/seo";
+	import { jsonLdText, SITE_ORIGIN } from "$lib/seo";
 
 	let { data }: PageProps = $props();
 	let animal = $state(data.animal);
@@ -18,7 +18,7 @@
 	);
 	const canonical = $derived(`${SITE_ORIGIN}/animals/${animal.id}`);
 	const json = $derived(
-		JSON.stringify({
+		jsonLdText({
 			"@context": "https://schema.org",
 			"@type": "Animal",
 			name: animal.name,

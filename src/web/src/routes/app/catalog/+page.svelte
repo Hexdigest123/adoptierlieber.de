@@ -9,6 +9,7 @@
 	import AnimalCard from "$lib/components/app/AnimalCard.svelte";
 	import { selectedSpecies, setSelectedSpecies, speciesQuery } from "$lib/app/filters.svelte";
 	import type { AnimalSex, AnimalSize, ListEnvelope, PublicAnimal } from "$lib/types/catalog";
+	import { listItems } from "$lib/types/catalog";
 	import { RANGE_STOPS } from "$lib/types/catalog";
 
 	let q = $state("");
@@ -60,14 +61,15 @@
 				return;
 			}
 			const body = (await res.json()) as ListEnvelope<PublicAnimal>;
+			const items = listItems(body);
 			total = body.total;
 			inRange = body.in_range ?? body.total;
 			if (reset) {
-				animals = body.items;
+				animals = items;
 				pageNo = 2;
 			} else {
 				const seen = new Set(animals.map((row) => row.id));
-				animals = [...animals, ...body.items.filter((row) => !seen.has(row.id))];
+				animals = [...animals, ...items.filter((row) => !seen.has(row.id))];
 				pageNo = nextPage + 1;
 			}
 		} catch {

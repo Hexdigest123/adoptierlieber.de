@@ -10,7 +10,7 @@ import {
   updateShelterSchema,
 } from "../lib/zod";
 import { generateToken, hashPassword, hashToken } from "../lib/hashing";
-import { hasPrivilege, SHELTER_ROLE, type ShelterRole } from "../lib/roles";
+import { hasPrivilege, isPlatformAdmin, SHELTER_ROLE, type ShelterRole } from "../lib/roles";
 import { createUserRepo } from "../repositories/user.repo";
 import { createShelterRepo } from "../repositories/shelter.repo";
 import { createShelterMemberRepo } from "../repositories/shelter-member.repo";
@@ -566,7 +566,14 @@ export function createShelterService(env: Env) {
       return toStaffShelter(updated);
     },
 
-    async getLogo(shelterId: string) {
+    async getLogo(userId: string, shelterId: string) {
+      const actor = await userRepo.findById(userId);
+      if (!actor) {
+        throw new HTTPException(404, { message: "logo not found" });
+      }
+      if (!isPlatformAdmin(actor.platformRole)) {
+        await this.assertRole(userId, shelterId, SHELTER_ROLE.STAFF);
+      }
       const shelter = await requireShelter(shelterId);
       if (!shelter.logoKey) return null;
       return getShelterLogoObject(env, shelterId);

@@ -105,11 +105,15 @@
 	}
 
 	async function applyRange(next: number | null) {
-		await fetch("/api/users/me", {
-			method: "PATCH",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ max_range_km: next }),
-		});
+		try {
+			await fetch("/api/users/me", {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ max_range_km: next }),
+			});
+		} catch {
+			// keep last range
+		}
 		await invalidateAll();
 		void refreshInRange();
 	}

@@ -45,7 +45,7 @@ chats.get("/:id/messages", async (c) => {
   return c.json({ items: messages }, 200);
 });
 
-chats.post("/:id/messages", async (c) => {
+chats.post("/:id/messages", rateLimitByUser("chat-message", 40), async (c) => {
   const message = await createChatService(c.env).postMessage(
     c.get("userId"),
     c.req.param("id"),

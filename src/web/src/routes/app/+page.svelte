@@ -8,6 +8,7 @@
 	import AnimalDetail from "$lib/components/app/AnimalDetail.svelte";
 	import { selectedSpecies, setSelectedSpecies, speciesQuery } from "$lib/app/filters.svelte";
 	import type { ListEnvelope, PublicAnimal } from "$lib/types/catalog";
+	import { listItems } from "$lib/types/catalog";
 	import { RANGE_STOPS } from "$lib/types/catalog";
 
 	let animals = $state<PublicAnimal[]>([]);
@@ -59,12 +60,13 @@
 				return;
 			}
 			const body = (await res.json()) as ListEnvelope<PublicAnimal>;
+			const items = listItems(body);
 			total = body.total;
 			inRange = body.in_range ?? body.total;
 			const seen = new Set(animals.map((row) => row.id));
-			const next = body.items.filter((row) => !seen.has(row.id));
-			animals = reset ? body.items : [...animals, ...next];
-			if (body.items.length < body.per_page) exhausted = true;
+			const next = items.filter((row) => !seen.has(row.id));
+			animals = reset ? items : [...animals, ...next];
+			if (items.length < body.per_page) exhausted = true;
 			else pageNo += 1;
 		} catch {
 			error = true;

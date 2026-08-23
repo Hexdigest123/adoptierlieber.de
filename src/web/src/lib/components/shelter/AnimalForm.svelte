@@ -212,7 +212,10 @@
 			breed: draft.breed.trim() || null,
 			sex: draft.sex || null,
 			age_unknown: draft.ageUnknown,
-			age_months: draft.ageUnknown || !draft.ageMonths ? null : Number(draft.ageMonths),
+			age_months:
+				draft.ageUnknown || !draft.ageMonths || !Number.isFinite(Number(draft.ageMonths))
+					? null
+					: Number(draft.ageMonths),
 			size: draft.size || null,
 			tagline: draft.tagline.trim() || null,
 			description: draft.description.trim() || null,
@@ -693,6 +696,8 @@
 		if (response.ok) {
 			status = "draft";
 			confirmUnpublish = false;
+		} else {
+			error = m.error_generic();
 		}
 	}
 
@@ -706,6 +711,8 @@
 		if (response.ok) {
 			status = "found_home";
 			confirmHome = false;
+		} else {
+			error = m.error_generic();
 		}
 	}
 

@@ -12,6 +12,7 @@
 	let messages = $state<ChatMessage[]>(data.messages);
 	let draft = $state("");
 	let sending = $state(false);
+	let sendError = $state(false);
 	let showProfile = $state(false);
 	let assigned = $state(data.thread.assigned_user_id ?? "");
 
@@ -29,30 +30,43 @@
 		const body = draft.trim();
 		if (!body || closed) return;
 		sending = true;
-		const response = await fetch(`/api/chats/${data.thread.id}/messages`, {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ body }),
-		});
-		sending = false;
-		if (response.ok) {
+		sendError = false;
+		try {
+			const response = await fetch(`/api/chats/${data.thread.id}/messages`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ body }),
+			});
+			if (!response.ok) {
+				sendError = true;
+				return;
+			}
 			const row = (await response.json()) as ChatMessage;
 			messages = [...messages, row];
 			draft = "";
+		} catch {
+			sendError = true;
+		} finally {
+			sending = false;
 		}
 	}
 
 	async function archive() {
-		await fetch(`/api/chats/${data.thread.id}/archive`, { method: "POST" });
+		const response = await fetch(`/api/chats/${data.thread.id}/archive`, { method: "POST" });
+		if (!response.ok) {
+			sendError = true;
+			return;
+		}
 		location.href = "/shelter/messages";
 	}
 
 	async function assign() {
-		await fetch(`/api/chats/${data.thread.id}/assignment`, {
+		const response = await fetch(`/api/chats/${data.thread.id}/assignment`, {
 			method: "PUT",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ user_id: assigned || null }),
 		});
+		if (!response.ok) sendError = true;
 	}
 
 	function merge(row: ChatMessage) {
@@ -67,10 +81,11 @@
 			const qs = last ? `?after=${last}` : "";
 			const response = await fetch(`/api/chats/${data.thread.id}/messages${qs}`);
 			if (!response.ok) return;
-			const body = (await response.json()) as { items: ChatMessage[] };
-			if (body.items.length) {
+			const body = (await response.json()) as { items?: ChatMessage[] };
+			const items = body.items ?? [];
+			if (items.length) {
 				const known = new Set(messages.map((row) => row.id));
-				const extra = body.items.filter((row) => !known.has(row.id));
+				const extra = items.filter((row) => !known.has(row.id));
 				if (extra.length) messages = [...messages, ...extra];
 			}
 		}, 8000);
@@ -160,6 +175,9 @@
 			{/each}
 		</ul>
 
+		{#if sendError}
+			<p class="mt-4 text-sm text-coral-700">{m.error_generic()}</p>
+		{/if}
 		{#if closed}
 			<p class="mt-4 text-sm text-sand-600">{m.shelter_composer_closed()}</p>
 		{:else}

@@ -98,3 +98,7 @@ export const SPECIES_CHIPS: { id: string; species: AnimalSpecies[] }[] = [
 ];
 
 export const RANGE_STOPS = [5, 10, 15, 25, 50, 100, 200] as const;
+
+export function listItems<T>(body: { items?: T[] | null } | null | undefined): T[] {
+	return Array.isArray(body?.items) ? body.items : [];
+}

@@ -57,11 +57,15 @@
 	}
 
 	async function persistOnboarded() {
-		await fetch("/api/users/me", {
-			method: "PATCH",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ preferences: { onboarded: true } }),
-		});
+		try {
+			await fetch("/api/users/me", {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ preferences: { onboarded: true } }),
+			});
+		} catch {
+			// onboard flag is best-effort
+		}
 	}
 
 	async function pick(hit: GeocodeHit) {
@@ -88,19 +92,23 @@
 	}
 
 	async function skip() {
-		await fetch("/api/users/me", {
-			method: "PATCH",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({
-				home_query: null,
-				home_label: null,
-				home_country: null,
-				home_lat: null,
-				home_lng: null,
-				location_precision: null,
-				max_range_km: null,
-			}),
-		});
+		try {
+			await fetch("/api/users/me", {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					home_query: null,
+					home_label: null,
+					home_country: null,
+					home_lat: null,
+					home_lng: null,
+					location_precision: null,
+					max_range_km: null,
+				}),
+			});
+		} catch {
+			// skip still closes
+		}
 		await persistOnboarded();
 		open = false;
 		onskip();

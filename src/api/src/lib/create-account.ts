@@ -6,7 +6,7 @@ import { createBanRepo } from "../repositories/ban.repo";
 import { createUserRepo, type CreateUserInput } from "../repositories/user.repo";
 import type { User } from "../types";
 
-function isUniqueConstraint(error: unknown): boolean {
+export function isUniqueConstraint(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /UNIQUE constraint failed/i.test(message);
 }

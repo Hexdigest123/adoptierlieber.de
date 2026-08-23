@@ -11,19 +11,30 @@
 	let title = $state("");
 	let body = $state("");
 	let saving = $state(false);
+	let error = $state(false);
 
 	async function add() {
 		if (!data.current || data.readonly) return;
 		saving = true;
-		await fetch(`/api/shelters/${data.current.shelter_id}/snippets`, {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ title: title.trim(), body: body.trim() }),
-		});
-		saving = false;
-		title = "";
-		body = "";
-		await invalidateAll();
+		error = false;
+		try {
+			const response = await fetch(`/api/shelters/${data.current.shelter_id}/snippets`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ title: title.trim(), body: body.trim() }),
+			});
+			if (!response.ok) {
+				error = true;
+				return;
+			}
+			title = "";
+			body = "";
+			await invalidateAll();
+		} catch {
+			error = true;
+		} finally {
+			saving = false;
+		}
 	}
 
 	async function remove(id: string) {
@@ -46,6 +57,9 @@
 		<Input id="snippet-title" label={m.shelter_snippet_title()} bind:value={title} required />
 		<Textarea id="snippet-body" label={m.shelter_snippet_body()} bind:value={body} required />
 		<Button type="submit" loading={saving}>{m.shelter_snippet_add()}</Button>
+		{#if error}
+			<p class="text-sm text-coral-700">{m.error_generic()}</p>
+		{/if}
 	</form>
 {/if}
 

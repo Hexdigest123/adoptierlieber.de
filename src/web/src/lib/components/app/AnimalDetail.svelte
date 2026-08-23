@@ -93,23 +93,33 @@
 	async function toggleLike() {
 		if (preview || publicView || animal.status !== "live") return;
 		liking = true;
-		const method = animal.liked ? "DELETE" : "POST";
-		const res = await fetch(`/api/animals/${animal.id}/like`, { method });
-		if (res.ok) {
-			const body = (await res.json()) as { liked: boolean };
-			animal = { ...animal, liked: body.liked };
+		try {
+			const method = animal.liked ? "DELETE" : "POST";
+			const res = await fetch(`/api/animals/${animal.id}/like`, { method });
+			if (res.ok) {
+				const body = (await res.json()) as { liked: boolean };
+				animal = { ...animal, liked: body.liked };
+			}
+		} catch {
+			// keep last liked state
+		} finally {
+			liking = false;
 		}
-		liking = false;
 	}
 
 	async function openInterest() {
 		if (preview || publicView || animal.status !== "live") return;
 		interestLoading = true;
-		const res = await fetch(`/api/chats/interest?animal_id=${animal.id}`);
-		interestLoading = false;
-		if (!res.ok) return;
-		interest = (await res.json()) as InterestContext;
-		interestOpen = true;
+		try {
+			const res = await fetch(`/api/chats/interest?animal_id=${animal.id}`);
+			if (!res.ok) return;
+			interest = (await res.json()) as InterestContext;
+			interestOpen = true;
+		} catch {
+			// sheet stays closed
+		} finally {
+			interestLoading = false;
+		}
 	}
 
 	const routeHref = $derived.by(() => {

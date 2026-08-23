@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-export const emailSchema = z.email().transform((value) => value.trim().toLowerCase());
+export const emailSchema = z
+  .email()
+  .max(254)
+  .transform((value) => value.trim().toLowerCase());
 
 export const passwordSchema = z
   .string()
@@ -9,19 +12,39 @@ export const passwordSchema = z
   .regex(/[A-Za-z]/)
   .regex(/\d/);
 
-const optionalCoord = z.coerce.number().gte(-180).lte(180).optional();
+function text(max: number) {
+  return z.string().trim().min(1).max(max);
+}
+
+const optionalLat = z.coerce.number().gte(-90).lte(90).optional();
+const optionalLng = z.coerce.number().gte(-180).lte(180).optional();
 
 export const addressFields = {
-  street: z.string().min(1),
-  zip: z.string().min(1),
-  city: z.string().min(1),
-  lat: optionalCoord,
-  lng: optionalCoord,
+  street: text(120),
+  zip: text(16),
+  city: text(80),
+  lat: optionalLat,
+  lng: optionalLng,
 };
 
+const userPreferencesSchema = z
+  .object({
+    onboarded: z.boolean().optional(),
+    prefs_done: z.boolean().optional(),
+    species: z.enum(["dog", "cat", "small", "bird", "open"]).optional(),
+    home: z.enum(["apartment", "house", "yard"]).optional(),
+    with: z.array(z.enum(["kids", "dog", "cat", "alone"])).max(4).optional(),
+    lifestyle: z.enum(["active", "cuddle", "first"]).optional(),
+  })
+  .strict();
+
+const tasteWeightsSchema = z
+  .record(z.string().max(80), z.number().finite())
+  .refine((value) => Object.keys(value).length <= 80);
+
 export const createUserSchema = z.object({
-  name: z.string().min(1),
-  displayName: z.string().min(1).optional(),
+  name: text(80),
+  displayName: text(80).optional(),
   email: emailSchema,
   password: passwordSchema,
   ...addressFields,
@@ -29,22 +52,22 @@ export const createUserSchema = z.object({
 
 export const updateUserSchema = z
   .object({
-    name: z.string().min(1).optional(),
-    displayName: z.string().nullable().optional(),
-    street: z.string().min(1).optional(),
-    zip: z.string().min(1).optional(),
-    city: z.string().min(1).optional(),
-    lat: optionalCoord.nullable(),
-    lng: optionalCoord.nullable(),
-    home_query: z.string().min(1).nullable().optional(),
-    home_label: z.string().min(1).nullable().optional(),
-    home_country: z.string().min(1).nullable().optional(),
-    home_lat: optionalCoord.nullable(),
-    home_lng: optionalCoord.nullable(),
+    name: text(80).optional(),
+    displayName: z.string().trim().max(80).nullable().optional(),
+    street: text(120).optional(),
+    zip: text(16).optional(),
+    city: text(80).optional(),
+    lat: optionalLat.nullable(),
+    lng: optionalLng.nullable(),
+    home_query: text(200).nullable().optional(),
+    home_label: text(200).nullable().optional(),
+    home_country: text(80).nullable().optional(),
+    home_lat: optionalLat.nullable(),
+    home_lng: optionalLng.nullable(),
     location_precision: z.enum(["place", "gps"]).nullable().optional(),
-    max_range_km: z.union([z.coerce.number().int().positive(), z.null()]).optional(),
-    preferences: z.record(z.string(), z.unknown()).nullable().optional(),
-    taste_weights: z.record(z.string(), z.number()).nullable().optional(),
+    max_range_km: z.union([z.coerce.number().int().positive().max(500), z.null()]).optional(),
+    preferences: userPreferencesSchema.nullable().optional(),
+    taste_weights: tasteWeightsSchema.nullable().optional(),
   })
   .refine(
     (value) =>
@@ -72,12 +95,12 @@ export const changePasswordSchema = z.object({
 });
 
 export const deleteUserSchema = z.object({
-  deletionToken: z.string().min(1).optional(),
+  deletionToken: z.string().min(1).max(200).optional(),
 });
 
 export const resetUserSchema = z.object({
   email: emailSchema.optional(),
-  resetToken: z.string().min(1).optional(),
+  resetToken: z.string().min(1).max(200).optional(),
   newPassword: passwordSchema.optional(),
 });
 
@@ -88,30 +111,30 @@ export const authenticateSchema = z.object({
 
 export const verifyEmailSchema = z.object({
   email: emailSchema,
-  token: z.string().min(1),
+  token: z.string().min(1).max(200),
 });
 
 export const createSessionSchema = z.object({
-  userId: z.string().min(1),
-  sessionToken: z.string().min(1).optional(),
+  userId: z.string().min(1).max(64),
+  sessionToken: z.string().min(1).max(200).optional(),
   expiresAt: z.date().optional(),
-  userAgent: z.string().optional(),
+  userAgent: z.string().max(512).optional(),
 });
 
 export const createShelterSchema = z.object({
-  name: z.string().min(1),
-  displayName: z.string().min(1).optional(),
+  name: text(80),
+  displayName: text(80).optional(),
   email: emailSchema,
   password: passwordSchema,
-  orgName: z.string().min(1),
-  street: z.string().min(1),
-  zip: z.string().min(1),
-  city: z.string().min(1),
-  lat: optionalCoord,
-  lng: optionalCoord,
-  website: z.url().optional(),
-  registrationNumber: z.string().min(1).optional(),
-  description: z.string().min(1).optional(),
+  orgName: text(120),
+  street: text(120),
+  zip: text(16),
+  city: text(80),
+  lat: optionalLat,
+  lng: optionalLng,
+  website: z.url().max(500).optional(),
+  registrationNumber: text(80).optional(),
+  description: text(4000).optional(),
 });
 
 export const animalSpeciesSchema = z.enum([
@@ -127,7 +150,7 @@ export const animalSpeciesSchema = z.enum([
 export const swipeReasonSchema = z.enum(["too_far", "too_young", "too_old", "species", "other"]);
 
 export const swipeSchema = z.object({
-  animal_id: z.string().min(1),
+  animal_id: z.string().min(1).max(64),
   action: z.enum(["like", "skip", "undo"]),
   reason: swipeReasonSchema.optional(),
 });
@@ -142,11 +165,11 @@ export const geoReverseSchema = z.object({
 });
 
 export const contactSchema = z.object({
-  name: z.string().min(1),
+  name: text(120),
   email: z.union([z.literal(""), emailSchema]).optional(),
-  message: z.string().min(1),
+  message: text(4000),
   // honeypot: must stay empty; filled by bots only
-  website: z.string().optional(),
+  website: z.string().max(200).optional(),
 });
 
 export const speciesSchema = z.enum([
@@ -166,13 +189,13 @@ export const animalStatusSchema = z.enum(["draft", "live", "found_home"]);
 
 export const updateShelterSchema = z
   .object({
-    org_name: z.string().min(1).optional(),
-    street: z.string().min(1).optional(),
-    zip: z.string().min(1).optional(),
-    city: z.string().min(1).optional(),
-    website: z.union([z.url(), z.literal("")]).nullable().optional(),
-    registration_number: z.string().min(1).nullable().optional(),
-    description: z.string().min(1).nullable().optional(),
+    org_name: text(120).optional(),
+    street: text(120).optional(),
+    zip: text(16).optional(),
+    city: text(80).optional(),
+    website: z.union([z.url().max(500), z.literal("")]).nullable().optional(),
+    registration_number: text(80).nullable().optional(),
+    description: text(4000).nullable().optional(),
     notify_email: emailSchema.optional(),
   })
   .refine(
@@ -204,8 +227,8 @@ export const animalWriteSchema = z.object({
   chipped: triadSchema.nullable().optional(),
   house_trained: triadSchema.nullable().optional(),
   bonded_partner: z.string().min(1).max(80).nullable().optional(),
-  bonded_animal_id: z.string().min(1).nullable().optional(),
-  bonded_animal_ids: z.array(z.string().min(1)).max(99).optional(),
+  bonded_animal_id: z.string().min(1).max(64).nullable().optional(),
+  bonded_animal_ids: z.array(z.string().min(1).max(64)).max(99).optional(),
 });
 
 export const createPairSchema = z.object({
@@ -223,11 +246,11 @@ export const replySnippetSchema = z.object({
 });
 
 export const assignThreadSchema = z.object({
-  user_id: z.string().min(1).nullable(),
+  user_id: z.string().min(1).max(64).nullable(),
 });
 
 export const adminOrphanTransferSchema = z.object({
-  user_id: z.string().min(1),
+  user_id: z.string().min(1).max(64),
 });
 
 export const createAnimalSchema = animalWriteSchema;
@@ -268,18 +291,22 @@ export const inviteMemberSchema = z.object({
 });
 
 export const transferOwnerSchema = z.object({
-  user_id: z.string().min(1),
+  user_id: z.string().min(1).max(64),
+});
+
+export const acceptShelterInviteSchema = z.object({
+  token: z.string().min(1).max(200),
 });
 
 export const createThreadSchema = z.object({
-  animal_id: z.string().min(1),
+  animal_id: z.string().min(1).max(64),
   grant_email: z.literal(true),
   grant_profile: z.literal(true),
   message: z.string().max(2000).optional(),
   answers: z
     .array(
       z.object({
-        field_id: z.string().min(1),
+        field_id: z.string().min(1).max(64),
         value: z.string().max(2000),
       }),
     )
@@ -312,13 +339,13 @@ export const adminInviteSchema = z.object({
 });
 
 export const banLookupSchema = z.object({
-  name: z.string().min(1),
+  name: text(80),
   ...addressFields,
 });
 
 export const inviteAcceptanceSchema = z.object({
-  name: z.string().min(1),
-  displayName: z.string().min(1).optional(),
+  name: text(80),
+  displayName: text(80).optional(),
   password: passwordSchema,
   ...addressFields,
 });

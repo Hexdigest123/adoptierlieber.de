@@ -19,7 +19,7 @@ animals.get("/sitemap", rateLimitByIp("animal-sitemap", 30), async (c) => {
   return c.json({ items }, 200);
 });
 
-animals.get("/breeds", sessionValidation, async (c) => {
+animals.get("/breeds", sessionValidation, rateLimitByIp("animal-breeds", 60), async (c) => {
   const species = c.req.query("species") ?? "";
   const q = c.req.query("q") ?? "";
   const items = await createCatalogService(c.env).breeds(species, q);
@@ -42,7 +42,7 @@ animals.get("/:id/photos/:n", rateLimitByIp("animal-photo", 120), async (c) => {
   return new Response(object.body, { status: 200, headers });
 });
 
-animals.get("/", sessionValidation, async (c) => {
+animals.get("/", sessionValidation, rateLimitByIp("animal-list", 120), async (c) => {
   const search = new URL(c.req.url).searchParams;
   const result = await createCatalogService(c.env).list(c.get("userId"), search);
   return c.json(result, 200);
@@ -63,7 +63,7 @@ animals.get("/:id", rateLimitByIp("animal-public", 120), async (c) => {
   return c.json(animal, 200);
 });
 
-animals.post("/:id/impressions", sessionValidation, async (c) => {
+animals.post("/:id/impressions", sessionValidation, rateLimitByIp("animal-impression", 60), async (c) => {
   await createCatalogService(c.env).recordImpression(c.get("userId"), c.req.param("id"));
   return c.json({}, 200);
 });
@@ -73,7 +73,7 @@ animals.get("/:id/like", sessionValidation, async (c) => {
   return c.json(result, 200);
 });
 
-animals.post("/:id/like", sessionValidation, async (c) => {
+animals.post("/:id/like", sessionValidation, rateLimitByIp("animal-like", 60), async (c) => {
   const result = await createCatalogService(c.env).like(c.get("userId"), c.req.param("id"));
   return c.json(result, 200);
 });

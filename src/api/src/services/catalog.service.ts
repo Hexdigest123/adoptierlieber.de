@@ -1,4 +1,5 @@
 import { HTTPException } from "hono/http-exception";
+import { isUniqueConstraint } from "../lib/create-account";
 import type { Env } from "../config/env";
 import { haversineKm } from "../lib/distance";
 import { parseListQuery, listEnvelope, type ListEnvelope } from "../lib/pagination";
@@ -65,11 +66,13 @@ export function parseCatalogFilters(search: URLSearchParams): CatalogFilters {
   const goodWith = (search.get("good_with") ?? "")
     .split(",")
     .map((v) => v.trim().toLowerCase())
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, 8);
   const colors = (search.get("colors") ?? "")
     .split(",")
     .map((v) => v.trim().toLowerCase())
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, 8);
   const specialRaw = search.get("special_needs");
 
   const range =
@@ -80,8 +83,8 @@ export function parseCatalogFilters(search: URLSearchParams): CatalogFilters {
         : undefined;
 
   return {
-    q: search.get("q")?.trim() || undefined,
-    breed: search.get("breed")?.trim() || undefined,
+    q: search.get("q")?.trim().slice(0, 120) || undefined,
+    breed: search.get("breed")?.trim().slice(0, 80) || undefined,
     species,
     sex: sexRaw === "male" || sexRaw === "female" || sexRaw === "unknown" ? sexRaw : undefined,
     size: sizeRaw === "s" || sizeRaw === "m" || sizeRaw === "l" || sizeRaw === "xl" ? sizeRaw : undefined,
@@ -94,7 +97,10 @@ export function parseCatalogFilters(search: URLSearchParams): CatalogFilters {
       specialRaw === "only" || specialRaw === "exclude" || specialRaw === "include"
         ? specialRaw
         : undefined,
-    range: range !== undefined && (range === null || Number.isFinite(range)) ? range : undefined,
+    range:
+      range !== undefined && (range === null || (Number.isFinite(range) && range > 0 && range <= 500))
+        ? range
+        : undefined,
     sort: sortRaw === "distance" || sortRaw === "new" ? sortRaw : "best",
     mode: modeRaw === "map" || modeRaw === "search" ? modeRaw : "deck",
   };
@@ -131,6 +137,7 @@ function applyHardFilters(
   const rangeKm = filters.range !== undefined ? filters.range : user.maxRangeKm;
   return rows.filter((row) => {
     if (row.shelter.archivedAt) return false;
+    if (row.shelter.verificationStatus !== "verified") return false;
     if (filters.status) {
       if (row.animal.status !== filters.status) return false;
     } else if (row.animal.status !== "live") {
@@ -223,7 +230,9 @@ export function createCatalogService(env: Env) {
 
   return {
     async excerpts(): Promise<PublicExcerpt[]> {
-      const rows = (await catalog.listLiveRandom(10)).filter((row) => !row.shelter.archivedAt);
+      const rows = (await catalog.listLiveRandom(10)).filter(
+        (row) => !row.shelter.archivedAt && row.shelter.verificationStatus === "verified",
+      );
       return rows.map((row) => toPublicExcerpt(row.animal, row.shelter));
     },
 
@@ -233,6 +242,7 @@ export function createCatalogService(env: Env) {
       const needle = q.trim().toLowerCase();
       const seen = new Set<string>();
       for (const row of rows) {
+        if (row.shelter.archivedAt || row.shelter.verificationStatus !== "verified") continue;
         const breed = row.animal.breed?.trim();
         if (!breed) continue;
         if (parsed.success && row.animal.species !== parsed.data) continue;
@@ -344,7 +354,12 @@ export function createCatalogService(env: Env) {
       const user = await users.findById(userId);
       if (!user) throw new HTTPException(404, { message: "user not found" });
       const row = await catalog.findWithShelter(animalId);
-      if (!row || row.animal.status === "draft") {
+      if (
+        !row ||
+        row.animal.status === "draft" ||
+        row.shelter.archivedAt ||
+        row.shelter.verificationStatus !== "verified"
+      ) {
         throw new HTTPException(404, { message: "animal not found" });
       }
       const like = await catalog.findLike(userId, animalId);
@@ -373,6 +388,10 @@ export function createCatalogService(env: Env) {
     },
 
     async getLike(userId: string, animalId: string): Promise<{ liked: boolean }> {
+      const row = await catalog.findWithShelter(animalId);
+      if (!row || row.animal.status === "draft") {
+        throw new HTTPException(404, { message: "animal not found" });
+      }
       const like = await catalog.findLike(userId, animalId);
       return { liked: Boolean(like) };
     },
@@ -387,8 +406,12 @@ export function createCatalogService(env: Env) {
       }
       const existing = await catalog.findLike(userId, animalId);
       if (existing) return { liked: true };
-      await catalog.insertLike(userId, animalId);
-      await animals.incrementLikes(animalId, 1);
+      try {
+        await catalog.insertLike(userId, animalId);
+        await animals.incrementLikes(animalId, 1);
+      } catch (error: unknown) {
+        if (!isUniqueConstraint(error)) throw error;
+      }
       await catalog.insertSwipe(userId, animalId, "like");
       await applyTasteUpdate(users, userId, row.animal, "like");
       return { liked: true };
@@ -408,7 +431,9 @@ export function createCatalogService(env: Env) {
       const query = parseListQuery(search, 24);
       const species = parseSpecies(search.get("species"));
       const sort = search.get("sort");
-      let rows = await catalog.listLikes(userId);
+      let rows = (await catalog.listLikes(userId)).filter(
+        (row) => !row.shelter.archivedAt && row.shelter.verificationStatus === "verified",
+      );
       if (species.length > 0) {
         rows = rows.filter((row) => species.includes(row.animal.species));
       }
@@ -473,8 +498,12 @@ export function createCatalogService(env: Env) {
       if (input.action === "like") {
         const existing = await catalog.findLike(userId, input.animal_id);
         if (!existing) {
-          await catalog.insertLike(userId, input.animal_id);
-          await animals.incrementLikes(input.animal_id, 1);
+          try {
+            await catalog.insertLike(userId, input.animal_id);
+            await animals.incrementLikes(input.animal_id, 1);
+          } catch (error: unknown) {
+            if (!isUniqueConstraint(error)) throw error;
+          }
         }
       }
       await applyTasteUpdate(users, userId, row.animal, input.action);
@@ -487,7 +516,14 @@ export function createCatalogService(env: Env) {
 
     async photo(animalId: string, index: number) {
       const row = await catalog.findWithShelter(animalId);
-      if (!row || row.animal.status === "draft") return null;
+      if (
+        !row ||
+        row.animal.status === "draft" ||
+        row.shelter.archivedAt ||
+        row.shelter.verificationStatus !== "verified"
+      ) {
+        return null;
+      }
       const keys = row.animal.photos ?? [];
       const key = keys[index];
       if (!key) return null;

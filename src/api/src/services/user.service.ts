@@ -455,7 +455,7 @@ export function createUserService(env: Env) {
         throw new HTTPException(401, { message: "invalid email or password" });
       }
 
-      if (!user.emailVerifiedAt) {
+      if (!user.emailVerifiedAt || user.suspendedAt) {
         throw new HTTPException(401, { message: "invalid email or password" });
       }
 
