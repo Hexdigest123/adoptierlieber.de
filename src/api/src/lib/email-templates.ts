@@ -264,7 +264,7 @@ ${description ?? "–"}`,
 
 export type ContactRequestInput = EmailTemplateInput & {
 	name: string;
-	email: string;
+	email?: string;
 	message: string;
 };
 
@@ -276,13 +276,14 @@ export function contactRequestTemplate({
 	message,
 }: ContactRequestInput): MailOptions {
 	const subject = `Kontaktanfrage von ${name}`;
+	const emailDisplay = email?.trim() || "—";
 	return {
 		to,
 		subject,
 		text: `Kontaktanfrage von ${name}
 
 Name: ${name}
-E-Mail: ${email}
+E-Mail: ${emailDisplay}
 
 Nachricht:
 ${message}`,
@@ -292,7 +293,7 @@ ${message}`,
 				heading("Kontaktanfrage"),
 				detailList([
 					["Name", name],
-					["E-Mail", email],
+					["E-Mail", emailDisplay],
 				]),
 				paragraph("Nachricht:"),
 				quoteBlock(message),
@@ -410,6 +411,190 @@ Der Link ist ${expiry} gültig. Falls du das Zurücksetzen nicht angefordert has
 				note(
 					`Der Link ist ${expiry} gültig. Falls du das Zurücksetzen nicht angefordert hast, kannst du diese E-Mail ignorieren.`,
 				),
+			].join(""),
+		}),
+	};
+}
+
+export type ShelterDecisionInput = EmailTemplateInput & {
+	orgName: string;
+	reason?: string;
+};
+
+export function shelterApprovedTemplate({ to, orgName }: ShelterDecisionInput): MailOptions {
+	const href = `${siteUrl()}/shelter`;
+	const subject = "Euer Tierheim ist freigeschaltet";
+	return {
+		to,
+		subject,
+		text: `Euer Tierheim ist freigeschaltet
+
+${orgName} ist jetzt verifiziert. Ihr könnt Tiere veröffentlichen.
+
+${href}`,
+		html: layout({
+			preview: `${orgName} ist freigeschaltet.`,
+			body: [
+				heading("Ihr seid freigeschaltet"),
+				paragraph(`${orgName} ist jetzt verifiziert. Ihr könnt Tiere veröffentlichen.`),
+				ctaButton(href, "Zum Tierheim-Bereich"),
+			].join(""),
+		}),
+	};
+}
+
+export function shelterRejectedTemplate({ to, orgName, reason }: ShelterDecisionInput): MailOptions {
+	const subject = "Entscheidung zu eurer Registrierung";
+	return {
+		to,
+		subject,
+		text: `Entscheidung zu eurer Registrierung
+
+${orgName} wurde nicht freigeschaltet.
+
+Begründung:
+${reason ?? "–"}`,
+		html: layout({
+			preview: `${orgName} wurde nicht freigeschaltet.`,
+			body: [
+				heading("Eure Registrierung"),
+				paragraph(`${orgName} wurde nicht freigeschaltet.`),
+				paragraph("Begründung:"),
+				quoteBlock(reason ?? "–"),
+			].join(""),
+		}),
+	};
+}
+
+export type AdminInviteInput = EmailTemplateInput & {
+	token: string;
+	expiresInHours?: number;
+};
+
+export function adminInviteTemplate({ to, token, expiresInHours = 168 }: AdminInviteInput): MailOptions {
+	const expiry = expiryLabel(expiresInHours);
+	const href = actionUrl("/invite", { token });
+	const subject = "Einladung ins Admin-Team";
+	return {
+		to,
+		subject,
+		text: `Einladung ins Admin-Team
+
+Du wurdest ins Admin-Team von Adoptier Lieber eingeladen. Öffne diesen Link:
+
+${href}
+
+Der Link ist ${expiry} gültig.`,
+		html: layout({
+			preview: "Du wurdest ins Admin-Team eingeladen.",
+			body: [
+				heading("Einladung ins Admin-Team"),
+				paragraph("Du wurdest ins Admin-Team von Adoptier Lieber eingeladen."),
+				ctaButton(href, "Einladung annehmen"),
+				note(`Der Link ist ${expiry} gültig.`),
+			].join(""),
+		}),
+	};
+}
+
+export type ShelterStaffInviteInput = EmailTemplateInput & {
+	orgName: string;
+	token: string;
+	existingUser: boolean;
+};
+
+export function shelterStaffInviteTemplate({
+	to,
+	orgName,
+	token,
+	existingUser,
+}: ShelterStaffInviteInput): MailOptions {
+	const href = existingUser
+		? actionUrl("/login", { next: "/shelter" })
+		: actionUrl("/register", { invite: token });
+	const subject = `Einladung zu ${orgName}`;
+	return {
+		to,
+		subject,
+		text: `Einladung zu ${orgName}
+
+Du wurdest zum Team von ${orgName} eingeladen.
+
+${href}`,
+		html: layout({
+			preview: `Einladung zum Team von ${orgName}.`,
+			body: [
+				heading("Team-Einladung"),
+				paragraph(`Du wurdest zum Team von ${orgName} eingeladen.`),
+				ctaButton(href, existingUser ? "Anmelden und beitreten" : "Konto erstellen"),
+			].join(""),
+		}),
+	};
+}
+
+export type NewThreadNotifyInput = EmailTemplateInput & {
+	animalName: string;
+	adopterName: string;
+	excerpt: string;
+	threadId: string;
+};
+
+export function newThreadNotifyTemplate({
+	to,
+	animalName,
+	adopterName,
+	excerpt,
+	threadId,
+}: NewThreadNotifyInput): MailOptions {
+	const href = `${siteUrl()}/shelter/messages/${threadId}`;
+	const subject = `Neue Anfrage: ${animalName} · ${adopterName}`;
+	return {
+		to,
+		subject,
+		text: `Neue Anfrage: ${animalName} · ${adopterName}
+
+${excerpt}
+
+${href}`,
+		html: layout({
+			preview: `Neue Anfrage zu ${animalName}.`,
+			body: [
+				heading("Neue Anfrage"),
+				paragraph(`${adopterName} interessiert sich für ${animalName}.`),
+				quoteBlock(excerpt || "–"),
+				ctaButton(href, "In Nachrichten öffnen"),
+			].join(""),
+		}),
+	};
+}
+
+export type DigestNotifyInput = EmailTemplateInput & {
+	orgName: string;
+	threads: { animalName: string; adopterName: string; hours: number; threadId: string }[];
+};
+
+export function unansweredDigestTemplate({ to, orgName, threads }: DigestNotifyInput): MailOptions {
+	const href = `${siteUrl()}/shelter/messages`;
+	const lines = threads
+		.map((row) => `• ${row.animalName} · ${row.adopterName} · ${row.hours}h`)
+		.join("\n");
+	return {
+		to,
+		subject: `Offene Anfragen: ${threads.length} bei ${orgName}`,
+		text: `Offene Anfragen bei ${orgName}:
+
+${lines}
+
+${href}`,
+		html: layout({
+			preview: `${threads.length} unbeantwortete Anfragen.`,
+			body: [
+				heading("Offene Anfragen"),
+				paragraph(
+					`${orgName} hat ${threads.length} Anfrage${threads.length === 1 ? "" : "n"} länger als 48 Stunden unbeantwortet.`,
+				),
+				quoteBlock(lines),
+				ctaButton(href, "In Nachrichten öffnen"),
 			].join(""),
 		}),
 	};

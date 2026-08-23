@@ -50,3 +50,31 @@ export function rateLimitByIp(name: string, limit: number): MiddlewareHandler<Ap
     }
   };
 }
+
+/** Rate limit by authenticated user. Session middleware must run first. */
+export function rateLimitByUser(name: string, limit: number): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
+    const key = `user:${name}`;
+    let middleware = limiters.get(key);
+    if (!middleware) {
+      middleware = rateLimiter<AppEnv, string, {}>({
+        windowMs: 15 * 60 * 1000,
+        limit,
+        standardHeaders: "draft-6",
+        keyGenerator: (ctx) => ctx.get("userId") || clientIp(ctx),
+        store: new WorkersKVStore<AppEnv, string, {}>({
+          namespace: c.env.RATE_LIMIT_KV,
+          prefix: `rl:${name}:`,
+        }),
+      });
+      limiters.set(key, middleware);
+    }
+
+    try {
+      return await middleware(c, next);
+    } catch (e: unknown) {
+      console.error(`rate limiter ${name} failed, failing open`, e);
+      return next();
+    }
+  };
+}

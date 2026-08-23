@@ -7,6 +7,7 @@ export type Env = {
   adoptierlieber?: D1Database;
   adoptierlieber_staging?: D1Database;
   adoptierlieber_images: R2Bucket;
+  CHAT_ROOM: DurableObjectNamespace<import("../durable-objects/chat-room").ChatRoom>;
 };
 
 export function getDb(env: Env): D1Database {
