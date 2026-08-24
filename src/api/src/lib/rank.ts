@@ -122,12 +122,13 @@ function prefsOverlap(prefs: UserPreferences | null | undefined, animal: Animal)
     if (wanted.includes(animal.species)) hits += 1;
   }
 
-  const withWho = Array.isArray(prefs.with) ? prefs.with.filter((v) => typeof v === "string") : [];
+  const withWho = Array.isArray(prefs.with)
+    ? prefs.with.filter((v) => typeof v === "string" && v !== "kids")
+    : [];
   if (withWho.length > 0) {
     checks += 1;
     const traits = (animal.traits ?? []).map((t) => t.toLowerCase());
     const matched = withWho.some((tag) => {
-      if (tag === "kids") return traits.some((t) => t.includes("kind") || t.includes("kid"));
       if (tag === "dog") return traits.some((t) => t.includes("hund") || t.includes("dog"));
       if (tag === "cat") return traits.some((t) => t.includes("katze") || t.includes("cat"));
       if (tag === "alone") return traits.some((t) => t.includes("allein") || t.includes("single"));

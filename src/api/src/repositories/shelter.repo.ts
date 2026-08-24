@@ -1,6 +1,6 @@
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { sheltersTable } from "../schema";
+import { animalsTable, sheltersTable } from "../schema";
 import { getDb, type Env } from "../config/env";
 import type { ApplicationField, ShelterChecklist } from "../types";
 
@@ -24,7 +24,7 @@ export type ShelterUpdate = {
 };
 
 export function createShelterRepo(env: Env) {
-  const db = drizzle(getDb(env), { schema: { sheltersTable } });
+  const db = drizzle(getDb(env), { schema: { animalsTable, sheltersTable } });
 
   return {
     create(input: {
@@ -80,11 +80,10 @@ export function createShelterRepo(env: Env) {
           logoKey: sheltersTable.logoKey,
           lat: sheltersTable.lat,
           lng: sheltersTable.lng,
-          liveCount: sql<number>`(
-            select count(*) from animals
-            where animals.shelter_id = ${sheltersTable.id}
-            and animals.status = 'live'
-          )`,
+          liveCount: db.$count(
+            animalsTable,
+            and(eq(animalsTable.shelterId, sheltersTable.id), eq(animalsTable.status, "live")),
+          ),
         })
         .from(sheltersTable)
         .where(

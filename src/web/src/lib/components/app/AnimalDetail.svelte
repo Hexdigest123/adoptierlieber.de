@@ -166,7 +166,7 @@
 	>
 		<div
 			bind:this={gallery}
-			class="absolute inset-0 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+			class="absolute inset-0 flex snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden"
 			style="touch-action: pan-x"
 			onscroll={onGalleryScroll}
 			onclick={onGalleryClick}
@@ -358,7 +358,7 @@
 					{#snippet iconLeft()}
 						<Heart class="size-4 {animal.liked ? 'fill-current' : ''}" />
 					{/snippet}
-					{animal.liked ? m.app_unlike() : m.app_like()}
+					{animal.liked ? m.app_unsave() : m.app_save()}
 				</Button>
 				{#if !user?.suspended_at}
 					<Button

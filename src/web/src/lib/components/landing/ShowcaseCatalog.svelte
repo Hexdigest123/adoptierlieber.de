@@ -42,6 +42,25 @@
 								{card.shelterName}
 							</p>
 							<p class="text-sm text-coral-700">{card.location}</p>
+							{#if card.bonded}
+								<p class="truncate text-xs font-semibold text-sand-800">
+									{m.showcase_card_bonded({ name: card.bonded })}
+								</p>
+							{/if}
+							{#if card.needs.length > 0}
+								<ul class="mt-1 flex flex-wrap gap-1">
+									{#each card.needs as trait (trait)}
+										<li
+											class="rounded-lg bg-peach-100 px-2 py-0.5 text-xs font-semibold text-coral-900"
+										>
+											{trait}
+										</li>
+									{/each}
+								</ul>
+							{/if}
+							{#if card.tagline}
+								<p class="mt-1 line-clamp-2 text-xs text-sand-700">{card.tagline}</p>
+							{/if}
 						</div>
 					</div>
 				</Card>

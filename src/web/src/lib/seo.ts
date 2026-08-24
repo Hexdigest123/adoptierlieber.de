@@ -58,7 +58,7 @@ const pages: Record<string, PageMeta> = {
 		description: () => m.meta_app_description(),
 	},
 	"/app/likes": {
-		title: () => m.meta_app_likes_title(),
+		title: () => m.meta_app_saved_title(),
 		description: () => m.meta_app_description(),
 	},
 	"/app/search": {

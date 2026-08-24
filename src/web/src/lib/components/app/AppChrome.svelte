@@ -45,10 +45,7 @@
 	const path = $derived(page.url.pathname);
 	const onSearch = $derived(path.startsWith("/app/search"));
 	const showFilters = $derived(
-		path === "/app" ||
-			onSearch ||
-			path.startsWith("/app/catalog") ||
-			path.startsWith("/app/likes"),
+		path === "/app" || onSearch || path.startsWith("/app/catalog") || path.startsWith("/app/likes"),
 	);
 
 	onMount(() => {
@@ -117,9 +114,9 @@
 	}
 
 	const tabs = [
-		{ href: "/app", label: () => m.app_tab_discover(), icon: Compass, exact: true },
+		{ href: "/app", label: () => m.app_tab_nearby(), icon: Compass, exact: true },
 		{ href: "/app/catalog", label: () => m.app_tab_catalog(), icon: LayoutGrid, exact: false },
-		{ href: "/app/likes", label: () => m.app_tab_likes(), icon: Heart, exact: false },
+		{ href: "/app/likes", label: () => m.app_tab_saved(), icon: Heart, exact: false },
 		{ href: "/app/messages", label: () => m.app_tab_messages(), icon: MessageCircle, exact: false },
 		{ href: "/profile", label: () => m.app_tab_profile(), icon: null, exact: false },
 	] as const;
@@ -171,7 +168,7 @@
 					type="button"
 					class="relative flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-sand-800 focus-ring hover:bg-peach-100 {showFilters
 						? ''
-						: 'invisible pointer-events-none'}"
+						: 'pointer-events-none invisible'}"
 					aria-label={m.app_filters()}
 					aria-expanded={filtersOpen}
 					aria-hidden={!showFilters}
@@ -183,9 +180,7 @@
 				>
 					<Settings class="size-5" aria-hidden="true" />
 					{#if filtersActive}
-						<span
-							class="absolute top-2 right-2 size-2 rounded-full bg-coral-600"
-							aria-hidden="true"
+						<span class="absolute top-2 right-2 size-2 rounded-full bg-coral-600" aria-hidden="true"
 						></span>
 					{/if}
 				</button>
@@ -194,7 +189,7 @@
 					class="flex size-11 shrink-0 items-center justify-center rounded-full text-sand-800 focus-ring hover:bg-peach-100 {showFilters &&
 					!onSearch
 						? ''
-						: 'invisible pointer-events-none'}"
+						: 'pointer-events-none invisible'}"
 					aria-label={m.app_search()}
 					aria-hidden={!(showFilters && !onSearch)}
 					tabindex={showFilters && !onSearch ? undefined : -1}
@@ -241,7 +236,10 @@
 				<a
 					href={resolve(tab.href)}
 					aria-label={tab.label()}
-					class="flex min-h-14 items-center justify-center focus-ring {tabActive(tab.href, tab.exact)
+					class="flex min-h-14 items-center justify-center focus-ring {tabActive(
+						tab.href,
+						tab.exact,
+					)
 						? 'text-coral-700'
 						: 'text-sand-600'}"
 				>

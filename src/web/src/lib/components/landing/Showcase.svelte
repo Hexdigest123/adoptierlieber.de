@@ -4,19 +4,16 @@
 	import SwipeDeck from "./SwipeDeck.svelte";
 	import ShowcaseCatalog from "./ShowcaseCatalog.svelte";
 	import type { ShowcaseCard } from "$lib/data/excerpts";
-	import type { PublicMapShelter } from "$lib/types/catalog";
 
 	let {
 		cards,
-		shelters,
 		loggedIn = false,
 	}: {
 		cards: ShowcaseCard[];
-		shelters: PublicMapShelter[];
 		loggedIn?: boolean;
 	} = $props();
 
-	let mode = $state<"swipe" | "map" | "catalog">("swipe");
+	let mode = $state<"swipe" | "catalog">("catalog");
 	const emptyCatalog = $derived(cards.length === 0);
 </script>
 
@@ -31,9 +28,7 @@
 				{m.showcase_title()}
 			</h2>
 			<p class="mt-4 text-lg text-sand-700">
-				{#if mode === "map"}
-					{m.showcase_map_subtitle()}
-				{:else if emptyCatalog}
+				{#if emptyCatalog}
 					{m.showcase_none_text()}
 				{:else if mode === "catalog"}
 					{m.showcase_catalog_subtitle()}
@@ -50,28 +45,6 @@
 		>
 			<button
 				type="button"
-				onclick={() => (mode = "swipe")}
-				aria-pressed={mode === "swipe"}
-				class="cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold focus-ring {mode ===
-				'swipe'
-					? 'bg-coral-600 text-white'
-					: 'text-sand-600 hover:text-coral-700'}"
-			>
-				{m.showcase_mode_swipe()}
-			</button>
-			<button
-				type="button"
-				onclick={() => (mode = "map")}
-				aria-pressed={mode === "map"}
-				class="cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold focus-ring {mode ===
-				'map'
-					? 'bg-coral-600 text-white'
-					: 'text-sand-600 hover:text-coral-700'}"
-			>
-				{m.showcase_mode_map()}
-			</button>
-			<button
-				type="button"
 				onclick={() => (mode = "catalog")}
 				aria-pressed={mode === "catalog"}
 				class="cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold focus-ring {mode ===
@@ -81,21 +54,21 @@
 			>
 				{m.showcase_mode_catalog()}
 			</button>
+			<button
+				type="button"
+				onclick={() => (mode = "swipe")}
+				aria-pressed={mode === "swipe"}
+				class="cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold focus-ring {mode ===
+				'swipe'
+					? 'bg-coral-600 text-white'
+					: 'text-sand-600 hover:text-coral-700'}"
+			>
+				{m.showcase_mode_cards()}
+			</button>
 		</div>
 
 		<div class="mt-12 flex justify-center">
-			{#if mode === "map"}
-				{#await import("./ShelterMap.svelte")}
-					<div
-						class="h-[28rem] w-full animate-pulse rounded-3xl border border-sand-200 bg-white sm:h-[36rem]"
-						aria-hidden="true"
-					></div>
-				{:then { default: ShelterMap }}
-					<div class="w-full">
-						<ShelterMap {shelters} {loggedIn} />
-					</div>
-				{/await}
-			{:else if emptyCatalog}
+			{#if emptyCatalog}
 				<EmptyAnimals title={m.showcase_none_title()} />
 			{:else if mode === "catalog"}
 				<ShowcaseCatalog {cards} {loggedIn} />

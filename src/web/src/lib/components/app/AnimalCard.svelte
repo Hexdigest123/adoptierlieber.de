@@ -85,7 +85,7 @@
 		<button
 			type="button"
 			class="absolute top-3 right-3 flex size-10 cursor-pointer items-center justify-center rounded-full bg-white/90 text-coral-700 shadow-sm focus-ring hover:bg-white"
-			aria-label={m.app_unlike()}
+			aria-label={m.app_unsave()}
 			onclick={() => onunlike(animal.id)}
 		>
 			<Heart class="size-5 fill-current" aria-hidden="true" />

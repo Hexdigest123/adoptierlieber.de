@@ -46,11 +46,11 @@
 	async function unlike(id: string) {
 		const prev = animals;
 		animals = animals.filter((row) => row.id !== id);
-		toast = m.app_likes_unliked();
+		toast = m.app_saved_removed();
 		const res = await fetch(`/api/animals/${id}/like`, { method: "DELETE" });
 		if (!res.ok) animals = prev;
 		setTimeout(() => {
-			if (toast === m.app_likes_unliked()) toast = "";
+			if (toast === m.app_saved_removed()) toast = "";
 		}, 4000);
 	}
 </script>
@@ -59,9 +59,9 @@
 	<div
 		class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3"
 	>
-		<h1 class="text-2xl font-black text-sand-950">{m.app_likes_title()}</h1>
+		<h1 class="text-2xl font-black text-sand-950">{m.app_saved_title()}</h1>
 		<div class="flex flex-wrap gap-1" role="group" aria-label={m.app_search_sort()}>
-			{#each [{ id: "recent", label: m.app_likes_sort_recent() }, { id: "distance", label: m.app_likes_sort_distance() }, { id: "name", label: m.app_likes_sort_name() }] as option (option.id)}
+			{#each [{ id: "recent", label: m.app_saved_sort_recent() }, { id: "distance", label: m.app_saved_sort_distance() }, { id: "name", label: m.app_saved_sort_name() }] as option (option.id)}
 				<button
 					type="button"
 					aria-pressed={sort === option.id}
@@ -87,10 +87,10 @@
 		<Button variant="outline" size="sm" onclick={() => void load()}>{m.app_retry()}</Button>
 	{:else if animals.length === 0}
 		<div class="rounded-3xl border-2 border-dashed border-sand-300 bg-white p-8 text-center">
-			<p class="text-xl font-bold text-sand-900">{m.app_likes_empty_title()}</p>
-			<p class="mt-2 text-sm text-sand-700">{m.app_likes_empty_text()}</p>
+			<p class="text-xl font-bold text-sand-900">{m.app_saved_empty_title()}</p>
+			<p class="mt-2 text-sm text-sand-700">{m.app_saved_empty_text()}</p>
 			<div class="mt-4">
-				<Button href={resolve("/app")}>{m.app_tab_discover()}</Button>
+				<Button href={resolve("/app")}>{m.app_tab_nearby()}</Button>
 			</div>
 		</div>
 	{:else}

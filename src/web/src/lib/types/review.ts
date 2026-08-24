@@ -3,4 +3,6 @@ export type PublicReview = {
 	name: string;
 	stars: number;
 	body: string;
+	user_id: string;
+	has_avatar: boolean;
 };

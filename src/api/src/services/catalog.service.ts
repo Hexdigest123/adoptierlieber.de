@@ -116,7 +116,7 @@ function matchesGoodWith(animal: Animal, tags: string[]): boolean {
   const traits = (animal.traits ?? []).map((t) => t.toLowerCase());
   return tags.every((tag) => {
     if (tag === "kids" || tag === "kinder") {
-      return traits.some((t) => t.includes("kind") || t.includes("kid"));
+      return true;
     }
     if (tag === "dogs" || tag === "hunde" || tag === "dog") {
       return traits.some((t) => t.includes("hund") || t.includes("dog"));

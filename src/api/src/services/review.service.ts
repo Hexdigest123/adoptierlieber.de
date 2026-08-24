@@ -1,10 +1,11 @@
 import { HTTPException } from "hono/http-exception";
 import type { Env } from "../config/env";
+import { getAvatarObject } from "../lib/avatar";
 import { listEnvelope, parseListQuery, type ListEnvelope } from "../lib/pagination";
 import { isUniqueConstraint } from "../lib/create-account";
 import { createReviewSchema, type AuditAction } from "../lib/zod";
 import { createAdminRepo } from "../repositories/admin.repo";
-import { createReviewRepo } from "../repositories/review.repo";
+import { createReviewRepo, type PublicReviewRow } from "../repositories/review.repo";
 import { createUserRepo } from "../repositories/user.repo";
 import type { Review, ReviewStatus, User } from "../types";
 
@@ -14,12 +15,14 @@ function iso(value: Date | null | undefined): string | null {
   return value ? value.toISOString() : null;
 }
 
-function publicReview(row: Review) {
+function publicReview(row: PublicReviewRow) {
   return {
     id: row.id,
-    name: row.name,
+    name: row.displayName?.trim() || row.userName || row.name,
     stars: row.stars,
     body: row.body,
+    user_id: row.userId,
+    has_avatar: Boolean(row.avatarKey),
   };
 }
 
@@ -109,6 +112,18 @@ export function createReviewService(env: Env) {
     async listPublic() {
       const items = await reviewRepo.listApprovedRandom(PUBLIC_REVIEW_LIMIT);
       return { items: items.map(publicReview) };
+    },
+
+    async getPublicAvatar(reviewId: string) {
+      const review = await reviewRepo.findById(reviewId);
+      if (!review || review.status !== "approved") {
+        return null;
+      }
+      const user = await userRepo.findById(review.userId);
+      if (!user?.avatarKey) {
+        return null;
+      }
+      return getAvatarObject(env, user.id);
     },
 
     async listAdmin(search: URLSearchParams): Promise<ListEnvelope<Record<string, unknown>>> {

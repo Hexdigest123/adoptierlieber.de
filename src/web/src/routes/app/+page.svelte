@@ -111,7 +111,7 @@
 	}
 </script>
 
-<h1 class="sr-only">{m.app_tab_discover()}</h1>
+<h1 class="sr-only">{m.app_tab_nearby()}</h1>
 <div class="flex min-h-0 w-full flex-1 items-center justify-center gap-6">
 	<AppSwipeDeck
 		bind:animals

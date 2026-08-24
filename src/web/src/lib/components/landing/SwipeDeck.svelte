@@ -48,7 +48,7 @@
 		}
 		const gone = index;
 		fling = direction;
-		announcement = `${m.showcase_nope()}: ${cards[gone]?.name ?? ""}`;
+		announcement = `${m.showcase_next()}: ${cards[gone]?.name ?? ""}`;
 		setTimeout(() => {
 			index = gone + 1;
 			offsetX = 0;
@@ -200,14 +200,14 @@
 							style="opacity: {fling === 'right'
 								? 1
 								: Math.min(Math.max(offsetX / SWIPE_THRESHOLD, 0), 1)}; transform: rotate(-14deg);"
-							aria-hidden="true">{m.showcase_like()}</span
+							aria-hidden="true">{m.showcase_look()}</span
 						>
 						<span
 							class="absolute top-5 right-5 rounded-lg border-4 border-coral-600 px-3 py-1 text-2xl font-black tracking-widest text-coral-700 uppercase"
 							style="opacity: {fling === 'left'
 								? 1
 								: Math.min(Math.max(-offsetX / SWIPE_THRESHOLD, 0), 1)}; transform: rotate(14deg);"
-							aria-hidden="true">{m.showcase_nope()}</span
+							aria-hidden="true">{m.showcase_next()}</span
 						>
 					{/if}
 				</div>
@@ -237,7 +237,7 @@
 		<button
 			type="button"
 			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-coral-600 bg-white text-coral-700 shadow-sm focus-ring transition-colors hover:bg-coral-50 disabled:cursor-not-allowed disabled:opacity-40"
-			aria-label={m.showcase_nope_action()}
+			aria-label={m.showcase_next_action()}
 			disabled={!current || !!fling}
 			onclick={() => completeSwipe("left")}
 		>
@@ -246,7 +246,7 @@
 		<button
 			type="button"
 			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-emerald-700 bg-white text-emerald-700 shadow-sm focus-ring transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
-			aria-label={m.showcase_like_action()}
+			aria-label={m.showcase_look_action()}
 			disabled={!current || !!fling}
 			onclick={openProfile}
 		>

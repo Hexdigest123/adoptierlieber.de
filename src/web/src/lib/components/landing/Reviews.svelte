@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { m } from "$lib/paraglide/messages";
+	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import type { PublicReview } from "$lib/types/review";
 	import ChevronLeft from "lucide-svelte/icons/chevron-left";
 	import ChevronRight from "lucide-svelte/icons/chevron-right";
@@ -86,11 +87,11 @@
 						<div class="flex">
 							{#each reviews as review (review.id)}
 								<article
-									class="w-full shrink-0 basis-full snap-center"
+									class="min-w-0 max-w-full shrink-0 basis-full snap-center"
 									aria-roledescription="slide"
 								>
 									<figure
-										class="flex h-full flex-col rounded-3xl border border-sand-200 bg-peach-50 px-6 py-8 sm:px-10 sm:py-10"
+										class="flex h-full min-w-0 flex-col overflow-hidden rounded-3xl border border-sand-200 bg-peach-50 px-6 py-8 sm:px-10 sm:py-10"
 									>
 										<div
 											class="flex gap-1 text-coral-600"
@@ -104,12 +105,23 @@
 											{/each}
 										</div>
 										<blockquote
-											class="mt-5 flex-1 text-lg leading-relaxed text-sand-900 sm:text-xl"
+											class="mt-5 min-w-0 flex-1 [overflow-wrap:anywhere] text-lg leading-relaxed whitespace-pre-wrap text-sand-900 sm:text-xl"
 										>
 											“{review.body}”
 										</blockquote>
-										<figcaption class="mt-6 text-sm font-bold text-sand-950">
-											{review.name}
+										<figcaption class="mt-6 min-w-0">
+											<div
+												class="inline-flex max-w-full items-center gap-3 rounded-xl border border-sand-200 bg-white px-3 py-2 shadow-sm"
+											>
+												<Avatar
+													name={review.name}
+													src={review.has_avatar ? `/api/reviews/${review.id}/avatar` : null}
+													size="sm"
+												/>
+												<span class="min-w-0 truncate text-sm font-bold text-sand-950"
+													>{review.name}</span
+												>
+											</div>
 										</figcaption>
 									</figure>
 								</article>

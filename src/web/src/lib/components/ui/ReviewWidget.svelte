@@ -50,7 +50,7 @@
 		event.preventDefault();
 		if (!user) return;
 		const trimmedBody = body.trim();
-		if (!trimmedBody || stars < 1) {
+		if (!trimmedBody || trimmedBody.length > 300 || stars < 1) {
 			error = "generic";
 			return;
 		}
@@ -167,6 +167,8 @@
 						label={m.reviews_form_body()}
 						required
 						rows={4}
+						maxlength={300}
+						hint={m.reviews_form_body_hint()}
 						bind:value={body}
 					/>
 

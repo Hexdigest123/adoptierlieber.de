@@ -241,7 +241,7 @@
 		<fieldset>
 			<legend class="mb-2 text-sm font-semibold text-sand-900">{m.app_search_good_with()}</legend>
 			<div class="flex flex-wrap gap-2">
-				{#each [{ id: "kids", label: m.app_prefs_with_kids() }, { id: "dogs", label: m.app_prefs_with_dog() }, { id: "cats", label: m.app_prefs_with_cat() }] as option (option.id)}
+				{#each [{ id: "dogs", label: m.app_prefs_with_dog() }, { id: "cats", label: m.app_prefs_with_cat() }] as option (option.id)}
 					<button
 						type="button"
 						aria-pressed={goodWith.includes(option.id)}

@@ -82,8 +82,6 @@ export function coverPhoto(photos: string[]): string | null {
 }
 
 const NEED_KEYS = [
-	"kind",
-	"kid",
 	"hund",
 	"dog",
 	"katze",
