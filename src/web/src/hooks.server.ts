@@ -1,8 +1,10 @@
+import { redirect } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 import type { Handle, HandleFetch } from "@sveltejs/kit";
 import { env } from "$env/dynamic/public";
 import { getTextDirection } from "$lib/paraglide/runtime";
 import { paraglideMiddleware } from "$lib/paraglide/server";
+import { isMfaSetupRequired, MFA_SETUP_PATH } from "$lib/mfa-setup";
 import { clearSessionCookie, SESSION_COOKIE } from "$lib/server/session-cookie";
 
 function secretsEqual(a: string, b: string) {
@@ -87,14 +89,14 @@ const handleSession: Handle = async ({ event, resolve }) => {
 	const user = event.locals.user;
 	if (user?.session_kind === "setup") {
 		const allowed =
-			path === "/mfa/setup" ||
+			path === MFA_SETUP_PATH ||
 			path === "/logout" ||
 			path === "/login" ||
-			path.startsWith("/mfa/setup/");
+			path.startsWith(`${MFA_SETUP_PATH}/`);
 		if (!allowed) {
 			return new Response(null, {
 				status: 303,
-				headers: { location: "/mfa/setup" },
+				headers: { location: MFA_SETUP_PATH },
 			});
 		}
 	}
@@ -103,15 +105,27 @@ const handleSession: Handle = async ({ event, resolve }) => {
 };
 
 /** Internal action fetch("/api/…") has no CF IP. Stamp the page request's. */
-export const handleFetch: HandleFetch = ({ event, request, fetch }) => {
+export const handleFetch: HandleFetch = async ({ event, request, fetch }) => {
 	const url = new URL(request.url);
 	if (url.origin === event.url.origin && url.pathname.startsWith("/api/")) {
 		const ip = event.request.headers.get("cf-connecting-ip") ?? event.getClientAddress();
 		const headers = new Headers(request.headers);
 		headers.set("cf-connecting-ip", ip);
-		return fetch(new Request(request, { headers }));
+		request = new Request(request, { headers });
 	}
-	return fetch(request);
+
+	const response = await fetch(request);
+	const path = event.url.pathname;
+	const skip =
+		path === "/api" ||
+		path.startsWith("/api/") ||
+		path === MFA_SETUP_PATH ||
+		path === "/logout" ||
+		path.startsWith(`${MFA_SETUP_PATH}/`);
+	if (!skip && (await isMfaSetupRequired(response))) {
+		redirect(303, MFA_SETUP_PATH);
+	}
+	return response;
 };
 
 export const handle = sequence(
