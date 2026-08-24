@@ -65,6 +65,27 @@ export function createCatalogRepo(env: Env) {
         .then((rows) => rows.map((row) => row.id));
     },
 
+    async recentSkipReasons(userId: string, since: Date): Promise<Set<string>> {
+      const rows = await db
+        .select({
+          animalId: swipeEventsTable.animalId,
+          action: swipeEventsTable.action,
+          reason: swipeEventsTable.reason,
+        })
+        .from(swipeEventsTable)
+        .where(and(eq(swipeEventsTable.userId, userId), gt(swipeEventsTable.createdAt, since)))
+        .orderBy(desc(swipeEventsTable.createdAt))
+        .all();
+      const seen = new Set<string>();
+      const reasons = new Set<string>();
+      for (const row of rows) {
+        if (seen.has(row.animalId)) continue;
+        seen.add(row.animalId);
+        if (row.action === "skip" && row.reason) reasons.add(row.reason);
+      }
+      return reasons;
+    },
+
     recentSkipIds(userId: string, since: Date): Promise<string[]> {
       return db
         .select({ id: swipeEventsTable.animalId })

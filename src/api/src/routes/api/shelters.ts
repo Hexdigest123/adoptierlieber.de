@@ -1,7 +1,9 @@
 import { Hono } from "hono";
+import { getCookie } from "hono/cookie";
 import type { AppEnv } from "../../types";
 import { rateLimitByIp } from "../../middlewares/rate-limit";
 import { sessionValidation } from "../../middlewares/session";
+import { createSessionService } from "../../services/session.service";
 import { createShelterService } from "../../services/shelter.service";
 import { createAnimalService } from "../../services/animal.service";
 import { sendMail } from "../../lib/mail";
@@ -50,6 +52,12 @@ shelters.post("/", rateLimitByIp("create-shelter", 5), async (c) => {
     }
   }
   return c.json({}, 201);
+});
+
+/** Verified shelters with coords for the landing map. No auth. */
+shelters.get("/map", rateLimitByIp("shelter-map", 60), async (c) => {
+  const items = await createShelterService(c.env).listPublicMap();
+  return c.json({ items }, 200);
 });
 
 shelters.post("/invites/accept", sessionValidation, async (c) => {
@@ -196,14 +204,24 @@ shelters.delete("/:id/logo", sessionValidation, async (c) => {
   return c.json(shelter, 200);
 });
 
-shelters.get("/:id/logo", sessionValidation, async (c) => {
-  const object = await createShelterService(c.env).getLogo(c.get("userId"), c.req.param("id"));
+shelters.get("/:id/logo", rateLimitByIp("shelter-logo", 120), async (c) => {
+  const token = getCookie(c, "sessionToken");
+  let userId: string | null = null;
+  if (token) {
+    try {
+      const session = await createSessionService(c.env).validate(token);
+      userId = session.userId;
+    } catch {
+      // public fallback for verified shelters
+    }
+  }
+  const object = await createShelterService(c.env).getLogo(userId, c.req.param("id"));
   if (!object) {
     return c.json({ error: "logo not found" }, 404);
   }
   const headers = new Headers();
   headers.set("content-type", object.httpMetadata?.contentType ?? "application/octet-stream");
-  headers.set("cache-control", "private, no-cache");
+  headers.set("cache-control", "public, max-age=86400");
   if (object.httpEtag) headers.set("etag", object.httpEtag);
   return new Response(object.body, { status: 200, headers });
 });

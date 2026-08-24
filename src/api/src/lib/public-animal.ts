@@ -51,6 +51,9 @@ export type PublicExcerpt = {
   age_unknown: boolean;
   tagline: string | null;
   photos: string[];
+  traits: string[];
+  bonded_partner: string | null;
+  bonded_partners: BondedPartner[];
   shelter: {
     id: string;
     org_name: string;
@@ -121,7 +124,11 @@ export function toPublicAnimal(
   };
 }
 
-export function toPublicExcerpt(animal: Animal, shelter: Shelter): PublicExcerpt {
+export function toPublicExcerpt(
+  animal: Animal,
+  shelter: Shelter,
+  bonded_partners: BondedPartner[] = [],
+): PublicExcerpt {
   return {
     id: animal.id,
     name: animal.name,
@@ -130,6 +137,9 @@ export function toPublicExcerpt(animal: Animal, shelter: Shelter): PublicExcerpt
     age_unknown: animal.ageUnknown,
     tagline: animal.tagline,
     photos: photoUrls(animal.id, animal.photos),
+    traits: animal.traits ?? [],
+    bonded_partner: bondLabel(bonded_partners) ?? animal.bondedPartner,
+    bonded_partners,
     shelter: {
       id: shelter.id,
       org_name: shelter.orgName,

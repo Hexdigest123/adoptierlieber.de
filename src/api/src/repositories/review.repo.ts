@@ -1,8 +1,19 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getDb, type Env } from "../config/env";
-import { reviewsTable } from "../schema";
+import { reviewsTable, usersTable } from "../schema";
 import type { ReviewStatus } from "../types";
+
+export type PublicReviewRow = {
+  id: string;
+  name: string;
+  stars: number;
+  body: string;
+  userId: string;
+  displayName: string | null;
+  userName: string;
+  avatarKey: string | null;
+};
 
 export type ReviewListParams = {
   status?: ReviewStatus;
@@ -16,7 +27,7 @@ function likePattern(q: string): string {
 }
 
 export function createReviewRepo(env: Env) {
-  const db = drizzle(getDb(env), { schema: { reviewsTable } });
+  const db = drizzle(getDb(env), { schema: { reviewsTable, usersTable } });
 
   return {
     create(input: { userId: string; name: string; stars: number; body: string }) {
@@ -27,10 +38,20 @@ export function createReviewRepo(env: Env) {
       return db.select().from(reviewsTable).where(eq(reviewsTable.id, id)).get();
     },
 
-    listApprovedRandom(limit: number) {
+    listApprovedRandom(limit: number): Promise<PublicReviewRow[]> {
       return db
-        .select()
+        .select({
+          id: reviewsTable.id,
+          name: reviewsTable.name,
+          stars: reviewsTable.stars,
+          body: reviewsTable.body,
+          userId: reviewsTable.userId,
+          displayName: usersTable.displayName,
+          userName: usersTable.name,
+          avatarKey: usersTable.avatarKey,
+        })
         .from(reviewsTable)
+        .innerJoin(usersTable, eq(usersTable.id, reviewsTable.userId))
         .where(eq(reviewsTable.status, "approved"))
         .orderBy(sql`random()`)
         .limit(limit)

@@ -5,7 +5,6 @@
 	import { page } from "$app/state";
 	import { onMount } from "svelte";
 	import Compass from "lucide-svelte/icons/compass";
-	import MapPin from "lucide-svelte/icons/map-pin";
 	import LayoutGrid from "lucide-svelte/icons/layout-grid";
 	import Heart from "lucide-svelte/icons/heart";
 	import MessageCircle from "lucide-svelte/icons/message-circle";
@@ -39,18 +38,14 @@
 	);
 	const needsPrefs = $derived(prefs?.onboarded === true && prefs?.prefs_done !== true);
 	const placeLabel = $derived(
-		user.home_label ?? (user.home_lat != null ? m.app_map_you() : m.app_location_unset()),
+		user.home_label ?? (user.home_lat != null ? m.app_location_you() : m.app_location_unset()),
 	);
 	const filtersActive = $derived(selectedSpecies().length > 0);
 
 	const path = $derived(page.url.pathname);
 	const onSearch = $derived(path.startsWith("/app/search"));
 	const showFilters = $derived(
-		path === "/app" ||
-			onSearch ||
-			path.startsWith("/app/map") ||
-			path.startsWith("/app/catalog") ||
-			path.startsWith("/app/likes"),
+		path === "/app" || onSearch || path.startsWith("/app/catalog") || path.startsWith("/app/likes"),
 	);
 
 	onMount(() => {
@@ -119,10 +114,9 @@
 	}
 
 	const tabs = [
-		{ href: "/app", label: () => m.app_tab_discover(), icon: Compass, exact: true },
-		{ href: "/app/map", label: () => m.app_tab_map(), icon: MapPin, exact: false },
+		{ href: "/app", label: () => m.app_tab_nearby(), icon: Compass, exact: true },
 		{ href: "/app/catalog", label: () => m.app_tab_catalog(), icon: LayoutGrid, exact: false },
-		{ href: "/app/likes", label: () => m.app_tab_likes(), icon: Heart, exact: false },
+		{ href: "/app/likes", label: () => m.app_tab_saved(), icon: Heart, exact: false },
 		{ href: "/app/messages", label: () => m.app_tab_messages(), icon: MessageCircle, exact: false },
 		{ href: "/profile", label: () => m.app_tab_profile(), icon: null, exact: false },
 	] as const;
@@ -174,7 +168,7 @@
 					type="button"
 					class="relative flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-sand-800 focus-ring hover:bg-peach-100 {showFilters
 						? ''
-						: 'invisible pointer-events-none'}"
+						: 'pointer-events-none invisible'}"
 					aria-label={m.app_filters()}
 					aria-expanded={filtersOpen}
 					aria-hidden={!showFilters}
@@ -186,9 +180,7 @@
 				>
 					<Settings class="size-5" aria-hidden="true" />
 					{#if filtersActive}
-						<span
-							class="absolute top-2 right-2 size-2 rounded-full bg-coral-600"
-							aria-hidden="true"
+						<span class="absolute top-2 right-2 size-2 rounded-full bg-coral-600" aria-hidden="true"
 						></span>
 					{/if}
 				</button>
@@ -197,7 +189,7 @@
 					class="flex size-11 shrink-0 items-center justify-center rounded-full text-sand-800 focus-ring hover:bg-peach-100 {showFilters &&
 					!onSearch
 						? ''
-						: 'invisible pointer-events-none'}"
+						: 'pointer-events-none invisible'}"
 					aria-label={m.app_search()}
 					aria-hidden={!(showFilters && !onSearch)}
 					tabindex={showFilters && !onSearch ? undefined : -1}
@@ -239,12 +231,15 @@
 		class="fixed inset-x-0 bottom-0 z-40 border-t border-sand-200 bg-white/95 backdrop-blur md:hidden"
 		aria-label={m.app_nav_label()}
 	>
-		<div class="mx-auto grid max-w-6xl grid-cols-6">
+		<div class="mx-auto grid max-w-6xl grid-cols-5">
 			{#each tabs as tab (tab.href)}
 				<a
 					href={resolve(tab.href)}
 					aria-label={tab.label()}
-					class="flex min-h-14 items-center justify-center focus-ring {tabActive(tab.href, tab.exact)
+					class="flex min-h-14 items-center justify-center focus-ring {tabActive(
+						tab.href,
+						tab.exact,
+					)
 						? 'text-coral-700'
 						: 'text-sand-600'}"
 				>

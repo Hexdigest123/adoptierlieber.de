@@ -19,7 +19,7 @@
 			<p class="text-xl font-bold text-sand-900">{m.app_messages_empty_title()}</p>
 			<p class="mt-2 text-sm text-sand-700">{m.app_messages_empty_text()}</p>
 			<div class="mt-4">
-				<Button href={resolve("/app")}>{m.app_tab_discover()}</Button>
+				<Button href={resolve("/app")}>{m.app_tab_nearby()}</Button>
 			</div>
 		</div>
 	{:else}

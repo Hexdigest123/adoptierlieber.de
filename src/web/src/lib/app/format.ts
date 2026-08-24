@@ -71,6 +71,53 @@ export function practicalLabel(value: Practical): string {
 	return m.app_unknown();
 }
 
+export function neuteredLabel(sex: AnimalSex): string {
+	if (sex === "female") return m.app_detail_neutered_female();
+	if (sex === "male") return m.app_detail_neutered_male();
+	return m.app_detail_neutered();
+}
+
 export function coverPhoto(photos: string[]): string | null {
 	return photos[0] ?? null;
+}
+
+const NEED_KEYS = [
+	"hund",
+	"dog",
+	"katze",
+	"cat",
+	"allein",
+	"single",
+	"handicap",
+	"special",
+	"bedarf",
+	"senior",
+] as const;
+
+function isNeedTrait(trait: string): boolean {
+	const value = trait.toLowerCase();
+	return NEED_KEYS.some((key) => value.includes(key));
+}
+
+export function needTraits(traits: string[], ageMonths?: number | null, ageUnknown?: boolean): string[] {
+	const needs = traits.filter(isNeedTrait);
+	const rest = traits.filter((trait) => !isNeedTrait(trait));
+	const chips = [...needs, ...rest];
+	if (!ageUnknown && ageMonths != null && ageMonths >= 84) {
+		const senior = m.app_age_senior();
+		if (!chips.some((chip) => chip.toLowerCase().includes("senior"))) {
+			chips.unshift(senior);
+		}
+	}
+	return chips.slice(0, 3);
+}
+
+export function bondedNames(
+	partners: { name: string }[] | undefined,
+	fallback: string | null | undefined,
+): string | null {
+	const names = (partners ?? []).map((row) => row.name.trim()).filter(Boolean);
+	if (names.length > 0) return names.join(", ");
+	const lone = fallback?.trim();
+	return lone || null;
 }

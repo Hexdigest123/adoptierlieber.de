@@ -76,7 +76,6 @@
 		{
 			title: () => m.app_prefs_with(),
 			options: [
-				{ id: "kids", label: () => m.app_prefs_with_kids() },
 				{ id: "dog", label: () => m.app_prefs_with_dog() },
 				{ id: "cat", label: () => m.app_prefs_with_cat() },
 				{ id: "alone", label: () => m.app_prefs_with_alone() },

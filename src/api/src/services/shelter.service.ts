@@ -85,6 +85,21 @@ export function createShelterService(env: Env) {
   }
 
   return {
+    async listPublicMap() {
+      const rows = await shelterRepo.listPublicMap();
+      return rows.map((row) => ({
+        id: row.id,
+        org_name: row.orgName,
+        city: row.city,
+        zip: row.zip,
+        website: row.website,
+        has_logo: Boolean(row.logoKey),
+        lat: row.lat,
+        lng: row.lng,
+        live_count: Number(row.liveCount) || 0,
+      }));
+    },
+
     /**
      * Register a new shelter together with its owner account.
      * Creates user (+ email-verification token) + shelter (pending) + membership (OWNER).
@@ -566,16 +581,23 @@ export function createShelterService(env: Env) {
       return toStaffShelter(updated);
     },
 
-    async getLogo(userId: string, shelterId: string) {
-      const actor = await userRepo.findById(userId);
-      if (!actor) {
-        throw new HTTPException(404, { message: "logo not found" });
-      }
-      if (!isPlatformAdmin(actor.platformRole)) {
-        await this.assertRole(userId, shelterId, SHELTER_ROLE.STAFF);
-      }
+    async getLogo(userId: string | null, shelterId: string) {
       const shelter = await requireShelter(shelterId);
       if (!shelter.logoKey) return null;
+      const publicOk =
+        shelter.verificationStatus === "verified" && !shelter.archivedAt;
+      if (!publicOk) {
+        if (!userId) {
+          throw new HTTPException(404, { message: "logo not found" });
+        }
+        const actor = await userRepo.findById(userId);
+        if (!actor) {
+          throw new HTTPException(404, { message: "logo not found" });
+        }
+        if (!isPlatformAdmin(actor.platformRole)) {
+          await this.assertRole(userId, shelterId, SHELTER_ROLE.STAFF);
+        }
+      }
       return getShelterLogoObject(env, shelterId);
     },
 

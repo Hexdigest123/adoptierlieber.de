@@ -191,6 +191,12 @@
 		return m.shelter_unset();
 	}
 
+	function neuteredFieldLabel(sex: AnimalSex | ""): string {
+		if (sex === "female") return m.shelter_field_neutered_female();
+		if (sex === "male") return m.shelter_field_neutered_male();
+		return m.shelter_field_neutered();
+	}
+
 	function listFrom(text: string): string[] {
 		return text
 			.split(",")
@@ -341,7 +347,7 @@
 		if (field === "tagline") return m.shelter_field_tagline();
 		if (field === "description") return m.shelter_field_description();
 		if (field === "vaccinated") return m.shelter_field_vaccinated();
-		if (field === "neutered") return m.shelter_field_neutered();
+		if (field === "neutered") return neuteredFieldLabel(primary.sex);
 		if (field === "chipped") return m.shelter_field_chipped();
 		return m.shelter_field_house();
 	}
@@ -743,7 +749,7 @@
 			},
 			{
 				id: "neutered",
-				label: m.shelter_field_neutered(),
+				label: neuteredFieldLabel(draft.sex),
 				value: draft.neutered,
 				set: (value: Triad | "") => (draft.neutered = value),
 			},
@@ -1004,8 +1010,8 @@
 						disabled={readonly}
 					/>
 					<PawPrint class="size-6 text-coral-700" aria-hidden="true" />
-					<span class="text-sm font-bold text-sand-950">{m.shelter_wizard_type_single()}</span>
-					<span class="text-xs text-sand-600">{m.shelter_wizard_type_single_hint()}</span>
+					<span class="text-sm font-bold text-sand-950">{m.shelter_wizard_type_one()}</span>
+					<span class="text-xs text-sand-600">{m.shelter_wizard_type_one_hint()}</span>
 				</label>
 				<label
 					class="flex cursor-pointer flex-col gap-1 rounded-xl border-2 p-4 transition-colors focus-within:ring-2 focus-within:ring-coral-600 focus-within:ring-offset-2 {kind ===
@@ -1023,8 +1029,8 @@
 						disabled={readonly}
 					/>
 					<Heart class="size-6 text-coral-700" aria-hidden="true" />
-					<span class="text-sm font-bold text-sand-950">{m.shelter_wizard_type_pair()}</span>
-					<span class="text-xs text-sand-600">{m.shelter_wizard_type_pair_hint()}</span>
+					<span class="text-sm font-bold text-sand-950">{m.shelter_wizard_type_group()}</span>
+					<span class="text-xs text-sand-600">{m.shelter_wizard_type_group_hint()}</span>
 				</label>
 			</div>
 		</fieldset>
@@ -1033,14 +1039,14 @@
 			class="wizard-step flex flex-col gap-4"
 			class:hidden={kind !== "pair" || !show("partner")}
 		>
-			<legend class="text-lg font-bold text-sand-950">{m.shelter_animal_pair()}</legend>
-			<p class="text-sm text-sand-700">{m.shelter_animal_pair_hint()}</p>
+			<legend class="text-lg font-bold text-sand-950">{m.shelter_animal_group()}</legend>
+			<p class="text-sm text-sand-700">{m.shelter_animal_group_hint()}</p>
 			<ul class="flex flex-col gap-3">
 				{#each companions as entry, index (entry.key)}
 					<li class="rounded-xl border border-sand-200 bg-white p-4">
 						<div class="mb-3 flex items-center justify-between gap-2">
 							<p class="text-sm font-bold text-sand-950">
-								{m.shelter_wizard_partner_name()}
+								{m.shelter_wizard_linked_name()}
 								{index + 1}
 							</p>
 							{#if companions.length > 1 && !readonly}
@@ -1049,7 +1055,7 @@
 									class="text-xs font-semibold text-coral-800"
 									onclick={() => removeCompanion(index)}
 								>
-									{m.shelter_wizard_partner_remove()}
+									{m.shelter_wizard_linked_remove()}
 								</button>
 							{/if}
 						</div>
@@ -1069,8 +1075,7 @@
 									class="sr-only"
 									disabled={readonly}
 								/>
-								<span class="text-sm font-bold text-sand-950">{m.shelter_wizard_partner_new()}</span
-								>
+								<span class="text-sm font-bold text-sand-950">{m.shelter_wizard_linked_new()}</span>
 							</label>
 							<label
 								class="flex cursor-pointer flex-col gap-1 rounded-xl border-2 p-3 transition-colors {entry.mode ===
@@ -1091,19 +1096,19 @@
 									disabled={readonly || existingChoices(index).length === 0}
 								/>
 								<span class="text-sm font-bold text-sand-950"
-									>{m.shelter_wizard_partner_existing()}</span
+									>{m.shelter_wizard_linked_existing()}</span
 								>
 							</label>
 						</div>
 						{#if entry.mode === "existing"}
 							{#if existingChoices(index).length === 0}
-								<p class="mt-3 text-sm text-sand-600">{m.shelter_wizard_partner_empty()}</p>
+								<p class="mt-3 text-sm text-sand-600">{m.shelter_wizard_linked_empty()}</p>
 							{:else}
 								<div class="mt-3 flex flex-col gap-1.5">
 									<label
 										for="an-partner-pick-{entry.key}"
 										class="text-sm font-semibold text-sand-900"
-										>{m.shelter_wizard_partner_pick()}</label
+										>{m.shelter_wizard_linked_pick()}</label
 									>
 									<select
 										id="an-partner-pick-{entry.key}"
@@ -1134,7 +1139,7 @@
 					class="self-start text-sm font-semibold text-coral-800"
 					onclick={addCompanion}
 				>
-					{m.shelter_wizard_partner_add()}
+					{m.shelter_wizard_linked_add()}
 				</button>
 			{/if}
 		</fieldset>
@@ -1189,7 +1194,7 @@
 											class="text-xs font-semibold text-coral-800"
 											onclick={() => removeSelectedPartner(id)}
 										>
-											{m.shelter_wizard_partner_remove()}
+											{m.shelter_wizard_linked_remove()}
 										</button>
 									{/if}
 								</li>
@@ -1199,7 +1204,7 @@
 					{#if partnerChoices.length}
 						<div class="flex flex-col gap-1.5">
 							<label for="an-partner-edit" class="text-sm font-semibold text-sand-900"
-								>{m.shelter_wizard_partner_add()}</label
+								>{m.shelter_wizard_linked_add()}</label
 							>
 							<select
 								id="an-partner-edit"
@@ -1221,7 +1226,7 @@
 					{#if !selectedPartnerIds.length}
 						<Input
 							id="an-partner"
-							label={m.shelter_field_partner()}
+							label={m.shelter_field_linked_name()}
 							bind:value={bondedPartner}
 							disabled={readonly}
 						/>
@@ -1240,7 +1245,7 @@
 				>
 					<h2 class="text-lg font-bold text-sand-950">
 						{m.shelter_animal_basics()}
-						{entry.draft.name.trim() || m.shelter_wizard_partner_name()}
+						{entry.draft.name.trim() || m.shelter_wizard_linked_name()}
 					</h2>
 					<div class="mt-4">
 						{@render draftFields(entry.draft, `bn-${entry.key}`, "basics")}
@@ -1252,7 +1257,7 @@
 				>
 					<h2 class="text-lg font-bold text-sand-950">
 						{m.shelter_animal_story()}
-						{entry.draft.name.trim() || m.shelter_wizard_partner_name()}
+						{entry.draft.name.trim() || m.shelter_wizard_linked_name()}
 					</h2>
 					<div class="mt-4">
 						{@render draftFields(entry.draft, `bn-${entry.key}`, "story")}
@@ -1264,7 +1269,7 @@
 				>
 					<h2 class="text-lg font-bold text-sand-950">
 						{m.shelter_animal_care()}
-						{entry.draft.name.trim() || m.shelter_wizard_partner_name()}
+						{entry.draft.name.trim() || m.shelter_wizard_linked_name()}
 					</h2>
 					<div class="mt-4">
 						{@render draftFields(entry.draft, `bn-${entry.key}`, "care")}
@@ -1293,7 +1298,7 @@
 				{/if}
 				{#if kind === "pair" && partnerName()}
 					<p class="mt-3 text-sm font-semibold text-coral-800">
-						{m.shelter_wizard_review_pair({ name: partnerName() })}
+						{m.shelter_wizard_review_linked({ name: partnerName() })}
 					</p>
 				{/if}
 			</div>

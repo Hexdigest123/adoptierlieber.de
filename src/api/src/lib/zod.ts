@@ -175,7 +175,7 @@ export const contactSchema = z.object({
 });
 
 export const createReviewSchema = z.object({
-  body: text(800),
+  body: text(300),
   stars: z.coerce.number().int().min(1).max(5),
   // honeypot: must stay empty; filled by bots only
   website: z.string().max(200).optional(),

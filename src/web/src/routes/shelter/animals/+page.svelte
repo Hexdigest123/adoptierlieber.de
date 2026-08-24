@@ -98,7 +98,7 @@
 		<option value="updated">{m.shelter_sort_updated()}</option>
 		<option value="name">{m.shelter_sort_name()}</option>
 		<option value="impressions">{m.shelter_sort_impressions()}</option>
-		<option value="likes">{m.shelter_sort_likes()}</option>
+		<option value="likes">{m.shelter_sort_saves()}</option>
 	</select>
 </div>
 

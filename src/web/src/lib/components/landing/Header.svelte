@@ -31,6 +31,7 @@
 
 	const navItems = [
 		{ label: () => m.header_nav_animals(), href: "/#showcase" },
+		{ label: () => m.header_nav_partners(), href: "/#partners" },
 		{ label: () => m.header_nav_reviews(), href: "/#reviews" },
 		{ label: () => m.header_nav_contact(), href: "/#contact" },
 	];

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Heart from "lucide-svelte/icons/heart";
+	import Eye from "lucide-svelte/icons/eye";
 	import X from "lucide-svelte/icons/x";
 	import RotateCcw from "lucide-svelte/icons/rotate-ccw";
 	import { resolve } from "$app/paths";
@@ -8,7 +8,14 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import EmptyAnimals from "$lib/components/EmptyAnimals.svelte";
 	import type { PublicAnimal } from "$lib/types/catalog";
-	import { ageLabel, coverPhoto, distanceLabel, speciesLabel } from "$lib/app/format";
+	import {
+		ageLabel,
+		bondedNames,
+		coverPhoto,
+		distanceLabel,
+		needTraits,
+		speciesLabel,
+	} from "$lib/app/format";
 	import AnimalPhoto from "./AnimalPhoto.svelte";
 
 	const SWIPE_THRESHOLD = 100;
@@ -45,22 +52,31 @@
 	let undoUntil = $state(0);
 	let undoTimer: ReturnType<typeof setTimeout> | undefined;
 	let reasonTimer: ReturnType<typeof setTimeout> | undefined;
+	let flingTimer: ReturnType<typeof setTimeout> | undefined;
 	let askReason = $state(false);
 	let pendingSkip = $state<PublicAnimal | null>(null);
+	let pendingLook = $state<PublicAnimal | null>(null);
 
-	const passReasons = [
-		{ id: "too_far", label: () => m.app_pass_too_far() },
-		{ id: "too_young", label: () => m.app_pass_too_young() },
-		{ id: "too_old", label: () => m.app_pass_too_old() },
-		{ id: "species", label: () => m.app_pass_species() },
-		{ id: "other", label: () => m.app_pass_other() },
+	const skipReasons = [
+		{ id: "too_far", label: () => m.app_skip_too_far() },
+		{ id: "too_young", label: () => m.app_skip_too_young() },
+		{ id: "too_old", label: () => m.app_skip_too_old() },
+		{ id: "species", label: () => m.app_skip_species() },
+		{ id: "other", label: () => m.app_skip_other() },
 	] as const;
 
 	const current = $derived(animals[0]);
 
 	function describe(animal: PublicAnimal | undefined): string {
 		if (!animal) return "";
-		return `${animal.name}, ${speciesLabel(animal.species)}, ${ageLabel(animal.age_months, animal.age_unknown)}`;
+		const bond = bondedNames(animal.bonded_partners, animal.bonded_partner);
+		const bondText = bond ? ` ${m.showcase_card_bonded({ name: bond })}.` : "";
+		return `${animal.name}, ${speciesLabel(animal.species)}, ${ageLabel(animal.age_months, animal.age_unknown)}${bondText}`;
+	}
+
+	function openProfile(animal: PublicAnimal) {
+		if (onfocus) onfocus(animal);
+		else void goto(resolve(`/app/animals/${animal.id}`));
 	}
 
 	function reducedMotion(): boolean {
@@ -96,39 +112,50 @@
 		animals = [animal, ...animals.filter((row) => row.id !== animal.id)];
 	}
 
+	function armUndo() {
+		clearTimeout(undoTimer);
+		undoUntil = Date.now() + 5000;
+		undoTimer = setTimeout(() => {
+			undoUntil = 0;
+			pendingLook = null;
+		}, 5000);
+	}
+
 	function completeSwipe(direction: "left" | "right") {
 		if (!current || fling) return;
 		const gone = current;
 		fling = direction;
-		announcement = `${direction === "right" ? m.showcase_like() : m.showcase_nope()}: ${gone.name}`;
+		announcement =
+			direction === "right"
+				? `${m.showcase_look()}: ${gone.name}`
+				: `${m.showcase_next()}: ${gone.name}`;
 		const delay = reducedMotion() ? 0 : 250;
-		setTimeout(() => {
+		clearTimeout(flingTimer);
+		flingTimer = setTimeout(() => {
 			animals = animals.filter((row) => row.id !== gone.id);
 			offsetX = 0;
 			offsetY = 0;
 			moved = 0;
 			fling = null;
+			if (direction === "right") openProfile(gone);
 			if (animals[0]) announcement = describe(animals[0]);
 			if (animals.length < 5) onneedmore();
 		}, delay);
-		if (direction === "left") {
+		if (direction === "right") {
 			if (pendingSkip) void sendReason();
-			pendingSkip = gone;
-			askReason = true;
-			clearTimeout(reasonTimer);
-			reasonTimer = setTimeout(() => {
-				void sendReason();
-			}, 4000);
-		} else {
-			void writeSwipe("like", gone.id).then((ok) => {
-				if (!ok) setTimeout(() => restore(gone), delay);
-			});
+			pendingLook = gone;
+			armUndo();
+			return;
 		}
-		clearTimeout(undoTimer);
-		undoUntil = Date.now() + 5000;
-		undoTimer = setTimeout(() => {
-			undoUntil = 0;
-		}, 5000);
+		pendingLook = null;
+		if (pendingSkip) void sendReason();
+		pendingSkip = gone;
+		askReason = true;
+		clearTimeout(reasonTimer);
+		reasonTimer = setTimeout(() => {
+			void sendReason();
+		}, 4000);
+		armUndo();
 	}
 
 	async function sendReason(reason?: string) {
@@ -148,11 +175,22 @@
 		undoUntil = 0;
 		clearTimeout(undoTimer);
 		clearTimeout(reasonTimer);
+		clearTimeout(flingTimer);
+		offsetX = 0;
+		offsetY = 0;
+		moved = 0;
+		fling = null;
+		if (pendingLook) {
+			const gone = pendingLook;
+			pendingLook = null;
+			restore(gone);
+			return;
+		}
 		if (pendingSkip) {
 			const gone = pendingSkip;
 			askReason = false;
 			pendingSkip = null;
-			animals = [gone, ...animals.filter((row) => row.id !== gone.id)];
+			restore(gone);
 			return;
 		}
 		const res = await fetch("/api/swipes", {
@@ -189,8 +227,7 @@
 		if (moved <= TAP_SLOP && current) {
 			offsetX = 0;
 			offsetY = 0;
-			if (onfocus) onfocus(current);
-			else void goto(resolve(`/app/animals/${current.id}`));
+			openProfile(current);
 			return;
 		}
 		if (Math.abs(offsetX) > SWIPE_THRESHOLD) {
@@ -211,8 +248,7 @@
 			completeSwipe("left");
 		} else if (event.key === "Enter") {
 			event.preventDefault();
-			if (onfocus) onfocus(current);
-			else void goto(resolve(`/app/animals/${current.id}`));
+			openProfile(current);
 		}
 	}
 
@@ -246,6 +282,8 @@
 		<p id="app-deck-hint" class="sr-only">{m.showcase_keyboard_hint()}</p>
 
 		{#each animals.slice(0, 3) as animal, position (animal.id)}
+			{@const bond = bondedNames(animal.bonded_partners, animal.bonded_partner)}
+			{@const needs = needTraits(animal.traits, animal.age_months, animal.age_unknown)}
 			<div
 				class="absolute inset-0 overflow-hidden rounded-3xl border border-sand-200 bg-white shadow-lg select-none {position ===
 					0 && !fling
@@ -286,9 +324,14 @@
 						{speciesLabel(animal.species)}
 						{distanceLabel(animal.distance_km, animal.shelter.city)}
 					</p>
-					{#if animal.traits.length > 0}
+					{#if bond}
+						<p class="text-sm font-semibold text-sand-800">
+							{m.showcase_card_bonded({ name: bond })}
+						</p>
+					{/if}
+					{#if needs.length > 0}
 						<ul class="flex flex-wrap gap-2">
-							{#each animal.traits.slice(0, 3) as trait (trait)}
+							{#each needs as trait (trait)}
 								<li
 									class="rounded-xl bg-peach-100 px-3 py-1.5 text-xs font-semibold text-coral-900"
 								>
@@ -308,14 +351,14 @@
 						style="opacity: {fling === 'right'
 							? 1
 							: Math.min(Math.max(offsetX / SWIPE_THRESHOLD, 0), 1)}; transform: rotate(-14deg);"
-						aria-hidden="true">{m.showcase_like()}</span
+						aria-hidden="true">{m.showcase_look()}</span
 					>
 					<span
 						class="absolute top-5 right-5 rounded-lg border-4 border-coral-600 px-3 py-1 text-2xl font-black tracking-widest text-coral-700 uppercase"
 						style="opacity: {fling === 'left'
 							? 1
 							: Math.min(Math.max(-offsetX / SWIPE_THRESHOLD, 0), 1)}; transform: rotate(14deg);"
-						aria-hidden="true">{m.showcase_nope()}</span
+						aria-hidden="true">{m.showcase_next()}</span
 					>
 				{/if}
 			</div>
@@ -354,7 +397,7 @@
 							>{m.app_empty_reset_seen()}</Button
 						>
 						<Button href={resolve("/app/likes")} variant="ghost" size="sm"
-							>{m.app_open_likes()}</Button
+							>{m.app_open_saved()}</Button
 						>
 					</div>
 				{/if}
@@ -384,29 +427,19 @@
 		<button
 			type="button"
 			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-emerald-700 bg-white text-emerald-700 shadow-sm focus-ring transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
-			aria-label={m.app_like()}
+			aria-label={m.app_open_profile()}
 			disabled={!current || !!fling}
-			onclick={() => completeSwipe("right")}
+			onclick={() => current && openProfile(current)}
 		>
-			<Heart class="size-7" aria-hidden="true" />
+			<Eye class="size-7" aria-hidden="true" />
 		</button>
 	</div>
 
-	{#if showUndo}
-		<button
-			type="button"
-			class="rounded-full bg-sand-950 px-4 py-2 text-sm font-semibold text-white focus-ring"
-			onclick={() => void undo()}
-		>
-			{m.app_undo_toast()}
-		</button>
-	{/if}
-
 	{#if askReason}
 		<div class="flex flex-col items-center gap-2">
-			<p class="text-sm font-semibold text-sand-800">{m.app_pass_why()}</p>
+			<p class="text-sm font-semibold text-sand-800">{m.app_skip_why()}</p>
 			<div class="flex flex-wrap justify-center gap-2">
-				{#each passReasons as reason (reason.id)}
+				{#each skipReasons as reason (reason.id)}
 					<button
 						type="button"
 						class="rounded-full border border-sand-200 px-3 py-1.5 text-sm font-semibold text-sand-800 focus-ring hover:border-coral-300"
@@ -420,7 +453,7 @@
 					class="rounded-full px-3 py-1.5 text-sm font-semibold text-sand-600 focus-ring"
 					onclick={() => void sendReason()}
 				>
-					{m.app_pass_skip()}
+					{m.app_skip_no_reason()}
 				</button>
 			</div>
 		</div>

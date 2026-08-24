@@ -13,7 +13,7 @@
 		{ label: m.shelter_kpi_drafts(), value: kpis.drafts, href: "/shelter/animals?status=draft" },
 		{ label: m.shelter_kpi_new(), value: kpis.new_threads, href: "/shelter/messages?filter=new" },
 		{ label: m.shelter_kpi_unread(), value: kpis.unread, href: "/shelter/messages" },
-		{ label: m.shelter_kpi_likes(), value: kpis.likes, href: "/shelter/animals?status=live" },
+		{ label: m.shelter_kpi_saves(), value: kpis.likes, href: "/shelter/animals?status=live" },
 		{
 			label: m.shelter_kpi_impressions(),
 			value: kpis.impressions_7d,

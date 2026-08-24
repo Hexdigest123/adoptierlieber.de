@@ -1,6 +1,5 @@
 const ORIGIN_PATHS = {
 	catalog: "/app/catalog",
-	map: "/app/map",
 	likes: "/app/likes",
 	search: "/app/search",
 } as const;

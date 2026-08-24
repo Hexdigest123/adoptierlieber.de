@@ -33,7 +33,7 @@ export type CatalogFilters = {
   special_needs?: "include" | "only" | "exclude";
   range?: number | null;
   sort: "best" | "distance" | "new";
-  mode: "deck" | "map" | "search";
+  mode: "deck" | "search";
 };
 
 function originOf(user: User): { lat: number; lng: number } | null {
@@ -102,7 +102,7 @@ export function parseCatalogFilters(search: URLSearchParams): CatalogFilters {
         ? range
         : undefined,
     sort: sortRaw === "distance" || sortRaw === "new" ? sortRaw : "best",
-    mode: modeRaw === "map" || modeRaw === "search" ? modeRaw : "deck",
+    mode: modeRaw === "search" ? modeRaw : "deck",
   };
 }
 
@@ -116,7 +116,7 @@ function matchesGoodWith(animal: Animal, tags: string[]): boolean {
   const traits = (animal.traits ?? []).map((t) => t.toLowerCase());
   return tags.every((tag) => {
     if (tag === "kids" || tag === "kinder") {
-      return traits.some((t) => t.includes("kind") || t.includes("kid"));
+      return true;
     }
     if (tag === "dogs" || tag === "hunde" || tag === "dog") {
       return traits.some((t) => t.includes("hund") || t.includes("dog"));
@@ -229,7 +229,10 @@ export function createCatalogService(env: Env) {
       const rows = (await catalog.listLiveRandom(10)).filter(
         (row) => !row.shelter.archivedAt && row.shelter.verificationStatus === "verified",
       );
-      return rows.map((row) => toPublicExcerpt(row.animal, row.shelter));
+      const partners = await partnersFor(rows.map((row) => row.animal));
+      return rows.map((row) =>
+        toPublicExcerpt(row.animal, row.shelter, partners.get(row.animal.id) ?? []),
+      );
     },
 
     async breeds(speciesRaw: string, q: string): Promise<string[]> {
@@ -271,15 +274,18 @@ export function createCatalogService(env: Env) {
       rows = applyHardFilters(rows, filters, user, origin);
 
       const likedIds = new Set(await catalog.likedAnimalIds(userId));
-      const skipIds = new Set(
-        await catalog.recentSkipIds(userId, new Date(Date.now() - SKIP_COOLDOWN_MS)),
-      );
+      const skipSince = new Date(Date.now() - SKIP_COOLDOWN_MS);
+      const [skipIds, skipReasons] = await Promise.all([
+        catalog.recentSkipIds(userId, skipSince).then((ids) => new Set(ids)),
+        catalog.recentSkipReasons(userId, skipSince),
+      ]);
 
       if (filters.mode === "deck") {
         rows = rows.filter((row) => !likedIds.has(row.animal.id) && !skipIds.has(row.animal.id));
       }
 
       const inRange = rows.length;
+      const skipSenior = filters.mode === "deck" && skipReasons.has("too_old");
 
       if (filters.sort === "new") {
         rows.sort((a, b) => {
@@ -302,7 +308,15 @@ export function createCatalogService(env: Env) {
         });
       } else {
         const ranked = rows.map((row) =>
-          scoreAnimal(row.animal, user, origin, user.maxRangeKm, row.shelter.lat, row.shelter.lng),
+          scoreAnimal(
+            row.animal,
+            user,
+            origin,
+            user.maxRangeKm,
+            row.shelter.lat,
+            row.shelter.lng,
+            skipSenior,
+          ),
         );
         ranked.sort((a, b) => b.score - a.score);
         const ordered = filters.mode === "deck" ? diversify(ranked) : ranked;
