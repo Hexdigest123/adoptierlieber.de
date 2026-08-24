@@ -1,20 +1,25 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import type { LayerGroup, Map as LeafletMap } from "leaflet";
+	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import { getLocale } from "$lib/paraglide/runtime";
-	import { animals } from "$lib/data/animals";
-	import { shelterById, shelters } from "$lib/data/shelters";
+	import type { PublicMapShelter } from "$lib/types/catalog";
 	import "leaflet/dist/leaflet.css";
+
+	let {
+		shelters,
+		loggedIn = false,
+	}: {
+		shelters: PublicMapShelter[];
+		loggedIn?: boolean;
+	} = $props();
 
 	type LeafletApi = typeof import("leaflet");
 
 	const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 	const TILE_ATTRIBUTION =
 		'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-
-	const HOUSE_SVG =
-		'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
 
 	let container: HTMLDivElement | undefined = $state();
 	let map = $state<LeafletMap | undefined>(undefined);
@@ -30,30 +35,41 @@
 			.replaceAll('"', "&quot;");
 	}
 
-	function shelterPopupHtml(shelterId: string): string {
-		const shelter = shelterById(shelterId);
-		if (!shelter) return "";
-		const residents = animals.filter((animal) => animal.shelterId === shelter.id);
-		const names = residents.map((animal) => escapeHtml(animal.name)).join(", ");
-		return `<div class="shelter-map-popup">
-			<p class="shelter-map-popup-title">${escapeHtml(shelter.name)}</p>
-			<p class="shelter-map-popup-meta">${escapeHtml(shelter.city)}</p>
-			<p class="shelter-map-popup-text">${escapeHtml(m.showcase_map_animal_count({ count: residents.length }))}</p>
-			${names ? `<p class="shelter-map-popup-names">${names}</p>` : ""}
-		</div>`;
+	const ctaHref = $derived(loggedIn ? resolve("/app") : resolve("/register"));
+	const ctaLabel = $derived(loggedIn ? m.showcase_cta_app() : m.showcase_map_login());
+
+	function pinInitial(name: string): string {
+		const letter = name.trim().charAt(0);
+		return letter ? letter.toLocaleUpperCase(locale) : "?";
 	}
 
-	function animalPopupHtml(animalId: string): string {
-		const animal = animals.find((entry) => entry.id === animalId);
-		if (!animal) return "";
-		const shelter = shelterById(animal.shelterId);
+	function safeWebsite(url: string | null): string | null {
+		if (!url) return null;
+		try {
+			const parsed = new URL(url);
+			if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+			return parsed.href;
+		} catch {
+			return null;
+		}
+	}
+
+	function popupHtml(shelter: PublicMapShelter): string {
+		const logo = shelter.has_logo
+			? `<img src="${escapeHtml(`/api/shelters/${shelter.id}/logo`)}" alt="" width="224" height="144" />`
+			: "";
+		const website = safeWebsite(shelter.website);
+		const websiteLink = website
+			? `<a class="shelter-map-popup-web" href="${escapeHtml(website)}" target="_blank" rel="noopener noreferrer">${escapeHtml(m.showcase_map_website())}</a>`
+			: "";
 		return `<div class="shelter-map-popup shelter-map-popup-animal">
-			<img src="${escapeHtml(animal.image)}" alt="" width="224" height="144" />
+			${logo}
 			<div class="shelter-map-popup-body">
-				<p class="shelter-map-popup-title">${escapeHtml(animal.name)}<span>, ${escapeHtml(animal.age())}</span></p>
-				<p class="shelter-map-popup-meta">${escapeHtml(animal.species())}</p>
-				<p class="shelter-map-popup-text">${escapeHtml(animal.tagline())}</p>
-				${shelter ? `<p class="shelter-map-popup-names">${escapeHtml(m.showcase_map_at_shelter({ shelter: shelter.name }))}</p>` : ""}
+				<p class="shelter-map-popup-title">${escapeHtml(shelter.org_name)}</p>
+				<p class="shelter-map-popup-meta">${escapeHtml(shelter.city)}</p>
+				<p class="shelter-map-popup-text">${escapeHtml(m.showcase_map_animal_count({ count: shelter.live_count }))}</p>
+				${websiteLink}
+				<a class="shelter-map-popup-cta" href="${escapeHtml(ctaHref)}">${escapeHtml(ctaLabel)}</a>
 			</div>
 		</div>`;
 	}
@@ -65,38 +81,28 @@
 		markers.clearLayers();
 
 		for (const shelter of shelters) {
+			if (shelter.lat == null || shelter.lng == null) continue;
+			const logo = shelter.has_logo
+				? `<img src="${escapeHtml(`/api/shelters/${shelter.id}/logo`)}" alt="" width="44" height="44" />`
+				: `<span>${escapeHtml(pinInitial(shelter.org_name))}</span>`;
 			const icon = L.divIcon({
 				className: "shelter-map-pin",
-				html: `<span class="shelter-map-shelter" title="${escapeHtml(shelter.name)}">${HOUSE_SVG}</span>`,
+				html: `<span class="shelter-map-shelter" title="${escapeHtml(shelter.org_name)}">${logo}${
+					shelter.live_count > 0
+						? `<span class="shelter-map-count">${shelter.live_count}</span>`
+						: ""
+				}</span>`,
 				iconSize: [36, 36],
 				iconAnchor: [18, 18],
 				popupAnchor: [0, -20],
 			});
 			L.marker([shelter.lat, shelter.lng], {
 				icon,
-				title: shelter.name,
-				alt: shelter.name,
-				zIndexOffset: 0,
-			})
-				.bindPopup(shelterPopupHtml(shelter.id), { maxWidth: 260 })
-				.addTo(markers);
-		}
-
-		for (const animal of animals) {
-			const icon = L.divIcon({
-				className: "shelter-map-pin",
-				html: `<span class="shelter-map-animal" title="${escapeHtml(animal.name)}"><img src="${escapeHtml(animal.image)}" alt="" width="44" height="44" /></span>`,
-				iconSize: [48, 48],
-				iconAnchor: [24, 24],
-				popupAnchor: [0, -26],
-			});
-			L.marker([animal.lat, animal.lng], {
-				icon,
-				title: animal.name,
-				alt: animal.name,
+				title: shelter.org_name,
+				alt: shelter.org_name,
 				zIndexOffset: 400,
 			})
-				.bindPopup(animalPopupHtml(animal.id), { maxWidth: 240 })
+				.bindPopup(popupHtml(shelter), { maxWidth: 240 })
 				.addTo(markers);
 		}
 	}
@@ -134,16 +140,21 @@
 
 	$effect(() => {
 		void locale;
+		void shelters;
 		placeMarkers();
 	});
 </script>
 
-<div
-	bind:this={container}
-	class="shelter-map isolate h-[28rem] w-full overflow-hidden rounded-3xl border border-sand-200 sm:h-[36rem]"
-	role="region"
-	aria-label={m.showcase_map_label()}
-></div>
+{#if shelters.length === 0}
+	<p class="mx-auto max-w-md text-center text-sand-700">{m.showcase_map_empty()}</p>
+{:else}
+	<div
+		bind:this={container}
+		class="shelter-map isolate h-[28rem] w-full overflow-hidden rounded-3xl border border-sand-200 sm:h-[36rem]"
+		role="region"
+		aria-label={m.showcase_map_label()}
+	></div>
+{/if}
 
 <style>
 	.shelter-map :global(.leaflet-container) {
@@ -192,36 +203,44 @@
 		border: none;
 	}
 
-	.shelter-map :global(.shelter-map-shelter),
-	.shelter-map :global(.shelter-map-animal) {
+	.shelter-map :global(.shelter-map-shelter) {
+		position: relative;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		box-sizing: border-box;
-		overflow: hidden;
-		border: 3px solid white;
-		box-shadow: 0 4px 12px rgb(39 33 29 / 0.2);
-	}
-
-	.shelter-map :global(.shelter-map-shelter) {
 		width: 36px;
 		height: 36px;
+		border: 3px solid white;
 		border-radius: 9999px;
 		background: var(--color-coral-600);
 		color: white;
+		font-size: 0.875rem;
+		font-weight: 700;
+		box-shadow: 0 4px 12px rgb(39 33 29 / 0.2);
 	}
 
-	.shelter-map :global(.shelter-map-animal) {
-		width: 48px;
-		height: 48px;
-		border-radius: 9999px;
-		background: var(--color-peach-100);
-	}
-
-	.shelter-map :global(.shelter-map-animal img) {
+	.shelter-map :global(.shelter-map-shelter img) {
 		width: 100%;
 		height: 100%;
+		border-radius: 9999px;
 		object-fit: cover;
+	}
+
+	.shelter-map :global(.shelter-map-count) {
+		position: absolute;
+		right: -6px;
+		bottom: -6px;
+		min-width: 1.25rem;
+		padding: 0 0.3rem;
+		border: 2px solid white;
+		border-radius: 9999px;
+		background: var(--color-coral-600);
+		color: white;
+		font-size: 0.65rem;
+		font-weight: 700;
+		line-height: 1.25rem;
+		text-align: center;
 	}
 
 	.shelter-map :global(.shelter-map-popup) {
@@ -251,12 +270,6 @@
 		color: var(--color-sand-950);
 	}
 
-	.shelter-map :global(.shelter-map-popup-title span) {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: var(--color-sand-600);
-	}
-
 	.shelter-map :global(.shelter-map-popup-meta) {
 		margin: 0.125rem 0 0;
 		font-size: 0.875rem;
@@ -270,10 +283,16 @@
 		color: var(--color-sand-700);
 	}
 
-	.shelter-map :global(.shelter-map-popup-names) {
-		margin: 0.25rem 0 0;
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: var(--color-sand-600);
+	.shelter-map :global(.shelter-map-popup-web),
+	.shelter-map :global(.shelter-map-popup-cta) {
+		display: inline-block;
+		margin-top: 0.5rem;
+		font-size: 0.875rem;
+		font-weight: 700;
+		color: var(--color-coral-700);
+	}
+
+	.shelter-map :global(.shelter-map-popup-web) {
+		margin-right: 0.75rem;
 	}
 </style>

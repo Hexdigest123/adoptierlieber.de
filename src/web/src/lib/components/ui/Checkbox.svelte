@@ -21,7 +21,7 @@
 			{required}
 			aria-invalid={error ? true : undefined}
 			aria-describedby={error ? `${id}-error` : undefined}
-			class="mt-0.5 size-5 shrink-0 cursor-pointer rounded border-sand-300 accent-coral-600 focus-ring"
+			class="mt-0.5 size-6 shrink-0 cursor-pointer rounded border-sand-300 accent-coral-600 focus-ring"
 			{...rest}
 		/>
 		<label for={id} class="text-sm leading-relaxed text-sand-700">

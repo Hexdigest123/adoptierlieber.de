@@ -53,10 +53,15 @@
 		};
 	});
 
+	let lat = $state(seed()?.lat ?? "");
+	let lng = $state(seed()?.lng ?? "");
+	let geoBusy = $state(false);
+	let geoHint = $state<"ok" | "fail" | null>(null);
+
 	const steps = $derived(
 		accountType === "shelter"
 			? (["type", "account", "shelter", "review", "picture"] as const)
-			: (["type", "account", "review", "picture"] as const),
+			: (["type", "account", "address", "review", "picture"] as const),
 	);
 	const total = $derived(steps.length);
 	const current = $derived(steps[step] ?? "type");
@@ -66,10 +71,8 @@
 		if (step >= (value === "shelter" ? 5 : 4)) step = 0;
 	}
 
-	function validAccount() {
+	function passwordOk() {
 		return (
-			name.trim().length > 0 &&
-			/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) &&
 			password.length >= 8 &&
 			password.length <= 128 &&
 			/[A-Za-z]/.test(password) &&
@@ -77,17 +80,73 @@
 		);
 	}
 
-	function validShelter() {
+	function validAccount() {
 		return (
-			orgName.trim().length > 0 &&
-			street.trim().length > 0 &&
-			zip.trim().length > 0 &&
-			city.trim().length > 0
+			name.trim().length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && passwordOk()
 		);
+	}
+
+	const passwordPolicyError = $derived(
+		form?.registerError === "password" || (stepError && current === "account" && !passwordOk()),
+	);
+
+	function validAddress() {
+		return street.trim().length > 0 && zip.trim().length > 0 && city.trim().length > 0;
+	}
+
+	function validShelter() {
+		return orgName.trim().length > 0 && validAddress();
+	}
+
+	async function useLocation() {
+		if (!navigator.geolocation) {
+			geoHint = "fail";
+			return;
+		}
+		geoBusy = true;
+		geoHint = null;
+		try {
+			const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+				navigator.geolocation.getCurrentPosition(resolve, reject, {
+					enableHighAccuracy: false,
+					timeout: 10_000,
+					maximumAge: 60_000,
+				});
+			});
+			lat = String(pos.coords.latitude);
+			lng = String(pos.coords.longitude);
+			try {
+				const res = await fetch("/api/geo/reverse", {
+					method: "POST",
+					headers: { "content-type": "application/json", accept: "application/json" },
+					body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+				});
+				if (res.ok) {
+					const body = (await res.json()) as {
+						item: { street: string | null; zip: string | null; city: string | null } | null;
+					};
+					const a = body.item;
+					if (a?.street) street = a.street;
+					if (a?.zip) zip = a.zip;
+					if (a?.city) city = a.city;
+				}
+			} catch {
+				// Reverse geocode optional. Lat/lng still saved.
+			}
+			geoHint = "ok";
+		} catch {
+			geoHint = "fail";
+		} finally {
+			geoBusy = false;
+		}
 	}
 
 	function next() {
 		if (current === "account" && !validAccount()) {
+			stepError = true;
+			return;
+		}
+		if (current === "address" && !validAddress()) {
 			stepError = true;
 			return;
 		}
@@ -125,8 +184,10 @@
 
 	const errorMessages = {
 		email_taken: () => m.error_email_taken(),
+		not_allowed: () => m.error_registration_not_allowed(),
 		rate_limited: () => m.error_rate_limited(),
 		invalid: () => m.error_invalid_input(),
+		password: () => m.auth_password_error(),
 		generic: () => m.error_generic(),
 	};
 </script>
@@ -165,6 +226,8 @@
 		<form method="POST" enctype="multipart/form-data" class="flex flex-col gap-5" use:enhance>
 			{#if form?.registerError}
 				<FormStatus type="error">{errorMessages[form.registerError]()}</FormStatus>
+			{:else if passwordPolicyError}
+				<FormStatus type="error">{m.auth_password_error()}</FormStatus>
 			{:else if stepError}
 				<FormStatus type="error">{m.error_invalid_input()}</FormStatus>
 			{/if}
@@ -246,6 +309,7 @@
 					type="password"
 					label={m.auth_password()}
 					hint={m.auth_password_hint()}
+					error={passwordPolicyError ? m.auth_password_error() : undefined}
 					required={!wizard || current === "account"}
 					minlength={8}
 					maxlength={128}
@@ -314,6 +378,62 @@
 					rows={3}
 					bind:value={description}
 				/>
+				<input type="hidden" name="lat" value={lat} />
+				<input type="hidden" name="lng" value={lng} />
+				<Button type="button" variant="ghost" onclick={useLocation} disabled={geoBusy}>
+					{m.auth_use_location()}
+				</Button>
+				{#if geoHint === "ok"}
+					<p class="text-sm text-sand-600">{m.auth_use_location_ok()}</p>
+				{:else if geoHint === "fail"}
+					<p class="text-sm text-sand-600">{m.auth_use_location_fail()}</p>
+				{/if}
+			</div>
+
+			<div
+				class="wizard-step flex flex-col gap-5"
+				class:hidden={accountType !== "adopter" || !show("address")}
+			>
+				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+					{m.auth_register_address_section()}
+				</h2>
+				<p class="text-sm text-sand-700">{m.auth_register_address_hint()}</p>
+				<Input
+					id="register-adopter-street"
+					name="street"
+					label={m.auth_street()}
+					required={accountType === "adopter" && (!wizard || current === "address")}
+					autocomplete="street-address"
+					bind:value={street}
+				/>
+				<div class="grid grid-cols-[7rem_1fr] gap-3">
+					<Input
+						id="register-adopter-zip"
+						name="zip"
+						label={m.auth_zip()}
+						required={accountType === "adopter" && (!wizard || current === "address")}
+						autocomplete="postal-code"
+						bind:value={zip}
+					/>
+					<Input
+						id="register-adopter-city"
+						name="city"
+						label={m.auth_city()}
+						required={accountType === "adopter" && (!wizard || current === "address")}
+						autocomplete="address-level2"
+						bind:value={city}
+					/>
+				</div>
+				<input type="hidden" name="lat" value={lat} />
+				<input type="hidden" name="lng" value={lng} />
+				<Button type="button" variant="ghost" onclick={useLocation} disabled={geoBusy}>
+					{m.auth_use_location()}
+				</Button>
+				{#if geoHint === "ok"}
+					<p class="text-sm text-sand-600">{m.auth_use_location_ok()}</p>
+				{:else if geoHint === "fail"}
+					<p class="text-sm text-sand-600">{m.auth_use_location_fail()}</p>
+				{/if}
 			</div>
 
 			<div class="wizard-step flex flex-col gap-4" class:hidden={!show("review")}>
@@ -332,20 +452,20 @@
 							{email}
 						</dd>
 					</div>
-					{#if accountType === "shelter"}
-						<div class="px-4 py-3">
-							<dt class="text-xs font-bold tracking-wide text-sand-600 uppercase">
-								{m.auth_register_shelter_section()}
-							</dt>
-							<dd class="mt-1 text-sm text-sand-900">
-								{orgName}<br />
-								{street}<br />
-								{zip}
-								{city}
-								{#if website}<br />{website}{/if}
-							</dd>
-						</div>
-					{/if}
+					<div class="px-4 py-3">
+						<dt class="text-xs font-bold tracking-wide text-sand-600 uppercase">
+							{accountType === "shelter"
+								? m.auth_register_shelter_section()
+								: m.auth_register_address_section()}
+						</dt>
+						<dd class="mt-1 text-sm text-sand-900">
+							{#if accountType === "shelter"}{orgName}<br />{/if}
+							{street}<br />
+							{zip}
+							{city}
+							{#if accountType === "shelter" && website}<br />{website}{/if}
+						</dd>
+					</div>
 				</dl>
 			</div>
 
@@ -399,7 +519,7 @@
 				{m.auth_register_have_account()}
 				<a
 					href={resolve("/login")}
-					class="font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
+					class="inline-flex min-h-11 items-center font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
 				>
 					{m.auth_register_login_link()}
 				</a>

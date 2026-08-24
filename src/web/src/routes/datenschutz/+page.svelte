@@ -15,11 +15,15 @@
 		{m.legal_postal_city()}<br />
 		{m.legal_country()}<br />
 		{m.legal_impressum_email_label()}:
-		<a href="mailto:{m.legal_email()}">{m.legal_email()}</a>
+		<a class="inline-flex min-h-11 items-center" href="mailto:{m.legal_email()}"
+			>{m.legal_email()}</a
+		>
 	</p>
 	<p>{m.legal_privacy_controller_text()}</p>
 	<p>
-		<a href={resolve("/impressum")}>{m.legal_privacy_imprint_link()}</a>
+		<a class="inline-flex min-h-11 items-center" href={resolve("/impressum")}
+			>{m.legal_privacy_imprint_link()}</a
+		>
 	</p>
 
 	<h2>{m.legal_privacy_hosting_heading()}</h2>

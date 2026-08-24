@@ -7,11 +7,15 @@
 	import Input from "$lib/components/ui/Input.svelte";
 	import FormStatus from "$lib/components/ui/FormStatus.svelte";
 
-	let { form }: PageProps = $props();
+	let { data, form }: PageProps = $props();
+	const next = $derived(form?.next || data.next);
 </script>
 
 <AuthCard title={m.auth_login_title()} subtitle={m.auth_login_subtitle()}>
 	<form method="POST" class="flex flex-col gap-5">
+		{#if next}
+			<input type="hidden" name="next" value={next} />
+		{/if}
 		{#if form?.loginError}
 			<FormStatus type="error">
 				{form.loginError === "rate_limited" ? m.error_rate_limited() : m.auth_login_error()}
@@ -43,7 +47,7 @@
 		<div class="flex flex-col items-center gap-2 text-center text-sm text-sand-700">
 			<a
 				href={resolve("/forgot-password")}
-				class="font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
+				class="inline-flex min-h-11 items-center font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
 			>
 				{m.auth_forgot_password_link()}
 			</a>
@@ -51,7 +55,7 @@
 				{m.auth_login_no_account()}
 				<a
 					href={resolve("/register")}
-					class="font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
+					class="inline-flex min-h-11 items-center font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
 				>
 					{m.auth_login_register_link()}
 				</a>

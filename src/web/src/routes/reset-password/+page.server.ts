@@ -2,7 +2,10 @@ import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ url }) => {
-	return { email: url.searchParams.get("email") ?? "" };
+	return {
+		email: url.searchParams.get("email") ?? "",
+		token: url.searchParams.get("token") ?? "",
+	};
 };
 
 export const actions: Actions = {

@@ -24,7 +24,7 @@ contact.post("/", rateLimitByIp("contact", 5), async (c) => {
       contactRequestTemplate({
         to: receiver,
         name: data.name,
-        email: data.email,
+        email: data.email || undefined,
         message: data.message,
       }),
     );

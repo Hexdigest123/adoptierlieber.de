@@ -46,12 +46,11 @@ users.patch("/me/password", sessionValidation, rateLimitByIp("change-password", 
   return c.json({}, 200);
 });
 
-/** Stream the authenticated user's avatar from R2. */
-users.get("/me/avatar", sessionValidation, async (c) => {
-  const object = await createUserService(c.env).getAvatar(c.get("userId"));
-  if (!object) {
-    return c.json({ error: "avatar not found" }, 404);
-  }
+function avatarResponse(object: {
+  body: ReadableStream | null;
+  httpMetadata?: { contentType?: string };
+  httpEtag?: string;
+}) {
   const headers = new Headers();
   headers.set("content-type", object.httpMetadata?.contentType ?? "application/octet-stream");
   headers.set("cache-control", "private, no-cache");
@@ -59,6 +58,24 @@ users.get("/me/avatar", sessionValidation, async (c) => {
     headers.set("etag", object.httpEtag);
   }
   return new Response(object.body, { status: 200, headers });
+}
+
+/** Stream the authenticated user's avatar from R2. */
+users.get("/me/avatar", sessionValidation, async (c) => {
+  const object = await createUserService(c.env).getAvatar(c.get("userId"));
+  if (!object) {
+    return c.json({ error: "avatar not found" }, 404);
+  }
+  return avatarResponse(object);
+});
+
+/** Stream another user's avatar when the viewer shares a thread or shelter. */
+users.get("/:id/avatar", sessionValidation, async (c) => {
+  const object = await createUserService(c.env).getAvatarForViewer(c.get("userId"), c.req.param("id"));
+  if (!object) {
+    return c.json({ error: "avatar not found" }, 404);
+  }
+  return avatarResponse(object);
 });
 
 /** Replace the authenticated user's avatar. */

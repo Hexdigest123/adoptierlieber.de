@@ -31,13 +31,17 @@
 				autocomplete="email"
 				value={form?.email ?? data.email}
 			/>
-			<Input
-				id="reset-token"
-				name="resetToken"
-				label={m.auth_reset_token()}
-				required
-				autocomplete="one-time-code"
-			/>
+			{#if data.token}
+				<input type="hidden" name="resetToken" value={data.token} />
+			{:else}
+				<Input
+					id="reset-token"
+					name="resetToken"
+					label={m.auth_reset_token()}
+					required
+					autocomplete="one-time-code"
+				/>
+			{/if}
 			<Input
 				id="reset-new-password"
 				name="newPassword"

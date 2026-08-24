@@ -3,7 +3,7 @@
 	import type { HTMLButtonAttributes, HTMLAnchorAttributes } from "svelte/elements";
 	import Spinner from "./Spinner.svelte";
 
-	type Variant = "primary" | "secondary" | "outline" | "ghost";
+	type Variant = "primary" | "secondary" | "outline" | "ghost" | "danger";
 	type Size = "sm" | "md" | "lg";
 
 	type BaseProps = {
@@ -49,6 +49,7 @@
 		secondary: "bg-peach-200 text-coral-950 hover:bg-peach-300 active:bg-peach-400",
 		outline: "border-2 border-coral-600 text-coral-700 hover:bg-coral-50 active:bg-coral-100",
 		ghost: "text-coral-700 hover:bg-coral-50 active:bg-coral-100",
+		danger: "bg-sand-950 text-white hover:bg-coral-800 active:bg-coral-900",
 	};
 
 	const sizes: Record<Size, string> = {

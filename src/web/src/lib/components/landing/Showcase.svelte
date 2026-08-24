@@ -1,8 +1,20 @@
 <script lang="ts">
 	import { m } from "$lib/paraglide/messages";
+	import EmptyAnimals from "$lib/components/EmptyAnimals.svelte";
 	import SwipeDeck from "./SwipeDeck.svelte";
+	import ShowcaseCatalog from "./ShowcaseCatalog.svelte";
+	import type { ShowcaseCard } from "$lib/data/excerpts";
 
-	let mode = $state<"swipe" | "map">("swipe");
+	let {
+		cards,
+		loggedIn = false,
+	}: {
+		cards: ShowcaseCard[];
+		loggedIn?: boolean;
+	} = $props();
+
+	let mode = $state<"swipe" | "catalog">("catalog");
+	const emptyCatalog = $derived(cards.length === 0);
 </script>
 
 <section
@@ -16,7 +28,13 @@
 				{m.showcase_title()}
 			</h2>
 			<p class="mt-4 text-lg text-sand-700">
-				{mode === "map" ? m.showcase_map_subtitle() : m.showcase_subtitle()}
+				{#if emptyCatalog}
+					{m.showcase_none_text()}
+				{:else if mode === "catalog"}
+					{m.showcase_catalog_subtitle()}
+				{:else}
+					{m.showcase_subtitle()}
+				{/if}
 			</p>
 		</div>
 
@@ -27,6 +45,17 @@
 		>
 			<button
 				type="button"
+				onclick={() => (mode = "catalog")}
+				aria-pressed={mode === "catalog"}
+				class="cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold focus-ring {mode ===
+				'catalog'
+					? 'bg-coral-600 text-white'
+					: 'text-sand-600 hover:text-coral-700'}"
+			>
+				{m.showcase_mode_catalog()}
+			</button>
+			<button
+				type="button"
 				onclick={() => (mode = "swipe")}
 				aria-pressed={mode === "swipe"}
 				class="cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold focus-ring {mode ===
@@ -34,34 +63,17 @@
 					? 'bg-coral-600 text-white'
 					: 'text-sand-600 hover:text-coral-700'}"
 			>
-				{m.showcase_mode_swipe()}
-			</button>
-			<button
-				type="button"
-				onclick={() => (mode = "map")}
-				aria-pressed={mode === "map"}
-				class="cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold focus-ring {mode === 'map'
-					? 'bg-coral-600 text-white'
-					: 'text-sand-600 hover:text-coral-700'}"
-			>
-				{m.showcase_mode_map()}
+				{m.showcase_mode_cards()}
 			</button>
 		</div>
 
 		<div class="mt-12 flex justify-center">
-			{#if mode === "swipe"}
-				<SwipeDeck />
+			{#if emptyCatalog}
+				<EmptyAnimals title={m.showcase_none_title()} />
+			{:else if mode === "catalog"}
+				<ShowcaseCatalog {cards} {loggedIn} />
 			{:else}
-				{#await import("./ShelterMap.svelte")}
-					<div
-						class="h-[28rem] w-full animate-pulse rounded-3xl border border-sand-200 bg-white sm:h-[36rem]"
-						aria-hidden="true"
-					></div>
-				{:then { default: ShelterMap }}
-					<div class="w-full">
-						<ShelterMap />
-					</div>
-				{/await}
+				<SwipeDeck {cards} {loggedIn} />
 			{/if}
 		</div>
 	</div>

@@ -2,6 +2,9 @@
   "name": "adoptierlieber-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-14",
+  "triggers": {
+    "crons": ["0 4 * * *"],
+  },
   "observability": {
     "enabled": false,
     "head_sampling_rate": 1,
@@ -43,6 +46,10 @@
       "id": "167b26d30cd84a9b98ce0669690d18f8",
     },
   ],
+  "durable_objects": {
+    "bindings": [{ "name": "CHAT_ROOM", "class_name": "ChatRoom" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChatRoom"] }],
   "env": {
     "staging": {
       "name": "adoptierlieber-api-staging",
@@ -81,9 +88,13 @@
           "head_sampling_rate": 1,
         },
       },
+      "triggers": {
+        "crons": ["0 4 * * *"],
+      },
       "vars": {
         "ENVIRONMENT": "staging",
         "BASIC_AUTH_USER": "staging",
+        "PUBLIC_SITE_URL": "https://staging.adoptierlieber.de",
       },
       "kv_namespaces": [
         {
@@ -91,6 +102,9 @@
           "id": "5d954b6dad08402faf11be63bca9d8bf",
         },
       ],
+      "durable_objects": {
+        "bindings": [{ "name": "CHAT_ROOM", "class_name": "ChatRoom" }],
+      },
     },
   },
 }

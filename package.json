@@ -15,7 +15,8 @@
     "db:generate": "bun run --filter @adoptierlieber/api db:generate",
     "db:migrate": "bun run --filter @adoptierlieber/api db:migrate",
     "db:migrate:local": "bun run --filter @adoptierlieber/api db:migrate:local",
-    "check": "bun run --filter @adoptierlieber/api check && bun run --filter @adoptierlieber/web check"
+    "check": "bun run --filter @adoptierlieber/api check && bun run --filter @adoptierlieber/web check",
+    "types": "bun run --filter @adoptierlieber/api types && bun run --filter @adoptierlieber/web types"
   },
   "devDependencies": {
     "@types/bun": "latest",

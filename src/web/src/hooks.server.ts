@@ -18,7 +18,7 @@ const SECURITY_HEADERS: Record<string, string> = {
 	"X-Content-Type-Options": "nosniff",
 	"X-Frame-Options": "DENY",
 	"Referrer-Policy": "strict-origin-when-cross-origin",
-	"Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+	"Permissions-Policy": "camera=(), microphone=(), geolocation=(self)",
 	"Content-Security-Policy": "frame-ancestors 'none'",
 };
 
@@ -59,6 +59,12 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 /** Validate the sessionToken cookie against the API and expose the user via locals. */
 const handleSession: Handle = async ({ event, resolve }) => {
 	event.locals.user = null;
+
+	// Proxy hops do not read locals.user; the API re-checks the cookie.
+	const path = event.url.pathname;
+	if (path === "/api" || path.startsWith("/api/")) {
+		return resolve(event);
+	}
 
 	const sessionToken = event.cookies.get(SESSION_COOKIE);
 	const apiUrl = env.PUBLIC_API_URL;

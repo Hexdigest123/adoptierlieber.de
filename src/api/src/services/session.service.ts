@@ -3,10 +3,12 @@ import type { Env } from "../config/env";
 import { generateToken, hashToken } from "../lib/hashing";
 import { createSessionSchema } from "../lib/zod";
 import { createSessionRepo } from "../repositories/session.repo";
+import { createUserRepo } from "../repositories/user.repo";
 import type { PublicSession, Session } from "../types";
 
 export function createSessionService(env: Env) {
   const repo = createSessionRepo(env);
+  const users = createUserRepo(env);
 
   return {
     async create(input: unknown, userAgent: string | null): Promise<PublicSession> {
@@ -86,6 +88,12 @@ export function createSessionService(env: Env) {
       }
 
       if (session.lastUsedAt.getTime() < currentDate.getTime() - 24 * 60 * 60 * 1000) {
+        await repo.deleteWithToken(session.sessionToken);
+        throw new HTTPException(401, { message: "invalid session" });
+      }
+
+      const user = await users.findById(session.userId);
+      if (!user || user.suspendedAt) {
         await repo.deleteWithToken(session.sessionToken);
         throw new HTTPException(401, { message: "invalid session" });
       }

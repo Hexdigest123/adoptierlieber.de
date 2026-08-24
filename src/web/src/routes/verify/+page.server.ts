@@ -1,9 +1,11 @@
-import { fail } from "@sveltejs/kit";
+import { fail, redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ url }) => {
 	return {
 		email: url.searchParams.get("email") ?? "",
+		token: url.searchParams.get("token") ?? "",
+		verifySuccess: url.searchParams.get("ok") === "1",
 	};
 };
 
@@ -16,7 +18,7 @@ export const actions: Actions = {
 		const token = String(data.get("token") ?? "").trim();
 
 		if (!email || !token) {
-			return fail(400, { verifyError: true, email });
+			return fail(400, { verifyError: true, email, token });
 		}
 
 		const response = await fetch("/api/users/verify", {
@@ -26,9 +28,9 @@ export const actions: Actions = {
 		});
 
 		if (!response.ok) {
-			return fail(response.status === 429 ? 429 : 400, { verifyError: true, email });
+			return fail(response.status === 429 ? 429 : 400, { verifyError: true, email, token });
 		}
 
-		return { verifySuccess: true };
+		redirect(303, "/verify?ok=1");
 	},
 };

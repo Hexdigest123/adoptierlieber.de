@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/d1";
 import { sessionsTable } from "../schema";
 import { getDb, type Env } from "../config/env";
-import { and, eq, ne } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 
 export function createSessionRepo(env: Env) {
   const db = drizzle(getDb(env), { schema: { sessionsTable } });
@@ -69,6 +69,15 @@ export function createSessionRepo(env: Env) {
         .set({ expiresAt })
         .where(eq(sessionsTable.sessionToken, sessionToken))
         .returning({ id: sessionsTable.id })
+        .get();
+    },
+
+    latestLastUsed(userId: string) {
+      return db
+        .select({ lastUsedAt: sessionsTable.lastUsedAt })
+        .from(sessionsTable)
+        .where(eq(sessionsTable.userId, userId))
+        .orderBy(desc(sessionsTable.lastUsedAt))
         .get();
     },
   };
