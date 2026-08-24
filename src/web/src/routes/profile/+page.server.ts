@@ -3,11 +3,24 @@ import type { Actions, PageServerLoad } from "./$types";
 import { checkAvatarFile } from "$lib/server/avatar";
 import { clearSessionCookie } from "$lib/server/session-cookie";
 
-export const load: PageServerLoad = async ({ locals }) => {
+type PasskeyItem = {
+	id: string;
+	name: string;
+	created_at: string;
+	last_used_at: string | null;
+};
+
+export const load: PageServerLoad = async ({ locals, fetch }) => {
 	if (!locals.user) {
 		redirect(303, "/login");
 	}
-	return { user: locals.user };
+	let passkeys: PasskeyItem[] = [];
+	const response = await fetch("/api/passkeys");
+	if (response.ok) {
+		const body = (await response.json()) as { items: PasskeyItem[] };
+		passkeys = body.items;
+	}
+	return { user: locals.user, passkeys };
 };
 
 export const actions: Actions = {
@@ -237,6 +250,102 @@ export const actions: Actions = {
 		}
 
 		return { deletionRequested: true };
+	},
+
+	startTotp: async ({ fetch, locals }) => {
+		if (!locals.user) redirect(303, "/login");
+		const response = await fetch("/api/totp", { method: "POST" });
+		if (!response.ok) {
+			return fail(response.status === 429 ? 429 : 502, { totpError: "generic" as const });
+		}
+		const body = (await response.json()) as { otpauth_uri: string; secret: string };
+		return { totpUri: body.otpauth_uri, totpSecret: body.secret };
+	},
+
+	confirmTotp: async ({ request, fetch, locals }) => {
+		if (!locals.user) redirect(303, "/login");
+		const data = await request.formData();
+		const code = String(data.get("code") ?? "").trim();
+		const response = await fetch("/api/totp/confirmation", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ code }),
+		});
+		if (!response.ok) {
+			return fail(400, {
+				totpError: "code" as const,
+				totpUri: String(data.get("totpUri") ?? ""),
+				totpSecret: String(data.get("totpSecret") ?? ""),
+			});
+		}
+		return { totpEnabled: true };
+	},
+
+	disableTotp: async ({ request, fetch, locals }) => {
+		if (!locals.user) redirect(303, "/login");
+		const data = await request.formData();
+		const response = await fetch("/api/totp/disable", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				current_password: String(data.get("currentPassword") ?? ""),
+				code: String(data.get("code") ?? "").trim(),
+			}),
+		});
+		if (response.status === 409) return fail(409, { totpError: "last" as const });
+		if (response.status === 401) return fail(401, { totpError: "auth" as const });
+		if (!response.ok) return fail(502, { totpError: "generic" as const });
+		return { totpDisabled: true };
+	},
+
+	addPasskey: async ({ request, fetch, locals }) => {
+		if (!locals.user) redirect(303, "/login");
+		const data = await request.formData();
+		const name = String(data.get("name") ?? "").trim() || "Passkey";
+		let parsed: Record<string, unknown>;
+		try {
+			parsed = JSON.parse(String(data.get("attestation") ?? "")) as Record<string, unknown>;
+		} catch {
+			return fail(400, { passkeyError: "generic" as const });
+		}
+		const response = await fetch("/api/passkeys/registrations", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ name, response: parsed }),
+		});
+		if (!response.ok) return fail(400, { passkeyError: "generic" as const });
+		return { passkeyAdded: true };
+	},
+
+	renamePasskey: async ({ request, fetch, locals }) => {
+		if (!locals.user) redirect(303, "/login");
+		const data = await request.formData();
+		const id = String(data.get("id") ?? "");
+		const name = String(data.get("name") ?? "").trim();
+		const response = await fetch(`/api/passkeys/${encodeURIComponent(id)}`, {
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ name }),
+		});
+		if (!response.ok) return fail(400, { passkeyError: "generic" as const });
+		return { passkeyRenamed: true };
+	},
+
+	removePasskey: async ({ request, fetch, locals }) => {
+		if (!locals.user) redirect(303, "/login");
+		const data = await request.formData();
+		const id = String(data.get("id") ?? "");
+		const response = await fetch(`/api/passkeys/${encodeURIComponent(id)}/disable`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				current_password: String(data.get("currentPassword") ?? ""),
+			}),
+		});
+		if (response.status === 409) return fail(409, { passkeyError: "last" as const });
+		if (response.status === 401) return fail(401, { passkeyError: "auth" as const });
+		if (!response.ok) return fail(502, { passkeyError: "generic" as const });
+		return { passkeyRemoved: true };
 	},
 
 	confirmDeletion: async ({ request, fetch, locals, cookies }) => {

@@ -22,12 +22,15 @@ export function createSessionService(env: Env) {
       data.sessionToken = hashedToken;
       data.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+      const kind = data.kind ?? "full";
+
       // create new session
       let row = await repo.create({
         userId: data.userId,
         sessionToken: data.sessionToken,
         expiresAt: data.expiresAt,
         userAgent: userAgent,
+        kind,
       });
 
       if (!row) {
@@ -38,9 +41,14 @@ export function createSessionService(env: Env) {
             sessionToken: hashedToken,
             expiresAt: data.expiresAt,
             userAgent: userAgent,
+            kind,
           });
           if (row) {
-            return { sessionToken: token, expiresAt: row.expiresAt };
+            return {
+              sessionToken: token,
+              expiresAt: row.expiresAt,
+              setup_required: kind === "setup" ? true : undefined,
+            };
           }
         }
       }
@@ -49,7 +57,16 @@ export function createSessionService(env: Env) {
         throw new HTTPException(500, { message: "something wen't wrong" });
       }
 
-      return { sessionToken: token, expiresAt: row.expiresAt };
+      return {
+        sessionToken: token,
+        expiresAt: row.expiresAt,
+        setup_required: kind === "setup" ? true : undefined,
+      };
+    },
+
+    async upgradeToFull(sessionToken: string): Promise<void> {
+      const hashedToken = await hashToken(sessionToken);
+      await repo.updateKindWithToken(hashedToken, "full");
     },
 
     async deleteAllWithUserId(userId: string): Promise<void> {

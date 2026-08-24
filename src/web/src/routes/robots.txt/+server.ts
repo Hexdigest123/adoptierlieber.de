@@ -14,6 +14,9 @@ Disallow: /logout
 Disallow: /verify
 Disallow: /forgot-password
 Disallow: /reset-password
+Disallow: /mfa/setup
+Disallow: /impressum
+Disallow: /datenschutz
 Sitemap: ${SITE_ORIGIN}/sitemap.xml
 `;
 	return new Response(body, {

@@ -33,7 +33,14 @@ invites.post("/:token/acceptance", rateLimitByIp("invite-accept", 10), async (c)
     sessionUserId,
   );
   if (result.sessionToken) {
-    return c.json({ sessionToken: result.sessionToken, expiresAt: result.expiresAt }, 201);
+    return c.json(
+      {
+        sessionToken: result.sessionToken,
+        expiresAt: result.expiresAt,
+        setup_required: result.setup_required === true,
+      },
+      201,
+    );
   }
   return c.json({});
 });

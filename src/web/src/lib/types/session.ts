@@ -27,4 +27,8 @@ export type SessionUser = {
 	max_range_km: number | null;
 	preferences: Record<string, unknown> | null;
 	memberships: ShelterMembershipSummary[];
+	totp_enabled: boolean;
+	passkey_count: number;
+	mfa_required: boolean;
+	session_kind: "full" | "setup";
 };

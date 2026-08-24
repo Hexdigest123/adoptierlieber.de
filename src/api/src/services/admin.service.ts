@@ -1,7 +1,12 @@
 import { HTTPException } from "hono/http-exception";
 import type { Env } from "../config/env";
 import { banFingerprint } from "../lib/ban";
-import { assertRegistrationAllowed, insertRegisteredUser } from "../lib/create-account";
+import {
+  assertRegistrationAllowed,
+  grantSuperAdminIfAllowlisted,
+  insertRegisteredUser,
+  superAdminAllowlist,
+} from "../lib/create-account";
 import { deleteAvatar } from "../lib/avatar";
 import {
   adminInviteTemplate,
@@ -11,7 +16,12 @@ import {
 import { generateToken, hashPassword, hashToken } from "../lib/hashing";
 import { sendMail } from "../lib/mail";
 import { listEnvelope, parseListQuery, type ListEnvelope } from "../lib/pagination";
-import { isSuperAdmin, PLATFORM_ROLE, SHELTER_ROLE } from "../lib/roles";
+import {
+  effectivePlatformRole,
+  isSuperAdmin,
+  PLATFORM_ROLE,
+  SHELTER_ROLE,
+} from "../lib/roles";
 import {
   adminBanSchema,
   adminInviteSchema,
@@ -77,11 +87,11 @@ function actorSnapshot(user: User) {
   return { actorId: user.id, actorName: user.name, actorEmail: user.email };
 }
 
-function assertCanActOn(actor: User, target: User): void {
-  if (isSuperAdmin(target.platformRole)) {
+function assertCanActOn(actor: User, target: User, allowlist: readonly string[]): void {
+  if (isSuperAdmin(target, allowlist)) {
     throw new HTTPException(403, { message: "cannot alter super-admin" });
   }
-  if (target.platformRole === PLATFORM_ROLE.ADMIN && !isSuperAdmin(actor.platformRole)) {
+  if (target.platformRole === PLATFORM_ROLE.ADMIN && !isSuperAdmin(actor, allowlist)) {
     throw new HTTPException(403, { message: "insufficient privilege" });
   }
 }
@@ -178,6 +188,7 @@ export function createAdminService(env: Env) {
     async listUsers(search: URLSearchParams): Promise<ListEnvelope<Record<string, unknown>>> {
       const query = parseListQuery(search);
       const { items, total } = await adminRepo.listUsers(listParams(search));
+      const allowlist = superAdminAllowlist(env);
       return listEnvelope(
         items.map((row) => ({
           id: row.id,
@@ -186,7 +197,7 @@ export function createAdminService(env: Env) {
           email: row.email,
           has_avatar: Boolean(row.avatarKey),
           city: row.city,
-          platform_role: row.platformRole,
+          platform_role: effectivePlatformRole(row, allowlist),
           suspended_at: iso(row.suspendedAt),
           email_verified_at: iso(row.emailVerifiedAt),
           created_at: row.createdAt.toISOString(),
@@ -198,6 +209,7 @@ export function createAdminService(env: Env) {
 
     async getUser(id: string) {
       const user = await requireUser(id);
+      const allowlist = superAdminAllowlist(env);
       const [memberships, lastSession] = await Promise.all([
         memberRepo.listByUser(id),
         sessionRepo.latestLastUsed(id),
@@ -215,7 +227,7 @@ export function createAdminService(env: Env) {
         city: user.city,
         lat: user.lat,
         lng: user.lng,
-        platform_role: user.platformRole,
+        platform_role: effectivePlatformRole(user, allowlist),
         suspended_at: iso(user.suspendedAt),
         email_verified_at: iso(user.emailVerifiedAt),
         created_at: user.createdAt.toISOString(),
@@ -238,7 +250,7 @@ export function createAdminService(env: Env) {
     async suspend(actorId: string, targetId: string): Promise<void> {
       const actor = await requireActor(actorId);
       const target = await requireUser(targetId);
-      assertCanActOn(actor, target);
+      assertCanActOn(actor, target, superAdminAllowlist(env));
       if (target.suspendedAt) {
         throw new HTTPException(409, { message: "already suspended" });
       }
@@ -250,7 +262,7 @@ export function createAdminService(env: Env) {
     async unsuspend(actorId: string, targetId: string): Promise<void> {
       const actor = await requireActor(actorId);
       const target = await requireUser(targetId);
-      assertCanActOn(actor, target);
+      assertCanActOn(actor, target, superAdminAllowlist(env));
       if (!target.suspendedAt) {
         throw new HTTPException(409, { message: "not suspended" });
       }
@@ -261,7 +273,10 @@ export function createAdminService(env: Env) {
     async deleteUser(actorId: string, targetId: string): Promise<void> {
       const actor = await requireActor(actorId);
       const target = await requireUser(targetId);
-      assertCanActOn(actor, target);
+      if (isSuperAdmin(target, superAdminAllowlist(env))) {
+        throw new HTTPException(409, { message: "cannot delete super-admin" });
+      }
+      assertCanActOn(actor, target, superAdminAllowlist(env));
       if (target.avatarKey) {
         await deleteAvatar(env, target.id);
       }
@@ -273,7 +288,7 @@ export function createAdminService(env: Env) {
       const data = adminBanSchema.parse(input);
       const actor = await requireActor(actorId);
       const target = await requireUser(targetId);
-      assertCanActOn(actor, target);
+      assertCanActOn(actor, target, superAdminAllowlist(env));
       if (!target.street || !target.zip || !target.city) {
         throw new HTTPException(400, { message: "user has no address" });
       }
@@ -686,12 +701,13 @@ export function createAdminService(env: Env) {
         adminRepo.listAdmins(),
         adminRepo.listPendingInvites(),
       ]);
+      const allowlist = superAdminAllowlist(env);
       return {
         items: admins.map((row) => ({
           id: row.id,
           name: row.name,
           email: row.email,
-          platform_role: row.platformRole,
+          platform_role: effectivePlatformRole(row, allowlist),
           created_at: row.createdAt.toISOString(),
           has_avatar: Boolean(row.avatarKey),
         })),
@@ -709,7 +725,7 @@ export function createAdminService(env: Env) {
       const data = adminInviteSchema.parse(input);
       const actor = await requireActor(actorId);
       const existing = await userRepo.findByEmail(data.email);
-      if (existing && isSuperAdmin(existing.platformRole)) {
+      if (existing && isSuperAdmin(existing, superAdminAllowlist(env))) {
         throw new HTTPException(409, { message: "already on the team" });
       }
       if (existing && existing.platformRole <= PLATFORM_ROLE.ADMIN) {
@@ -749,7 +765,7 @@ export function createAdminService(env: Env) {
 
     async removeAdmin(actorId: string, targetId: string): Promise<void> {
       const actor = await requireActor(actorId);
-      if (!isSuperAdmin(actor.platformRole)) {
+      if (!isSuperAdmin(actor, superAdminAllowlist(env))) {
         throw new HTTPException(403, { message: "insufficient privilege" });
       }
       const target = await requireUser(targetId);
@@ -778,7 +794,7 @@ export function createAdminService(env: Env) {
       rawToken: string,
       input: unknown,
       sessionUserId: string | null,
-    ): Promise<{ sessionToken?: string; expiresAt?: Date }> {
+    ): Promise<{ sessionToken?: string; expiresAt?: Date; setup_required?: boolean }> {
       const hashed = await hashToken(rawToken);
       const invite = await adminRepo.findInviteByTokenHash(hashed);
       if (!invite || invite.consumedAt || invite.expiresAt.getTime() < Date.now()) {
@@ -794,7 +810,10 @@ export function createAdminService(env: Env) {
         if (!sessionUserId) {
           throw new HTTPException(401, { message: "log in to accept" });
         }
-        if (isSuperAdmin(existing.platformRole) || existing.platformRole === PLATFORM_ROLE.ADMIN) {
+        if (
+          isSuperAdmin(existing, superAdminAllowlist(env)) ||
+          existing.platformRole === PLATFORM_ROLE.ADMIN
+        ) {
           throw new HTTPException(409, { message: "already on the team" });
         }
         const consumed = await adminRepo.consumeInvite(invite.id);
@@ -836,8 +855,19 @@ export function createAdminService(env: Env) {
         emailVerificationTokenExpiresAt: null,
       });
       await userRepo.verifyEmail(user.id);
-      const session = await createSessionService(env).create({ userId: user.id }, null);
-      return { sessionToken: session.sessionToken, expiresAt: session.expiresAt };
+      const verified = await userRepo.findById(user.id);
+      if (verified) {
+        await grantSuperAdminIfAllowlisted(env, verified);
+      }
+      const session = await createSessionService(env).create(
+        { userId: user.id, kind: "setup" },
+        null,
+      );
+      return {
+        sessionToken: session.sessionToken,
+        expiresAt: session.expiresAt,
+        setup_required: true,
+      };
     },
   };
 }

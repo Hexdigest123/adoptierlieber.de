@@ -8,15 +8,28 @@ import {
   changePasswordSchema,
 } from "../lib/zod";
 import type { Env } from "../config/env";
-import type { PublicSession, PublicUser, User } from "../types";
+import type { AuthResult, PublicUser, User } from "../types";
 import { toPublicUser } from "../lib/public-user";
-import { assertRegistrationAllowed, insertRegisteredUser } from "../lib/create-account";
+import { createWebauthnRepo } from "../repositories/webauthn.repo";
+import {
+  effectiveSessionKind,
+  hasMfa,
+  isMfaRequired,
+  putLoginChallenge,
+  totpEnabled,
+} from "../lib/mfa";
+import {
+  assertRegistrationAllowed,
+  grantSuperAdminIfAllowlisted,
+  insertRegisteredUser,
+  superAdminAllowlist,
+} from "../lib/create-account";
 import { geocodeAddress, labelFromCoords, resolveHomePlace } from "../lib/geocode";
 import { createShelterMemberRepo } from "../repositories/shelter-member.repo";
 import { createShelterRepo } from "../repositories/shelter.repo";
 import { createShelterInviteRepo } from "../repositories/shelter-invite.repo";
 import { createThreadRepo } from "../repositories/thread.repo";
-import { isPlatformAdmin, SHELTER_ROLE } from "../lib/roles";
+import { isPlatformAdmin, isSuperAdmin, SHELTER_ROLE } from "../lib/roles";
 import {
   deleteAvatar,
   getAvatarObject,
@@ -122,7 +135,7 @@ export function createUserService(env: Env) {
     if (viewerId === targetId) return true;
     const viewer = await repo.findById(viewerId);
     if (!viewer) return false;
-    if (isPlatformAdmin(viewer.platformRole)) return true;
+    if (isPlatformAdmin(viewer, superAdminAllowlist(env))) return true;
 
     const [viewerMemberships, targetMemberships] = await Promise.all([
       memberRepo.listByUser(viewerId),
@@ -266,6 +279,7 @@ export function createUserService(env: Env) {
         return false;
       }
       if (user.emailVerifiedAt) {
+        await grantSuperAdminIfAllowlisted(env, user);
         return true;
       }
       if (
@@ -279,6 +293,10 @@ export function createUserService(env: Env) {
         return false;
       }
       await repo.verifyEmail(user.id);
+      const verified = await repo.findById(user.id);
+      if (verified) {
+        await grantSuperAdminIfAllowlisted(env, verified);
+      }
       await attachPendingInvites(user.id, user.email);
       return true;
     },
@@ -289,6 +307,9 @@ export function createUserService(env: Env) {
       const user = await repo.findById(session.userId);
       if (!session || !user) {
         throw new HTTPException(404, { message: "session or user not found" });
+      }
+      if (isSuperAdmin(user, superAdminAllowlist(env))) {
+        throw new HTTPException(409, { message: "cannot delete super-admin" });
       }
 
       if (data.deletionToken) {
@@ -365,12 +386,19 @@ export function createUserService(env: Env) {
       return true;
     },
 
-    async getById(userId: string): Promise<PublicUser> {
-      const row = await repo.findById(userId);
-      if (!row) {
+    async getById(userId: string, sessionKind: "full" | "setup" = "full"): Promise<PublicUser> {
+      const found = await repo.findById(userId);
+      if (!found) {
         throw new HTTPException(404, { message: "user not found" });
       }
-      return toPublicUser(row, await membershipsFor(userId));
+      const row = await grantSuperAdminIfAllowlisted(env, found);
+      const passkeyCount = (await createWebauthnRepo(env).countByUserId(userId))?.n ?? 0;
+      return toPublicUser(row, await membershipsFor(userId), superAdminAllowlist(env), {
+        totp_enabled: totpEnabled(row),
+        passkey_count: passkeyCount,
+        mfa_required: isMfaRequired(row, env),
+        session_kind: effectiveSessionKind(sessionKind, row, passkeyCount, env),
+      });
     },
 
     async changePassword(userId: string, sessionToken: string, input: unknown): Promise<void> {
@@ -425,7 +453,7 @@ export function createUserService(env: Env) {
       if (!row) {
         throw new HTTPException(404, { message: "user not found" });
       }
-      return toPublicUser(row, await membershipsFor(userId));
+      return this.getById(userId);
     },
 
     async putAvatar(userId: string, file: File): Promise<void> {
@@ -505,7 +533,7 @@ export function createUserService(env: Env) {
       return true;
     },
 
-    async authenticate(input: unknown, userAgent: string | null): Promise<PublicSession> {
+    async authenticate(input: unknown, userAgent: string | null): Promise<AuthResult> {
       const data = authenticateSchema.parse(input);
       const user = await repo.findByEmail(data.email);
       if (!user) {
@@ -521,18 +549,20 @@ export function createUserService(env: Env) {
       if (!user.emailVerifiedAt || user.suspendedAt) {
         throw new HTTPException(401, { message: "invalid email or password" });
       }
+      const granted = await grantSuperAdminIfAllowlisted(env, user);
 
       if (passwordNeedsRehash(user.password)) {
         await repo.updatePassword(user.id, await hashPassword(data.password));
       }
 
-      const session = await createSessionService(env).create(
-        {
-          userId: user.id,
-        },
-        userAgent,
-      );
-      return session;
+      if (totpEnabled(granted)) {
+        const mfa_token = await putLoginChallenge(env, granted.id);
+        return { mfa_required: true, mfa_token };
+      }
+
+      const passkeyCount = (await createWebauthnRepo(env).countByUserId(granted.id))?.n ?? 0;
+      const kind = hasMfa(granted, passkeyCount) || !isMfaRequired(granted, env) ? "full" : "setup";
+      return createSessionService(env).create({ userId: granted.id, kind }, userAgent);
     },
 
     async logout(sessionToken: string): Promise<void> {

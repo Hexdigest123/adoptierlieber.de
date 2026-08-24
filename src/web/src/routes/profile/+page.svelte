@@ -8,6 +8,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import FormStatus from "$lib/components/ui/FormStatus.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
+	import ProfileMfa from "$lib/components/profile/ProfileMfa.svelte";
 
 	let { data, form }: PageProps = $props();
 
@@ -276,6 +277,8 @@
 
 				<Button type="submit" variant="secondary" fullWidth>{m.profile_password_save()}</Button>
 			</form>
+
+			<ProfileMfa user={data.user} passkeys={data.passkeys} {form} />
 
 			<section
 				class="flex flex-col gap-3 border-t border-sand-200 pt-8"

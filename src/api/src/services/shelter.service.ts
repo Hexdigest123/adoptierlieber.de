@@ -32,7 +32,11 @@ import {
   putAvatar,
   putShelterLogo,
 } from "../lib/avatar";
-import { assertRegistrationAllowed, insertRegisteredUser } from "../lib/create-account";
+import {
+  assertRegistrationAllowed,
+  insertRegisteredUser,
+  superAdminAllowlist,
+} from "../lib/create-account";
 import { geocodeAddress } from "../lib/geocode";
 import { partnerMap } from "../lib/bond";
 import { toStaffAnimal, toStaffShelter } from "../lib/staff-animal";
@@ -594,7 +598,7 @@ export function createShelterService(env: Env) {
         if (!actor) {
           throw new HTTPException(404, { message: "logo not found" });
         }
-        if (!isPlatformAdmin(actor.platformRole)) {
+        if (!isPlatformAdmin(actor, superAdminAllowlist(env))) {
           await this.assertRole(userId, shelterId, SHELTER_ROLE.STAFF);
         }
       }

@@ -3,7 +3,7 @@ import { SITE_ORIGIN } from "$lib/seo";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ fetch }) => {
-	const urls = ["", "/login", "/register", "/impressum", "/datenschutz"].map(
+	const urls = ["", "/login", "/register"].map(
 		(path) => `<url><loc>${SITE_ORIGIN}${path || "/"}</loc></url>`,
 	);
 
