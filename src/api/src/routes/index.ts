@@ -12,10 +12,16 @@ import { likes } from "./api/likes";
 import { swipes } from "./api/swipes";
 import { geo } from "./api/geo";
 import { reviews } from "./api/reviews";
+import { auth } from "./api/auth";
+import { totp } from "./api/totp";
+import { passkeys } from "./api/passkeys";
 
 const api = new Hono<AppEnv>();
 api.route("/users", users);
 api.route("/sessions", sessions);
+api.route("/auth", auth);
+api.route("/totp", totp);
+api.route("/passkeys", passkeys);
 api.route("/shelters", shelters);
 api.route("/contact", contact);
 api.route("/admin", admin);

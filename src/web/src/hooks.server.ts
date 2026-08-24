@@ -18,7 +18,8 @@ const SECURITY_HEADERS: Record<string, string> = {
 	"X-Content-Type-Options": "nosniff",
 	"X-Frame-Options": "DENY",
 	"Referrer-Policy": "strict-origin-when-cross-origin",
-	"Permissions-Policy": "camera=(), microphone=(), geolocation=(self)",
+	"Permissions-Policy":
+		"camera=(), microphone=(), geolocation=(self), publickey-credentials-get=(self), publickey-credentials-create=(self)",
 	"Content-Security-Policy": "frame-ancestors 'none'",
 };
 
@@ -80,6 +81,21 @@ const handleSession: Handle = async ({ event, resolve }) => {
 			}
 		} catch {
 			// API unreachable — treat as logged out
+		}
+	}
+
+	const user = event.locals.user;
+	if (user?.session_kind === "setup") {
+		const allowed =
+			path === "/mfa/setup" ||
+			path === "/logout" ||
+			path === "/login" ||
+			path.startsWith("/mfa/setup/");
+		if (!allowed) {
+			return new Response(null, {
+				status: 303,
+				headers: { location: "/mfa/setup" },
+			});
 		}
 	}
 

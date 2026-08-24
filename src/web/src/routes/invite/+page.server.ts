@@ -50,8 +50,15 @@ export const actions: Actions = {
 		}
 
 		if (response.status === 201) {
-			const session = (await response.json()) as { sessionToken: string; expiresAt: string };
+			const session = (await response.json()) as {
+				sessionToken: string;
+				expiresAt: string;
+				setup_required?: boolean;
+			};
 			setSessionCookie(cookies, session.sessionToken, new Date(session.expiresAt));
+			if (session.setup_required) {
+				redirect(303, "/mfa/setup");
+			}
 		}
 
 		redirect(303, "/admin");

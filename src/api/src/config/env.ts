@@ -3,6 +3,8 @@ export type Env = {
   BASIC_AUTH_PASSWORD?: string;
   ENVIRONMENT?: string;
   PUBLIC_SITE_URL?: string;
+  SUPER_ADMIN_EMAIL?: string;
+  SECRET_TOTP_KEY?: string;
   RATE_LIMIT_KV: KVNamespace;
   adoptierlieber?: D1Database;
   adoptierlieber_staging?: D1Database;
