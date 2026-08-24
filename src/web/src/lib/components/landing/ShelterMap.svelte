@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import type { LayerGroup, Map as LeafletMap } from "leaflet";
+	import type { Control, LayerGroup, Map as LeafletMap } from "leaflet";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import { getLocale } from "$lib/paraglide/runtime";
@@ -25,7 +25,9 @@
 	let map = $state<LeafletMap | undefined>(undefined);
 	let leaflet = $state<LeafletApi | undefined>(undefined);
 	let markers = $state<LayerGroup | undefined>(undefined);
+	let zoomControl = $state<Control.Zoom | undefined>(undefined);
 	const locale = $derived(getLocale());
+	const interactive = $derived(shelters.length > 0);
 
 	function escapeHtml(value: string): string {
 		return value
@@ -72,6 +74,35 @@
 				<a class="shelter-map-popup-cta" href="${escapeHtml(ctaHref)}">${escapeHtml(ctaLabel)}</a>
 			</div>
 		</div>`;
+	}
+
+	function applyInteraction() {
+		if (!map || !leaflet) return;
+		const L = leaflet;
+
+		if (interactive) {
+			map.dragging.enable();
+			map.touchZoom.enable();
+			map.scrollWheelZoom.enable();
+			map.doubleClickZoom.enable();
+			map.boxZoom.enable();
+			map.keyboard.enable();
+			if (!zoomControl) {
+				zoomControl = L.control.zoom().addTo(map);
+			}
+			return;
+		}
+
+		map.dragging.disable();
+		map.touchZoom.disable();
+		map.scrollWheelZoom.disable();
+		map.doubleClickZoom.disable();
+		map.boxZoom.disable();
+		map.keyboard.disable();
+		if (zoomControl) {
+			map.removeControl(zoomControl);
+			zoomControl = undefined;
+		}
 	}
 
 	function placeMarkers() {
@@ -121,11 +152,19 @@
 				zoom: 6,
 				minZoom: 5,
 				maxZoom: 14,
+				dragging: false,
+				touchZoom: false,
+				scrollWheelZoom: false,
+				doubleClickZoom: false,
+				boxZoom: false,
+				keyboard: false,
+				zoomControl: false,
 			});
 			markers = L.layerGroup().addTo(map);
 
 			L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION }).addTo(map);
 			placeMarkers();
+			applyInteraction();
 			requestAnimationFrame(() => map?.invalidateSize());
 		});
 
@@ -135,26 +174,27 @@
 			map = undefined;
 			markers = undefined;
 			leaflet = undefined;
+			zoomControl = undefined;
 		};
 	});
 
 	$effect(() => {
 		void locale;
 		void shelters;
+		void interactive;
 		placeMarkers();
+		applyInteraction();
 	});
 </script>
 
-{#if shelters.length === 0}
-	<p class="mx-auto max-w-md text-center text-sand-700">{m.showcase_map_empty()}</p>
-{:else}
-	<div
-		bind:this={container}
-		class="shelter-map isolate h-[28rem] w-full overflow-hidden rounded-3xl border border-sand-200 sm:h-[36rem]"
-		role="region"
-		aria-label={m.showcase_map_label()}
-	></div>
-{/if}
+<div
+	bind:this={container}
+	class="shelter-map isolate h-[28rem] w-full overflow-hidden rounded-3xl border border-sand-200 sm:h-[36rem] {interactive
+		? 'shelter-map-live'
+		: ''}"
+	role="region"
+	aria-label={m.showcase_map_label()}
+></div>
 
 <style>
 	.shelter-map :global(.leaflet-container) {
@@ -162,6 +202,10 @@
 		width: 100%;
 		font-family: inherit;
 		background: var(--color-peach-50);
+	}
+
+	.shelter-map:not(.shelter-map-live) :global(.leaflet-container) {
+		cursor: default;
 	}
 
 	.shelter-map :global(.leaflet-control-attribution) {
