@@ -51,6 +51,8 @@
 		"wrangler": "^4.97.0"
 	},
 	"dependencies": {
-		"leaflet": "^1.9.4"
+		"@simplewebauthn/browser": "^13.3.0",
+		"leaflet": "^1.9.4",
+		"uqr": "^0.1.3"
 	}
 }

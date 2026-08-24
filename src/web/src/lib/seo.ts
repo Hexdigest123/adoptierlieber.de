@@ -17,6 +17,9 @@ const NOINDEX_ROUTES = new Set([
 	"/forgot-password",
 	"/reset-password",
 	"/delete-account",
+	"/mfa/setup",
+	"/impressum",
+	"/datenschutz",
 ]);
 
 type PageMeta = {
@@ -32,6 +35,10 @@ const pages: Record<string, PageMeta> = {
 	"/login": {
 		title: () => m.meta_login_title(),
 		description: () => m.meta_login_description(),
+	},
+	"/mfa/setup": {
+		title: () => m.meta_mfa_setup_title(),
+		description: () => m.meta_mfa_setup_description(),
 	},
 	"/register": {
 		title: () => m.meta_register_title(),
@@ -141,7 +148,10 @@ export function seoForRoute(routeId: string | null, pathname: string, status = 2
 		Boolean(pageKey && NOINDEX_ROUTES.has(pageKey)) ||
 		Boolean(
 			routeId &&
-			(routeId.startsWith("/admin") || routeId.startsWith("/invite") || routeId.startsWith("/app")),
+			(routeId.startsWith("/admin") ||
+				routeId.startsWith("/invite") ||
+				routeId.startsWith("/app") ||
+				routeId.startsWith("/mfa")),
 		);
 
 	return {

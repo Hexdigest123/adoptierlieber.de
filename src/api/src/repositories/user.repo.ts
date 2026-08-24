@@ -37,14 +37,6 @@ export function createUserRepo(env: Env) {
         .all();
     },
 
-    hasSuperAdmin() {
-      return db
-        .select({ id: usersTable.id })
-        .from(usersTable)
-        .where(eq(usersTable.platformRole, PLATFORM_ROLE.SUPER_ADMIN))
-        .get();
-    },
-
     create(input: CreateUserInput) {
       return db
         .insert(usersTable)
@@ -181,6 +173,52 @@ export function createUserRepo(env: Env) {
         .set({ accountDeletionToken: null, accountDeletionTokenExpiresAt: null })
         .where(eq(usersTable.id, userId))
         .run();
+    },
+
+    updateTotpPending(userId: string, totpPendingSecret: string | null) {
+      return db
+        .update(usersTable)
+        .set({ totpPendingSecret })
+        .where(eq(usersTable.id, userId))
+        .returning()
+        .get();
+    },
+
+    confirmTotp(userId: string, totpSecret: string) {
+      return db
+        .update(usersTable)
+        .set({
+          totpSecret,
+          totpPendingSecret: null,
+          totpConfirmedAt: new Date(),
+          totpLastCounter: null,
+        })
+        .where(eq(usersTable.id, userId))
+        .returning()
+        .get();
+    },
+
+    clearTotp(userId: string) {
+      return db
+        .update(usersTable)
+        .set({
+          totpSecret: null,
+          totpPendingSecret: null,
+          totpConfirmedAt: null,
+          totpLastCounter: null,
+        })
+        .where(eq(usersTable.id, userId))
+        .returning()
+        .get();
+    },
+
+    updateTotpLastCounter(userId: string, totpLastCounter: number) {
+      return db
+        .update(usersTable)
+        .set({ totpLastCounter })
+        .where(eq(usersTable.id, userId))
+        .returning()
+        .get();
     },
 
     verifyEmail(userId: string) {

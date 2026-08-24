@@ -121,6 +121,43 @@ export const createSessionSchema = z.object({
   sessionToken: z.string().min(1).max(200).optional(),
   expiresAt: z.date().optional(),
   userAgent: z.string().max(512).optional(),
+  kind: z.enum(["full", "setup"]).optional(),
+});
+
+export const totpCodeSchema = z.string().regex(/^\d{6}$/);
+
+export const verifyLoginTotpSchema = z.object({
+  mfa_token: z.string().min(1).max(200),
+  code: totpCodeSchema,
+});
+
+export const confirmTotpSchema = z.object({
+  code: totpCodeSchema,
+});
+
+export const disableTotpSchema = z.object({
+  current_password: z.string().min(8).max(128),
+  code: totpCodeSchema,
+});
+
+export const passkeyNameSchema = text(80);
+
+export const registerPasskeySchema = z.object({
+  name: passkeyNameSchema,
+  response: z.record(z.string(), z.unknown()),
+});
+
+export const renamePasskeySchema = z.object({
+  name: passkeyNameSchema,
+});
+
+export const disablePasskeySchema = z.object({
+  current_password: z.string().min(8).max(128),
+});
+
+export const assertPasskeySchema = z.object({
+  challenge_id: z.string().min(1).max(200),
+  response: z.record(z.string(), z.unknown()),
 });
 
 export const createShelterSchema = z.object({

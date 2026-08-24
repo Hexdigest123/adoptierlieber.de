@@ -9,7 +9,7 @@ export const sessions = new Hono<AppEnv>();
 sessions.use("*", sessionValidation);
 
 sessions.get("/me", async (c) => {
-  const user = await createUserService(c.env).getById(c.get("userId"));
+  const user = await createUserService(c.env).getById(c.get("userId"), c.get("sessionKind"));
   return c.json(user, 200);
 });
 

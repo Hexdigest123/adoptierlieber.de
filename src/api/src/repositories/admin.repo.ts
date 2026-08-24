@@ -402,6 +402,7 @@ export function createAdminRepo(env: Env) {
           name: usersTable.name,
           email: usersTable.email,
           platformRole: usersTable.platformRole,
+          emailVerifiedAt: usersTable.emailVerifiedAt,
           createdAt: usersTable.createdAt,
           avatarKey: usersTable.avatarKey,
         })

@@ -17,6 +17,7 @@ export type AppEnv = {
   Variables: {
     userId: string;
     sessionToken: string;
+    sessionKind: "full" | "setup";
   };
 };
 
@@ -46,9 +47,20 @@ export type PublicUser = Pick<User, "id" | "name" | "displayName" | "email"> & {
   max_range_km: number | null;
   preferences: Record<string, unknown> | null;
   memberships: ShelterMembershipSummary[];
+  totp_enabled: boolean;
+  passkey_count: number;
+  mfa_required: boolean;
+  session_kind: "full" | "setup";
 };
 export type Session = InferSelectModel<typeof sessionsTable>;
-export type PublicSession = Pick<Session, "sessionToken" | "expiresAt">;
+export type PublicSession = {
+  sessionToken: string;
+  expiresAt: Date;
+  setup_required?: boolean;
+};
+export type AuthResult =
+  | PublicSession
+  | { mfa_required: true; mfa_token: string };
 export type Shelter = InferSelectModel<typeof sheltersTable>;
 export type ShelterMember = InferSelectModel<typeof shelterMembersTable>;
 export type Animal = InferSelectModel<typeof animalsTable>;

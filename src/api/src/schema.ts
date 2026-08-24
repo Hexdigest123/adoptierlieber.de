@@ -47,6 +47,10 @@ export const usersTable = sqliteTable(
     maxRangeKm: integer("max_range_km"),
     preferences: text("preferences", { mode: "json" }).$type<Record<string, unknown>>(),
     tasteWeights: text("taste_weights", { mode: "json" }).$type<Record<string, number>>(),
+    totpSecret: text("totp_secret"),
+    totpPendingSecret: text("totp_pending_secret"),
+    totpConfirmedAt: integer("totp_confirmed_at", { mode: "timestamp" }),
+    totpLastCounter: integer("totp_last_counter"),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -75,11 +79,41 @@ export const sessionsTable = sqliteTable(
       .notNull()
       .$defaultFn(() => new Date()),
     expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    kind: text("kind", { enum: ["full", "setup"] })
+      .notNull()
+      .default("full"),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .$defaultFn(() => new Date()),
   },
   (table) => [index("user_id_idx").on(table.userId)],
+);
+
+export const webauthnCredentialsTable = sqliteTable(
+  "webauthn_credentials",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .references(() => usersTable.id, { onDelete: "cascade" })
+      .notNull(),
+    credentialId: text("credential_id").notNull(),
+    publicKey: text("public_key").notNull(),
+    counter: integer("counter").notNull().default(0),
+    transports: text("transports", { mode: "json" }).$type<string[]>(),
+    deviceType: text("device_type"),
+    backedUp: integer("backed_up", { mode: "boolean" }).notNull().default(false),
+    name: text("name").notNull(),
+    lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [
+    index("webauthn_credentials_user_idx").on(table.userId),
+    uniqueIndex("webauthn_credentials_credential_id_uq").on(table.credentialId),
+  ],
 );
 
 export const sheltersTable = sqliteTable(

@@ -12,6 +12,7 @@ export function createSessionRepo(env: Env) {
       sessionToken: string;
       expiresAt: Date;
       userAgent: string | null;
+      kind: "full" | "setup";
     }) {
       return db
         .insert(sessionsTable)
@@ -21,6 +22,7 @@ export function createSessionRepo(env: Env) {
           token: sessionsTable.sessionToken,
           expiresAt: sessionsTable.expiresAt,
           userAgent: sessionsTable.userAgent,
+          kind: sessionsTable.kind,
         })
         .onConflictDoNothing()
         .get();
@@ -63,6 +65,15 @@ export function createSessionRepo(env: Env) {
         .returning({ id: sessionsTable.id })
         .get();
     },
+    updateKindWithToken(sessionToken: string, kind: "full" | "setup") {
+      return db
+        .update(sessionsTable)
+        .set({ kind })
+        .where(eq(sessionsTable.sessionToken, sessionToken))
+        .returning({ id: sessionsTable.id })
+        .get();
+    },
+
     updateExpiresAtWithToken(sessionToken: string, expiresAt: Date) {
       return db
         .update(sessionsTable)
