@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Globe from "lucide-svelte/icons/globe";
 	import Mail from "lucide-svelte/icons/mail";
+	import Activity from "lucide-svelte/icons/activity";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import Logo from "$lib/components/ui/Logo.svelte";
@@ -52,6 +53,15 @@
 					class="py-2 text-sm font-semibold text-sand-700 underline-offset-2 focus-ring hover:text-coral-700 hover:underline"
 				>
 					{m.footer_datenschutz()}
+				</a>
+				<a
+					href="https://afum.io/status/rwgbx2od52"
+					class="py-2 inline-flex items-center gap-1.5 text-sm font-semibold text-sand-700 underline-offset-2 focus-ring hover:text-coral-700 hover:underline"
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					<Activity class="size-3.5" aria-hidden="true" />
+					{m.footer_status()}
 				</a>
 			</nav>
 			<nav aria-label={m.footer_socials()} class="flex items-center gap-2">
