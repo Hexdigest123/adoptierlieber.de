@@ -60,6 +60,12 @@ shelters.get("/map", rateLimitByIp("shelter-map", 60), async (c) => {
   return c.json({ items }, 200);
 });
 
+/** Verified shelters with a donation link, in random order. No auth. */
+shelters.get("/donations", rateLimitByIp("shelter-donations", 60), async (c) => {
+  const items = await createShelterService(c.env).listPublicDonations();
+  return c.json({ items }, 200);
+});
+
 shelters.post("/invites/accept", sessionValidation, async (c) => {
   const body = acceptShelterInviteSchema.parse(await c.req.json());
   const result = await createShelterService(c.env).acceptInvite(c.get("userId"), body.token);

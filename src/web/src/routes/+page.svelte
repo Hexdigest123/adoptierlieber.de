@@ -4,6 +4,7 @@
 	import Hero from "$lib/components/landing/Hero.svelte";
 	import Showcase from "$lib/components/landing/Showcase.svelte";
 	import Partners from "$lib/components/landing/Partners.svelte";
+	import Donations from "$lib/components/landing/Donations.svelte";
 	import Reviews from "$lib/components/landing/Reviews.svelte";
 	import ContactSection from "$lib/components/landing/ContactSection.svelte";
 
@@ -19,6 +20,7 @@
 <div class="relative z-10 rounded-t-3xl bg-peach-50 shadow-[0_-16px_48px_rgb(39_33_29/0.1)]">
 	<Showcase cards={data.showcase} loggedIn={Boolean(data.user)} />
 	<Partners shelters={data.shelters} loggedIn={Boolean(data.user)} />
+	<Donations shelters={data.donations} />
 	<Reviews reviews={data.reviews} />
 	<ContactSection {form} />
 </div>
