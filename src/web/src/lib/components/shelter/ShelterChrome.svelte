@@ -74,7 +74,7 @@
 <header class="sticky top-0 z-40 border-b border-sand-200 bg-white/90 backdrop-blur">
 	<div class="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
 		<div class="flex min-w-0 items-center gap-3">
-			<a href={resolve("/")} class="rounded-full focus-ring" aria-label={m.brand_name()}>
+			<a href={resolve("/shelter")} class="rounded-full focus-ring" aria-label={m.brand_name()}>
 				<Logo />
 			</a>
 			{#if current}
