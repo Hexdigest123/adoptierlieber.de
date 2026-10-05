@@ -10,6 +10,8 @@ export type ShelterUpdate = {
   zip?: string;
   city?: string;
   website?: string | null;
+  donationUrl?: string | null;
+  donationDescription?: string | null;
   registrationNumber?: string | null;
   description?: string | null;
   notifyEmail?: string | null;
@@ -92,6 +94,27 @@ export function createShelterRepo(env: Env) {
             isNull(sheltersTable.archivedAt),
             isNotNull(sheltersTable.lat),
             isNotNull(sheltersTable.lng),
+          ),
+        )
+        .all();
+    },
+
+    listPublicDonations() {
+      return db
+        .select({
+          id: sheltersTable.id,
+          orgName: sheltersTable.orgName,
+          city: sheltersTable.city,
+          donationUrl: sheltersTable.donationUrl,
+          donationDescription: sheltersTable.donationDescription,
+          logoKey: sheltersTable.logoKey,
+        })
+        .from(sheltersTable)
+        .where(
+          and(
+            eq(sheltersTable.verificationStatus, "verified"),
+            isNull(sheltersTable.archivedAt),
+            isNotNull(sheltersTable.donationUrl),
           ),
         )
         .all();

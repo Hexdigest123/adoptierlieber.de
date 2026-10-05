@@ -104,6 +104,22 @@ export function createShelterService(env: Env) {
       }));
     },
 
+    async listPublicDonations() {
+      const rows = await shelterRepo.listPublicDonations();
+      for (let i = rows.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [rows[i], rows[j]] = [rows[j], rows[i]];
+      }
+      return rows.map((row) => ({
+        id: row.id,
+        org_name: row.orgName,
+        city: row.city,
+        donation_url: row.donationUrl,
+        donation_description: row.donationDescription,
+        has_logo: Boolean(row.logoKey),
+      }));
+    },
+
     /**
      * Register a new shelter together with its owner account.
      * Creates user (+ email-verification token) + shelter (pending) + membership (OWNER).
@@ -273,6 +289,10 @@ export function createShelterService(env: Env) {
         ...(data.zip !== undefined ? { zip: data.zip } : {}),
         ...(data.city !== undefined ? { city: data.city } : {}),
         ...(data.website !== undefined ? { website: data.website || null } : {}),
+        ...(data.donation_url !== undefined ? { donationUrl: data.donation_url || null } : {}),
+        ...(data.donation_description !== undefined
+          ? { donationDescription: data.donation_description }
+          : {}),
         ...(data.registration_number !== undefined
           ? { registrationNumber: data.registration_number }
           : {}),

@@ -107,13 +107,8 @@
 					{m.shelter_interest_title({ animal: context.animal_name })}
 				</h2>
 				<p class="mt-1 text-sm text-sand-700">
-					{m.shelter_interest_org({ org: context.org_name })}
+					{m.shelter_interest_org({ animal: context.animal_name, org: context.org_name })}
 				</p>
-				{#if context.other_animals.length}
-					<p class="mt-2 text-sm text-sand-600">
-						{m.shelter_interest_others({ names: context.other_animals.join(", ") })}
-					</p>
-				{/if}
 
 				<form class="mt-5 flex flex-col gap-4" onsubmit={submit}>
 					<Checkbox

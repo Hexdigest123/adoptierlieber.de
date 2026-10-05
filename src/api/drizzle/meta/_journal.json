@@ -106,6 +106,13 @@
       "when": 1787584489205,
       "tag": "0014_light_roland_deschain",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1790523010515,
+      "tag": "0015_parallel_colossus",
+      "breakpoints": true
     }
   ]
 }

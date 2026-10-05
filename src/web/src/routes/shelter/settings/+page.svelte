@@ -67,6 +67,22 @@
 			disabled={locked}
 		/>
 		<Input
+			id="donation_url"
+			name="donation_url"
+			label={m.shelter_field_donation_url()}
+			hint={m.shelter_donation_url_hint()}
+			value={shelter.donation_url ?? ""}
+			disabled={locked}
+		/>
+		<Textarea
+			id="donation_description"
+			name="donation_description"
+			label={m.shelter_field_donation_desc()}
+			hint={m.shelter_donation_desc_hint()}
+			value={shelter.donation_description ?? ""}
+			disabled={locked}
+		/>
+		<Input
 			id="registration_number"
 			name="registration_number"
 			label={m.shelter_field_reg()}

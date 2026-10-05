@@ -240,6 +240,8 @@ export const updateShelterSchema = z
     zip: text(16).optional(),
     city: text(80).optional(),
     website: z.union([z.url().max(500), z.literal("")]).nullable().optional(),
+    donation_url: z.union([z.url().max(500), z.literal("")]).nullable().optional(),
+    donation_description: z.string().trim().max(500).nullable().optional(),
     registration_number: text(80).nullable().optional(),
     description: text(4000).nullable().optional(),
     notify_email: emailSchema.optional(),
@@ -251,6 +253,8 @@ export const updateShelterSchema = z
       value.zip !== undefined ||
       value.city !== undefined ||
       value.website !== undefined ||
+      value.donation_url !== undefined ||
+      value.donation_description !== undefined ||
       value.registration_number !== undefined ||
       value.description !== undefined ||
       value.notify_email !== undefined,
