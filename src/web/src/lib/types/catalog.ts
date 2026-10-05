@@ -25,6 +25,15 @@ export type PublicMapShelter = {
 	live_count: number;
 };
 
+export type PublicDonationShelter = {
+	id: string;
+	org_name: string;
+	city: string;
+	donation_url: string;
+	donation_description: string | null;
+	has_logo: boolean;
+};
+
 export type PublicAnimal = {
 	id: string;
 	name: string;

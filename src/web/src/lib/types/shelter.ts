@@ -31,6 +31,8 @@ export type StaffShelter = {
 	zip: string;
 	city: string;
 	website: string | null;
+	donation_url: string | null;
+	donation_description: string | null;
 	registration_number: string | null;
 	description: string | null;
 	verification_status: VerificationStatus;

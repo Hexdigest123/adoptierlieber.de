@@ -27,15 +27,9 @@
 			<h2 id="showcase-title" class="text-3xl font-black tracking-tight text-sand-950 sm:text-4xl">
 				{m.showcase_title()}
 			</h2>
-			<p class="mt-4 text-lg text-sand-700">
-				{#if emptyCatalog}
-					{m.showcase_none_text()}
-				{:else if mode === "catalog"}
-					{m.showcase_catalog_subtitle()}
-				{:else}
-					{m.showcase_subtitle()}
-				{/if}
-			</p>
+			{#if emptyCatalog}
+				<p class="mt-4 text-lg text-sand-700">{m.showcase_none_text()}</p>
+			{/if}
 		</div>
 
 		<div

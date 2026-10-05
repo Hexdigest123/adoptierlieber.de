@@ -23,6 +23,8 @@ export const actions: Actions = {
 			zip: String(data.get("zip") ?? "").trim(),
 			city: String(data.get("city") ?? "").trim(),
 			website: String(data.get("website") ?? "").trim() || null,
+			donation_url: String(data.get("donation_url") ?? "").trim() || null,
+			donation_description: String(data.get("donation_description") ?? "").trim() || null,
 			registration_number: String(data.get("registration_number") ?? "").trim() || null,
 			description: String(data.get("description") ?? "").trim() || null,
 			notify_email: String(data.get("notify_email") ?? "").trim(),

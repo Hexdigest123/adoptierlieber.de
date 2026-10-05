@@ -127,6 +127,8 @@ export const sheltersTable = sqliteTable(
     zip: text("zip").notNull(),
     city: text("city").notNull(),
     website: text("website"),
+    donationUrl: text("donation_url"),
+    donationDescription: text("donation_description"),
     registrationNumber: text("registration_number"),
     description: text("description"),
     verificationStatus: text("verification_status", {
