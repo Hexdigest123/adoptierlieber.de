@@ -60,6 +60,8 @@
 	"donations_carousel_prev": "Show previous shelter",
 	"donations_carousel_next": "Show next shelter",
 	"donations_carousel_goto": "Go to shelter {current} of {total}",
+	"donations_empty_title": "No donation campaigns yet",
+	"donations_empty_text": "There are currently no shelters with a donation link.",
 	"species_cat": "Cat",
 	"species_dog": "Dog",
 	"species_rabbit": "Rabbit",
