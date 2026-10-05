@@ -60,6 +60,8 @@
 	"donations_carousel_prev": "Vorheriges Tierheim anzeigen",
 	"donations_carousel_next": "Nächstes Tierheim anzeigen",
 	"donations_carousel_goto": "Gehe zu Tierheim {current} von {total}",
+	"donations_empty_title": "Noch keine Spendenkampagnen",
+	"donations_empty_text": "Aktuell gibt es noch keine Tierheime mit Spendenlink.",
 	"species_cat": "Katze",
 	"species_dog": "Hund",
 	"species_rabbit": "Kaninchen",

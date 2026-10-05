@@ -58,7 +58,14 @@
 			<p class="mt-4 text-lg text-sand-700">{m.donations_subtitle()}</p>
 		</div>
 
-		{#if total > 0}
+		{#if total === 0}
+			<div
+				class="mx-auto mt-12 flex max-w-xl flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-sand-300 bg-peach-50 px-8 py-16 text-center"
+			>
+				<p class="text-xl font-bold text-sand-900">{m.donations_empty_title()}</p>
+				<p class="text-sm text-sand-700">{m.donations_empty_text()}</p>
+			</div>
+		{:else}
 			<div
 				class="mx-auto mt-12 max-w-4xl"
 				onmouseenter={() => (paused = true)}
