@@ -317,14 +317,14 @@ export function createChatService(env: Env) {
 
     async listMessages(userId: string, threadId: string, after?: string) {
       await requireThreadAccess(userId, threadId);
-      let afterDate: Date | undefined;
+      let afterId: string | undefined;
       if (after) {
         const previous = await messageRepo.findById(after);
         if (previous && previous.threadId === threadId) {
-          afterDate = previous.createdAt;
+          afterId = previous.id;
         }
       }
-      const rows = await messageRepo.listByThread(threadId, afterDate);
+      const rows = await messageRepo.listByThread(threadId, afterId);
       return rows.map(toMessageView);
     },
 

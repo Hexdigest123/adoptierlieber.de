@@ -90,8 +90,8 @@ users.get("/:id/avatar", sessionValidation, async (c) => {
 
 /** Replace the authenticated user's avatar. */
 users.put("/me/avatar", sessionValidation, rateLimitByUser("avatar-upload", 20), async (c) => {
-  const form = await c.req.formData();
-  const file = form.get("avatar");
+  const form = await c.req.formData().catch(() => null);
+  const file = form?.get("avatar");
   if (!(file instanceof File) || file.size === 0) {
     return c.json({ error: "missing avatar" }, 400);
   }

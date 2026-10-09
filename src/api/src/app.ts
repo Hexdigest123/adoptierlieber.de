@@ -42,18 +42,30 @@ const uploadLimit = limit(2.5 * 1024 * 1024);
 // Bulk create: up to 100 animals with long descriptions (createGroupSchema).
 const groupLimit = limit(1024 * 1024);
 
-type BodyRoute = { method: string; path: RegExp; multipart?: true; limit: MiddlewareHandler };
+type BodyRoute = {
+  method: string;
+  path: RegExp;
+  multipart?: true;
+  /** JSON would make the handler's `formData()` throw */
+  multipartOnly?: true;
+  limit: MiddlewareHandler;
+};
 
 /** Routes with a non-default body limit; `multipart` ones also accept image uploads. */
 const BODY_ROUTES: BodyRoute[] = [
   { method: "POST", path: /^\/api\/users$/, multipart: true, limit: uploadLimit },
-  { method: "PUT", path: /^\/api\/users\/me\/avatar$/, multipart: true, limit: uploadLimit },
+  { method: "PUT", path: /^\/api\/users\/me\/avatar$/, multipartOnly: true, limit: uploadLimit },
   { method: "POST", path: /^\/api\/shelters$/, multipart: true, limit: uploadLimit },
-  { method: "PUT", path: /^\/api\/shelters\/[^/]+\/logo$/, multipart: true, limit: uploadLimit },
+  {
+    method: "PUT",
+    path: /^\/api\/shelters\/[^/]+\/logo$/,
+    multipartOnly: true,
+    limit: uploadLimit,
+  },
   {
     method: "PUT",
     path: /^\/api\/shelters\/[^/]+\/animals\/[^/]+\/photos$/,
-    multipart: true,
+    multipartOnly: true,
     limit: uploadLimit,
   },
   { method: "POST", path: /^\/api\/shelters\/[^/]+\/animals\/group$/, limit: groupLimit },
@@ -69,12 +81,17 @@ app.use("*", async (c, next) => {
   if (!c.req.raw.body || c.req.header("content-length") === "0") return next();
   const route = BODY_ROUTES.find((r) => r.method === c.req.method && r.path.test(c.req.path));
   const type = (c.req.header("content-type") ?? "").split(";")[0].trim().toLowerCase();
-  if (type !== "application/json" && !(route?.multipart && type === "multipart/form-data")) {
+  const allowed = route?.multipartOnly
+    ? type === "multipart/form-data"
+    : type === "application/json" || (route?.multipart && type === "multipart/form-data");
+  if (!allowed) {
     return reject(c, "unsupported media type", 415);
   }
   return (route?.limit ?? jsonLimit)(c, next);
 });
 
 app.route("/", routes);
+
+app.notFound((c) => c.json({ error: "not found" }, 404));
 
 export default app;

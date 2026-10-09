@@ -221,8 +221,8 @@ shelters.put(
   sessionValidation,
   rateLimitByUser("shelter-logo-upload", 10),
   async (c) => {
-    const form = await c.req.formData();
-    const file = form.get("logo") ?? form.get("avatar");
+    const form = await c.req.formData().catch(() => null);
+    const file = form?.get("logo") ?? form?.get("avatar");
     if (!(file instanceof File) || file.size === 0) {
       return c.json({ error: "missing logo" }, 400);
     }
@@ -343,8 +343,8 @@ shelters.put(
   sessionValidation,
   rateLimitByUser("animal-photo-upload", 60),
   async (c) => {
-    const form = await c.req.formData();
-    const file = form.get("photo") ?? form.get("avatar");
+    const form = await c.req.formData().catch(() => null);
+    const file = form?.get("photo") ?? form?.get("avatar");
     if (!(file instanceof File) || file.size === 0) {
       return c.json({ error: "missing photo" }, 400);
     }

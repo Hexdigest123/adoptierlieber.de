@@ -1,6 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getDb, type Env } from "../config/env";
+import { likePattern } from "../lib/like";
 import { reviewsTable, usersTable } from "../schema";
 import type { ReviewStatus } from "../types";
 
@@ -21,10 +22,6 @@ export type ReviewListParams = {
   offset: number;
   limit: number;
 };
-
-function likePattern(q: string): string {
-  return `%${q.toLowerCase().replace(/[\\%_]/g, "\\$&")}%`;
-}
 
 export function createReviewRepo(env: Env) {
   const db = drizzle(getDb(env), { schema: { reviewsTable, usersTable } });

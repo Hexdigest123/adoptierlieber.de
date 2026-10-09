@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getDb, type Env } from "../config/env";
+import { likePattern } from "../lib/like";
 import { PLATFORM_ROLE, SHELTER_ROLE } from "../lib/roles";
 import {
   adminAuditTable,
@@ -42,11 +43,6 @@ export type AdminListParams = {
 };
 
 const AUDIT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
-
-/** For `LIKE ? ESCAPE '\'`: the escape char itself must be escaped first. */
-function likePattern(q: string): string {
-  return `%${q.toLowerCase().replace(/[\\%_]/g, "\\$&")}%`;
-}
 
 function auditCutoff(): Date {
   return new Date(Date.now() - AUDIT_RETENTION_MS);

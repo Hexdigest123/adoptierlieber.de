@@ -124,6 +124,7 @@ export function rateLimitByIp(
         windowMs: 15 * 60 * 1000,
         limit,
         standardHeaders: "draft-6",
+        message: { error: "too many requests" },
         keyGenerator: clientIp,
         store: new ClampedKVStore({
           namespace: c.env.RATE_LIMIT_KV,
@@ -150,6 +151,7 @@ export function rateLimitByUser(
         windowMs: 15 * 60 * 1000,
         limit,
         standardHeaders: "draft-6",
+        message: { error: "too many requests" },
         keyGenerator: (ctx) => ctx.get("userId") || clientIp(ctx),
         store: new ClampedKVStore({
           namespace: c.env.RATE_LIMIT_KV,
