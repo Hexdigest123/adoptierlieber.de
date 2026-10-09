@@ -3,12 +3,13 @@
 	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
+	import Checkbox from "$lib/components/ui/Checkbox.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
+	import Select from "$lib/components/ui/Select.svelte";
 	import AnimalCard from "$lib/components/app/AnimalCard.svelte";
-	import ChoiceChips from "$lib/components/app/ChoiceChips.svelte";
 	import { speciesQuery } from "$lib/app/filters.svelte";
 	import { sexOptions, sizeOptions } from "$lib/app/format";
-	import type { AnimalSex, AnimalSize, ListEnvelope, PublicAnimal } from "$lib/types/catalog";
+	import type { ListEnvelope, PublicAnimal } from "$lib/types/catalog";
 	import { listItems } from "$lib/types/catalog";
 
 	const user = $derived(page.data.user);
@@ -18,18 +19,48 @@
 	let q = $state("");
 	let breed = $state("");
 	let breedHits = $state<string[]>([]);
-	let sex = $state<AnimalSex>(null);
-	let size = $state<AnimalSize>(null);
+	/** "" means no restriction. */
+	let sex = $state("");
+	let size = $state("");
 	let minAge = $state("");
 	let maxAge = $state("");
 	let goodWith = $state<string[]>([]);
 	let colors = $state<string[]>([]);
 	let specialNeeds = $state<"include" | "only" | "exclude">("include");
-	let sort = $state<"best" | "distance" | "new">("best");
+	/** One of best, distance, new. */
+	let sort = $state("best");
 	let animals = $state<PublicAnimal[]>([]);
 	let loading = $state(false);
 	let searched = $state(false);
 	let error = $state(false);
+
+	function selectOption(option: { id: string; label: string }) {
+		return { value: option.id, label: option.label };
+	}
+
+	function sexSelectOptions() {
+		return [{ value: "", label: m.app_search_all() }, ...sexOptions().map(selectOption)];
+	}
+
+	function sizeSelectOptions() {
+		return [{ value: "", label: m.app_search_all() }, ...sizeOptions().map(selectOption)];
+	}
+
+	function specialOptions() {
+		return [
+			{ id: "include" as const, label: m.app_search_special_include() },
+			{ id: "only" as const, label: m.app_search_special_only() },
+			{ id: "exclude" as const, label: m.app_search_special_exclude() },
+		];
+	}
+
+	function sortOptions() {
+		return [
+			{ value: "best", label: m.app_search_sort_best() },
+			{ value: "distance", label: m.app_search_sort_distance() },
+			{ value: "new", label: m.app_search_sort_new() },
+		];
+	}
 
 	function toggleGood(tag: string) {
 		goodWith = goodWith.includes(tag) ? goodWith.filter((v) => v !== tag) : [...goodWith, tag];
@@ -144,19 +175,20 @@
 			{/if}
 		</div>
 
-		<ChoiceChips
-			legend={m.app_search_sex()}
-			allLabel={m.app_search_all()}
-			options={sexOptions()}
-			bind:value={sex}
-		/>
-
-		<ChoiceChips
-			legend={m.app_search_size()}
-			allLabel={m.app_search_all()}
-			options={sizeOptions()}
-			bind:value={size}
-		/>
+		<div class="grid grid-cols-2 gap-3">
+			<Select
+				id="search-sex"
+				label={m.app_search_sex()}
+				options={sexSelectOptions()}
+				bind:value={sex}
+			/>
+			<Select
+				id="search-size"
+				label={m.app_search_size()}
+				options={sizeSelectOptions()}
+				bind:value={size}
+			/>
+		</div>
 
 		<fieldset>
 			<legend class="mb-2 text-sm font-semibold text-sand-900">{m.app_search_age()}</legend>
@@ -187,7 +219,7 @@
 					<button
 						type="button"
 						aria-pressed={colors.includes(option)}
-						class="rounded-full border px-3 py-1.5 text-sm font-semibold focus-ring {colors.includes(
+						class="min-h-11 cursor-pointer rounded-full border px-3 py-1.5 text-sm font-semibold focus-ring {colors.includes(
 							option,
 						)
 							? 'border-coral-600 bg-coral-600 text-white'
@@ -201,58 +233,49 @@
 		</fieldset>
 
 		<fieldset>
-			<legend class="mb-2 text-sm font-semibold text-sand-900">{m.app_search_special()}</legend>
-			<div class="flex flex-wrap gap-2">
-				{#each [{ id: "include" as const, label: m.app_search_special_include() }, { id: "only" as const, label: m.app_search_special_only() }, { id: "exclude" as const, label: m.app_search_special_exclude() }] as option (option.id)}
-					<button
-						type="button"
-						aria-pressed={specialNeeds === option.id}
-						class="rounded-full border px-3 py-1.5 text-sm font-semibold focus-ring {specialNeeds ===
-						option.id
-							? 'border-coral-600 bg-coral-600 text-white'
-							: 'border-sand-200 text-sand-800'}"
-						onclick={() => (specialNeeds = option.id)}
-					>
+			<legend class="text-sm font-semibold text-sand-900">{m.app_search_special()}</legend>
+			<div class="flex flex-wrap gap-x-6">
+				{#each specialOptions() as option (option.id)}
+					<label class="flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-sand-800">
+						<input
+							type="radio"
+							name="special-needs"
+							value={option.id}
+							bind:group={specialNeeds}
+							class="size-5 shrink-0 cursor-pointer accent-coral-600 focus-ring"
+						/>
 						{option.label}
-					</button>
+					</label>
 				{/each}
 			</div>
 		</fieldset>
 
 		<fieldset>
 			<legend class="mb-2 text-sm font-semibold text-sand-900">{m.app_search_good_with()}</legend>
-			<div class="flex flex-wrap gap-2">
-				{#each [{ id: "dogs", label: m.app_prefs_with_dog() }, { id: "cats", label: m.app_prefs_with_cat() }] as option (option.id)}
-					<button
-						type="button"
-						aria-pressed={goodWith.includes(option.id)}
-						class="rounded-full border px-3 py-1.5 text-sm font-semibold focus-ring {goodWith.includes(
-							option.id,
-						)
-							? 'border-coral-600 bg-coral-600 text-white'
-							: 'border-sand-200 text-sand-800'}"
-						onclick={() => toggleGood(option.id)}
-					>
-						{option.label}
-					</button>
-				{/each}
+			<div class="flex flex-wrap gap-x-6 gap-y-3">
+				<Checkbox
+					id="search-good-dogs"
+					checked={goodWith.includes("dogs")}
+					onchange={() => toggleGood("dogs")}
+				>
+					{m.app_prefs_with_dog()}
+				</Checkbox>
+				<Checkbox
+					id="search-good-cats"
+					checked={goodWith.includes("cats")}
+					onchange={() => toggleGood("cats")}
+				>
+					{m.app_prefs_with_cat()}
+				</Checkbox>
 			</div>
 		</fieldset>
 
-		<div class="flex flex-wrap gap-2" role="group" aria-label={m.app_search_sort()}>
-			{#each [{ id: "best" as const, label: m.app_search_sort_best() }, { id: "distance" as const, label: m.app_search_sort_distance() }, { id: "new" as const, label: m.app_search_sort_new() }] as option (option.id)}
-				<button
-					type="button"
-					aria-pressed={sort === option.id}
-					class="rounded-full px-3 py-1.5 text-sm font-semibold focus-ring {sort === option.id
-						? 'bg-coral-600 text-white'
-						: 'text-sand-700 hover:bg-peach-100'}"
-					onclick={() => (sort = option.id)}
-				>
-					{option.label}
-				</button>
-			{/each}
-		</div>
+		<Select
+			id="search-sort"
+			label={m.app_search_sort()}
+			options={sortOptions()}
+			bind:value={sort}
+		/>
 
 		<Button type="submit" {loading}>{m.app_search_submit()}</Button>
 	</form>

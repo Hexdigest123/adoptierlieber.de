@@ -108,7 +108,7 @@
 <div class="mx-auto flex w-full max-w-2xl min-w-0 flex-col {closed ? '' : 'pb-20'}">
 	<a
 		href={resolve("/app/messages")}
-		class="mb-3 inline-flex w-fit text-sm font-semibold text-sand-700 focus-ring hover:text-coral-700"
+		class="mb-3 inline-flex w-fit text-sm font-medium text-sand-700 focus-ring hover:text-coral-700"
 	>
 		{m.app_messages_back()}
 	</a>
@@ -119,16 +119,16 @@
 				{data.thread.animal_name}
 			</a>
 		</h1>
-		<p class="text-sm font-semibold text-coral-700">{data.thread.shelter_name}</p>
+		<p class="text-sm font-medium text-coral-700">{data.thread.shelter_name}</p>
 		{#if data.thread.animal_status === "found_home"}
-			<p class="mt-1 text-xs font-semibold text-sand-600">{m.shelter_status_home()}</p>
+			<p class="mt-1 text-xs font-medium text-sand-600">{m.shelter_status_home()}</p>
 		{/if}
 	</header>
 
 	<ul class="mt-4 flex w-full min-w-0 flex-col gap-2" aria-live="polite">
 		{#each messages as message, index (message.id)}
 			{#if index === 0 || dayKey(messages[index - 1].created_at) !== dayKey(message.created_at)}
-				<li class="mt-2 self-center text-xs font-semibold text-sand-500">
+				<li class="mt-2 self-center text-xs font-medium text-sand-600">
 					{dayLabel(message.created_at)}
 				</li>
 			{/if}
@@ -158,7 +158,7 @@
 	{:else}
 		<!-- Pinned above the bottom nav (mobile) like the animal detail action bar. -->
 		<form
-			class="fixed inset-x-0 bottom-14 z-30 border-t border-sand-200 bg-white/95 px-4 py-3 backdrop-blur md:bottom-0"
+			class="fixed inset-x-0 bottom-14 z-30 border-t border-sand-200 bg-white px-4 py-3 md:bottom-0"
 			onsubmit={(event) => {
 				event.preventDefault();
 				void send();

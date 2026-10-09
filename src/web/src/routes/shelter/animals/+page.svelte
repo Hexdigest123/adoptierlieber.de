@@ -3,6 +3,10 @@
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Card from "$lib/components/ui/Card.svelte";
+	import TabNav from "$lib/components/ui/TabNav.svelte";
+	import StatusPill from "$lib/components/admin/StatusPill.svelte";
+	import Heart from "lucide-svelte/icons/heart";
+	import Eye from "lucide-svelte/icons/eye";
 	import { photoUrl, type AnimalStatus, type StaffAnimal } from "$lib/types/shelter";
 
 	let { data }: PageProps = $props();
@@ -50,12 +54,6 @@
 		}
 	}
 
-	function statusLabel(status: AnimalStatus): string {
-		if (status === "live") return m.shelter_status_live();
-		if (status === "found_home") return m.shelter_status_home();
-		return m.shelter_status_draft();
-	}
-
 	const hasAnimals = $derived(data.hasAnimals || data.animals.length > 0);
 	const newLabel = $derived(hasAnimals ? m.shelter_animal_add() : m.shelter_animal_new());
 </script>
@@ -67,18 +65,15 @@
 	</div>
 </div>
 
-<div class="mt-4 flex flex-wrap gap-2" role="tablist">
-	{#each tabs as tab (tab.id)}
-		<a
-			href={tab.id === "all" ? "/shelter/animals" : `/shelter/animals?status=${tab.id}`}
-			class="rounded-full px-3 py-1.5 text-sm font-semibold focus-ring {data.status === tab.id
-				? 'bg-coral-600 text-white'
-				: 'bg-white text-sand-700 hover:bg-peach-100'}"
-		>
-			{tab.label()}
-		</a>
-	{/each}
-</div>
+<TabNav
+	label={m.shelter_animals_title()}
+	class="mt-4"
+	items={tabs.map((tab) => ({
+		href: tab.id === "all" ? "/shelter/animals" : `/shelter/animals?status=${tab.id}`,
+		label: tab.label(),
+		active: data.status === tab.id,
+	}))}
+/>
 
 <div class="mt-4 flex flex-wrap gap-3">
 	<label class="sr-only" for="shelter-animals-q">{m.shelter_animals_search()}</label>
@@ -93,7 +88,7 @@
 	<select
 		id="shelter-animals-sort"
 		bind:value={sort}
-		class="h-11 rounded-xl border border-sand-300 bg-white px-3 text-sm font-semibold focus-ring"
+		class="h-11 rounded-xl border border-sand-300 bg-white px-3 text-sm font-medium focus-ring"
 	>
 		<option value="updated">{m.shelter_sort_updated()}</option>
 		<option value="name">{m.shelter_sort_name()}</option>
@@ -132,20 +127,21 @@
 									<p class="font-bold text-sand-950">{animal.name}</p>
 									<p class="text-sm text-sand-600">{speciesLabel(animal)}</p>
 								</div>
-								<span
-									class="rounded-full px-2 py-0.5 text-xs font-semibold {animal.status === 'live'
-										? 'bg-emerald-50 text-emerald-800'
-										: animal.status === 'found_home'
-											? 'bg-sand-100 text-sand-700'
-											: 'bg-peach-100 text-coral-800'}"
-								>
-									{statusLabel(animal.status)}
-								</span>
+								<StatusPill status={animal.status} class="shrink-0" />
 							</div>
-							<p class="mt-2 text-xs text-sand-600">
-								♥ {animal.like_count} 👁 {animal.impression_count}
+							<p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-sand-600">
+								<span class="inline-flex items-center gap-1">
+									<Heart class="size-3.5" aria-hidden="true" />
+									<span class="sr-only">{m.shelter_sort_saves()}</span>
+									{animal.like_count}
+								</span>
+								<span class="inline-flex items-center gap-1">
+									<Eye class="size-3.5" aria-hidden="true" />
+									<span class="sr-only">{m.shelter_sort_impressions()}</span>
+									{animal.impression_count}
+								</span>
 								{#if animal.unread_threads}
-									{m.shelter_unread_badge({ count: String(animal.unread_threads) })}
+									<span>{m.shelter_unread_badge({ count: String(animal.unread_threads) })}</span>
 								{/if}
 							</p>
 						</div>

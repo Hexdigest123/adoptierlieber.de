@@ -45,13 +45,13 @@
 			<nav aria-label={m.brand_name()} class="flex items-center gap-6">
 				<a
 					href={resolve("/impressum")}
-					class="py-2 text-sm font-semibold text-sand-700 underline-offset-2 focus-ring hover:text-coral-700 hover:underline"
+					class="py-2 text-sm font-medium text-sand-700 underline-offset-2 focus-ring hover:text-coral-700 hover:underline"
 				>
 					{m.footer_impressum()}
 				</a>
 				<a
 					href={resolve("/datenschutz")}
-					class="py-2 text-sm font-semibold text-sand-700 underline-offset-2 focus-ring hover:text-coral-700 hover:underline"
+					class="py-2 text-sm font-medium text-sand-700 underline-offset-2 focus-ring hover:text-coral-700 hover:underline"
 				>
 					{m.footer_datenschutz()}
 				</a>

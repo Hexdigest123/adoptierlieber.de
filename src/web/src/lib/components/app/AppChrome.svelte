@@ -11,7 +11,6 @@
 	import Search from "lucide-svelte/icons/search";
 	import Settings from "lucide-svelte/icons/settings";
 	import { m } from "$lib/paraglide/messages";
-	import { getLocale, setLocale, locales } from "$lib/paraglide/runtime";
 	import Logo from "$lib/components/ui/Logo.svelte";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import AccountMenu from "$lib/components/ui/AccountMenu.svelte";
@@ -22,6 +21,7 @@
 	import { metaLine } from "$lib/app/format";
 	import type { UserPreferences } from "$lib/types/catalog";
 	import type { SessionUser } from "$lib/types/session";
+	import LocaleSwitcher from "$lib/components/ui/LocaleSwitcher.svelte";
 
 	let { user, children }: { user: SessionUser; children: Snippet } = $props();
 
@@ -160,7 +160,7 @@
 		{m.skip_to_content()}
 	</a>
 
-	<header class="sticky top-0 z-40 border-b border-sand-200 bg-white/90 backdrop-blur">
+	<header class="sticky top-0 z-40 border-b border-sand-200 bg-white">
 		<div class="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
 			<a href={resolve("/app")} class="rounded-full focus-ring" aria-label={m.brand_name()}>
 				<Logo />
@@ -168,21 +168,26 @@
 
 			<nav class="hidden items-center gap-1 md:flex" aria-label={m.app_nav_label()}>
 				{#each tabs as tab (tab.href)}
+					{@const active = tabActive(tab.href, tab.exact)}
 					<a
 						href={resolve(tab.href)}
-						class="rounded-full px-3 py-1.5 text-sm font-semibold focus-ring {tabActive(
-							tab.href,
-							tab.exact,
-						)
-							? 'bg-coral-600 text-white'
+						aria-current={active ? "page" : undefined}
+						class="rounded-full px-3 py-1.5 text-sm font-medium focus-ring {active
+							? 'bg-coral-50 text-coral-800'
 							: 'text-sand-800 hover:bg-peach-100'}"
 					>
 						{tab.label()}
 						{#if tab.href === "/app/likes" && likeCount > 0}
-							<span class="ml-1 text-xs">({likeCount})</span>
+							<span
+								class="ml-1.5 inline-block min-w-5 rounded-full bg-coral-600 px-1.5 text-center text-xs leading-5 font-semibold text-white"
+								>{likeCount}</span
+							>
 						{/if}
 						{#if tab.href === "/app/messages" && unreadMessages > 0}
-							<span class="ml-1 text-xs">({unreadMessages})</span>
+							<span
+								class="ml-1.5 inline-block min-w-5 rounded-full bg-coral-600 px-1.5 text-center text-xs leading-5 font-semibold text-white"
+								>{unreadMessages}</span
+							>
 						{/if}
 					</a>
 				{/each}
@@ -221,25 +226,7 @@
 				>
 					<Search class="size-5" aria-hidden="true" />
 				</a>
-				<div
-					class="hidden items-center rounded-full border border-sand-200 p-0.5 sm:flex"
-					role="group"
-					aria-label={m.header_locale_label()}
-				>
-					{#each locales as locale (locale)}
-						<button
-							type="button"
-							onclick={() => setLocale(locale)}
-							aria-pressed={getLocale() === locale}
-							class="min-h-11 min-w-11 cursor-pointer rounded-full px-2 text-xs font-bold uppercase focus-ring {getLocale() ===
-							locale
-								? 'bg-coral-600 text-white'
-								: 'text-sand-600 hover:text-coral-700'}"
-						>
-							{locale}
-						</button>
-					{/each}
-				</div>
+				<div class="hidden sm:block"><LocaleSwitcher /></div>
 				<AccountMenu {user} />
 			</div>
 		</div>
@@ -253,19 +240,18 @@
 	</main>
 
 	<nav
-		class="fixed inset-x-0 bottom-0 z-40 border-t border-sand-200 bg-white/95 backdrop-blur md:hidden"
+		class="fixed inset-x-0 bottom-0 z-40 border-t border-sand-200 bg-white md:hidden"
 		aria-label={m.app_nav_label()}
 	>
 		<div class="mx-auto grid max-w-6xl grid-cols-5">
 			{#each tabs as tab (tab.href)}
+				{@const active = tabActive(tab.href, tab.exact)}
 				<a
 					href={resolve(tab.href)}
 					aria-label={tab.label()}
-					class="flex min-h-14 items-center justify-center focus-ring {tabActive(
-						tab.href,
-						tab.exact,
-					)
-						? 'text-coral-700'
+					aria-current={active ? "page" : undefined}
+					class="flex min-h-14 items-center justify-center focus-ring {active
+						? 'bg-coral-50 text-coral-800'
 						: 'text-sand-600'}"
 				>
 					{#if tab.icon}
@@ -273,24 +259,19 @@
 							<tab.icon class="size-7" aria-hidden="true" />
 							{#if tab.href === "/app/likes" && likeCount > 0}
 								<span
-									class="absolute -top-1 -right-2 rounded-full bg-coral-600 px-1 text-[9px] font-bold text-white"
+									class="absolute -top-2 -right-3 min-w-4 rounded-full bg-coral-600 px-1 text-center text-xs leading-4 font-semibold text-white"
 									>{likeCount}</span
 								>
 							{/if}
 							{#if tab.href === "/app/messages" && unreadMessages > 0}
 								<span
-									class="absolute -top-1 -right-2 rounded-full bg-coral-600 px-1 text-[9px] font-bold text-white"
+									class="absolute -top-2 -right-3 min-w-4 rounded-full bg-coral-600 px-1 text-center text-xs leading-4 font-semibold text-white"
 									>{unreadMessages}</span
 								>
 							{/if}
 						</span>
 					{:else}
-						<Avatar
-							name={user.displayName ?? user.name}
-							hasAvatar={user.hasAvatar}
-							size="sm"
-							class="size-8 text-[10px]"
-						/>
+						<Avatar name={user.displayName ?? user.name} hasAvatar={user.hasAvatar} size="sm" />
 					{/if}
 				</a>
 			{/each}

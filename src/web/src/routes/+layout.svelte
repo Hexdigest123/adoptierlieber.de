@@ -2,6 +2,7 @@
 	import type { LayoutProps } from "./$types";
 	import "./layout.css";
 	import favicon from "$lib/assets/favicon.svg";
+	import outfitLatin from "@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2?url";
 	import Header from "$lib/components/landing/Header.svelte";
 	import Footer from "$lib/components/landing/Footer.svelte";
 	import SeoHead from "$lib/components/SeoHead.svelte";
@@ -30,7 +31,10 @@
 	);
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head>
+	<link rel="icon" href={favicon} />
+	<link rel="preload" as="font" type="font/woff2" crossorigin="anonymous" href={outfitLatin} />
+</svelte:head>
 <SeoHead />
 
 {#if ownChrome}

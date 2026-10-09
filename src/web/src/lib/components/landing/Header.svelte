@@ -4,10 +4,10 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
-	import { getLocale, setLocale, locales } from "$lib/paraglide/runtime";
 	import Logo from "$lib/components/ui/Logo.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import AccountMenu from "$lib/components/ui/AccountMenu.svelte";
+	import LocaleSwitcher from "$lib/components/ui/LocaleSwitcher.svelte";
 
 	let { user }: { user: App.Locals["user"] } = $props();
 
@@ -49,7 +49,7 @@
 </a>
 
 <header
-	class="z-40 border-b border-sand-200 bg-white/90 backdrop-blur transition-transform duration-300 ease-out {pinned
+	class="z-40 border-b border-sand-200 bg-white transition-transform duration-300 ease-out {pinned
 		? isHome
 			? 'fixed inset-x-0 top-0'
 			: 'sticky top-0'
@@ -74,7 +74,7 @@
 				{#each navItems as item (item.href)}
 					<a
 						href={item.href}
-						class="rounded-full px-3 py-2 text-sm font-semibold text-sand-800 focus-ring hover:bg-peach-100 hover:text-coral-700"
+						class="rounded-full px-3 py-2 text-sm font-medium text-sand-800 focus-ring hover:bg-peach-100 hover:text-coral-700"
 					>
 						{item.label()}
 					</a>
@@ -83,25 +83,7 @@
 		{/if}
 
 		<div class="relative z-10 hidden items-center gap-2 md:flex">
-			<div
-				class="mr-1 flex items-center rounded-full border border-sand-200 p-0.5"
-				role="group"
-				aria-label={m.header_locale_label()}
-			>
-				{#each locales as locale (locale)}
-					<button
-						type="button"
-						onclick={() => setLocale(locale)}
-						aria-pressed={getLocale() === locale}
-						class="min-h-11 min-w-11 cursor-pointer rounded-full px-2.5 text-xs font-bold uppercase focus-ring {getLocale() ===
-						locale
-							? 'bg-coral-600 text-white'
-							: 'text-sand-600 hover:text-coral-700'}"
-					>
-						{locale}
-					</button>
-				{/each}
-			</div>
+			<LocaleSwitcher class="mr-1" />
 
 			{#if user}
 				<AccountMenu {user} />
@@ -143,7 +125,7 @@
 						<a
 							href={item.href}
 							onclick={closeMenu}
-							class="rounded-xl px-4 py-3 text-base font-semibold text-sand-800 focus-ring hover:bg-peach-100"
+							class="rounded-xl px-4 py-3 text-base font-medium text-sand-800 focus-ring hover:bg-peach-100"
 						>
 							{item.label()}
 						</a>
@@ -154,7 +136,7 @@
 					<a
 						href={resolve("/login")}
 						onclick={closeMenu}
-						class="rounded-xl px-4 py-3 text-base font-semibold text-sand-800 focus-ring hover:bg-peach-100"
+						class="rounded-xl px-4 py-3 text-base font-medium text-sand-800 focus-ring hover:bg-peach-100"
 					>
 						{m.header_login()}
 					</a>
@@ -166,25 +148,7 @@
 						{m.header_register()}
 					</a>
 				{/if}
-				<div
-					class="mt-2 flex items-center gap-2 px-4"
-					role="group"
-					aria-label={m.header_locale_label()}
-				>
-					{#each locales as locale (locale)}
-						<button
-							type="button"
-							onclick={() => setLocale(locale)}
-							aria-pressed={getLocale() === locale}
-							class="min-h-11 cursor-pointer rounded-full px-4 py-2 text-sm font-bold uppercase focus-ring {getLocale() ===
-							locale
-								? 'bg-coral-600 text-white'
-								: 'text-sand-600 hover:text-coral-700'}"
-						>
-							{locale}
-						</button>
-					{/each}
-				</div>
+				<LocaleSwitcher variant="inline" class="mt-2 px-4" />
 			</div>
 		</nav>
 	{/if}

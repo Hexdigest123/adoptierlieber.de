@@ -246,7 +246,7 @@
 {:else}
 	<AuthCard title={m.auth_register_title()} subtitle={m.auth_register_subtitle()} wide>
 		{#if wizard}
-			<p class="mb-4 text-sm font-semibold text-sand-600">
+			<p class="mb-4 text-sm font-medium text-sand-600">
 				{m.wizard_step({ current: step + 1, total })}
 			</p>
 			<ol class="mb-6 flex gap-2" aria-hidden="true">
@@ -321,7 +321,7 @@
 			</fieldset>
 
 			<div class="wizard-step flex flex-col gap-5" class:hidden={!show("account")}>
-				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+				<h2 class="text-base font-bold text-sand-950">
 					{m.auth_register_account_section()}
 				</h2>
 				<Input
@@ -368,7 +368,7 @@
 			</div>
 
 			<div class="wizard-step flex flex-col gap-5" class:hidden={!show("shelter")}>
-				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+				<h2 class="text-base font-bold text-sand-950">
 					{m.auth_register_shelter_section()}
 				</h2>
 				<Input
@@ -449,7 +449,7 @@
 				class="wizard-step flex flex-col gap-5"
 				class:hidden={accountType !== "adopter" || !show("address")}
 			>
-				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+				<h2 class="text-base font-bold text-sand-950">
 					{m.auth_register_address_section()}
 				</h2>
 				<p class="text-sm text-sand-700">{m.auth_register_address_hint()}</p>
@@ -497,7 +497,7 @@
 			</div>
 
 			<div class="wizard-step flex flex-col items-center gap-4" class:hidden={!show("picture")}>
-				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+				<h2 class="text-base font-bold text-sand-950">
 					{m.wizard_picture_title()}
 				</h2>
 				<p class="text-center text-sm text-sand-700">{m.wizard_picture_subtitle()}</p>
@@ -524,13 +524,13 @@
 			</div>
 
 			<div class="wizard-step flex flex-col gap-4" class:hidden={!show("review")}>
-				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+				<h2 class="text-base font-bold text-sand-950">
 					{m.wizard_review_title()}
 				</h2>
 				<p class="text-sm text-sand-700">{m.wizard_review_subtitle()}</p>
 				<dl class="divide-y divide-sand-200 rounded-xl border border-sand-200 bg-sand-50">
 					<div class="px-4 py-3">
-						<dt class="text-xs font-bold tracking-wide text-sand-600 uppercase">
+						<dt class="text-sm text-sand-600">
 							{m.wizard_review_account()}
 						</dt>
 						<dd class="mt-1 text-sm text-sand-900">
@@ -540,7 +540,7 @@
 						</dd>
 					</div>
 					<div class="px-4 py-3">
-						<dt class="text-xs font-bold tracking-wide text-sand-600 uppercase">
+						<dt class="text-sm text-sand-600">
 							{accountType === "shelter"
 								? m.auth_register_shelter_section()
 								: m.auth_register_address_section()}
@@ -554,7 +554,7 @@
 						</dd>
 					</div>
 					<div class="px-4 py-3">
-						<dt class="text-xs font-bold tracking-wide text-sand-600 uppercase">
+						<dt class="text-sm text-sand-600">
 							{m.wizard_picture_title()}
 						</dt>
 						<dd class="mt-1 text-sm text-sand-900">

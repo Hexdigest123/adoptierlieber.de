@@ -16,7 +16,7 @@
 <div class="mb-5">
 	<a
 		href="{resolve('/admin/catalog')}?type=animals"
-		class="text-sm font-semibold text-coral-700 focus-ring hover:text-coral-800"
+		class="text-sm font-medium text-coral-700 focus-ring hover:text-coral-800"
 	>
 		{m.admin_catalog_animals()}
 	</a>
@@ -57,7 +57,7 @@
 		{#if animal.traits.length > 0}
 			<ul class="mt-3 flex flex-wrap gap-2">
 				{#each animal.traits as trait (trait)}
-					<li class="rounded-xl bg-peach-100 px-3 py-1.5 text-xs font-semibold text-coral-900">
+					<li class="rounded-xl bg-peach-100 px-3 py-1.5 text-xs font-medium text-coral-900">
 						{trait}
 					</li>
 				{/each}
@@ -68,11 +68,11 @@
 		{/if}
 		<dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
 			<div>
-				<dt class="font-semibold text-sand-700">{m.admin_animal_shelter()}</dt>
+				<dt class="font-medium text-sand-700">{m.admin_animal_shelter()}</dt>
 				<dd>
 					<a
 						href={resolve("/admin/catalog/shelters/[id]", { id: animal.shelter_id })}
-						class="font-semibold text-coral-700 underline underline-offset-2"
+						class="font-medium text-coral-700 underline underline-offset-2"
 					>
 						{animal.shelter_name}
 					</a>
@@ -80,7 +80,7 @@
 				</dd>
 			</div>
 			<div>
-				<dt class="font-semibold text-sand-700">{m.admin_user_created()}</dt>
+				<dt class="font-medium text-sand-700">{m.admin_user_created()}</dt>
 				<dd class="tabular-nums">{formatDate(animal.created_at)}</dd>
 			</div>
 		</dl>

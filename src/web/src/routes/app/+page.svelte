@@ -2,6 +2,7 @@
 	import { invalidateAll, goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { untrack } from "svelte";
+	import { SvelteURLSearchParams } from "svelte/reactivity";
 	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
 	import AppSwipeDeck from "$lib/components/app/AppSwipeDeck.svelte";
@@ -15,6 +16,7 @@
 	let pageNo = $state(1);
 	let total = $state(0);
 	let inRange = $state(0);
+	let outsideRange = $state(0);
 	let loading = $state(true);
 	let error = $state(false);
 	let exhausted = $state(false);
@@ -31,7 +33,8 @@
 		if (animals.length > 0) return null;
 		if (error) return "error" as const;
 		if (loading) return null;
-		if (total === 0 && selectedSpecies().length > 0) return "filters" as const;
+		if (total === 0 && (selectedSpecies().length > 0 || outsideRange > 0))
+			return "filters" as const;
 		if (total === 0 && inRange === 0) return "catalog" as const;
 		return "caught_up" as const;
 	});
@@ -45,7 +48,7 @@
 		if (exhausted && !reset) return;
 		loading = true;
 		error = false;
-		const params = new URLSearchParams({
+		const params = new SvelteURLSearchParams({
 			mode: "deck",
 			page: String(pageNo),
 			per_page: "15",
@@ -63,6 +66,7 @@
 			const items = listItems(body);
 			total = body.total;
 			inRange = body.in_range ?? body.total;
+			outsideRange = body.outside_range ?? 0;
 			const seen = new Set(animals.map((row) => row.id));
 			const next = items.filter((row) => !seen.has(row.id));
 			animals = reset ? items : [...animals, ...next];

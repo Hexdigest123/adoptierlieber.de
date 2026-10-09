@@ -9,6 +9,7 @@ html {
 
 @theme {
 	--font-sans: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
 	/* Coral ramp (brand). AA on white: text >= 600, large text/UI >= 500. */
 	--color-coral-50: #fef3f0;
@@ -58,22 +59,10 @@ html {
 }
 
 @theme inline {
-	--animate-float: float 7s ease-in-out infinite;
-	--animate-float-slow: float 10s ease-in-out infinite;
 	--animate-hero-in: hero-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
 	--animate-hero-in-delayed: hero-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
 	--animate-hero-in-late: hero-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
 	--animate-hero-hint: hero-hint 2s ease-in-out 0.9s infinite;
-
-	@keyframes float {
-		0%,
-		100% {
-			transform: translateY(0) rotate(var(--float-rotate, 0deg));
-		}
-		50% {
-			transform: translateY(-14px) rotate(var(--float-rotate, 0deg));
-		}
-	}
 
 	@keyframes hero-in {
 		from {

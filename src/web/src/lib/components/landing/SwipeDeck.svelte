@@ -172,11 +172,11 @@
 						<p class="text-3xl font-bold text-sand-950">
 							{animal.name}<span class="text-xl font-medium text-sand-600">, {animal.age}</span>
 						</p>
-						<p class="text-base font-semibold text-coral-700">
+						<p class="text-base font-medium text-coral-700">
 							{metaLine(animal.species, animal.location)}
 						</p>
 						{#if animal.bonded}
-							<p class="text-sm font-semibold text-sand-800">
+							<p class="text-sm font-medium text-sand-800">
 								{m.showcase_card_bonded({ name: animal.bonded })}
 							</p>
 						{/if}
@@ -236,7 +236,7 @@
 	<div class="flex items-center gap-6">
 		<button
 			type="button"
-			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-coral-600 bg-white text-coral-700 shadow-sm focus-ring transition-colors hover:bg-coral-50 disabled:cursor-not-allowed disabled:opacity-40"
+			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-coral-600 bg-white text-coral-700 focus-ring transition-colors hover:bg-coral-50 disabled:cursor-not-allowed disabled:opacity-40"
 			aria-label={m.showcase_next_action()}
 			disabled={!current || !!fling}
 			onclick={() => completeSwipe("left")}
@@ -245,7 +245,7 @@
 		</button>
 		<button
 			type="button"
-			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-emerald-700 bg-white text-emerald-700 shadow-sm focus-ring transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
+			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-emerald-700 bg-white text-emerald-700 focus-ring transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
 			aria-label={m.showcase_look_action()}
 			disabled={!current || !!fling}
 			onclick={openProfile}

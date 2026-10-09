@@ -220,7 +220,7 @@
 			aria-labelledby="loc-title"
 			use:dialog={dismiss}
 		>
-			<h2 id="loc-title" class="text-xl font-black text-sand-950">{m.app_location_title()}</h2>
+			<h2 id="loc-title" class="text-xl font-bold text-sand-950">{m.app_location_title()}</h2>
 			<p class="mt-2 text-sm text-sand-700">{m.app_location_text()}</p>
 
 			<form

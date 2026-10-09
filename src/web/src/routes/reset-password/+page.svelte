@@ -2,6 +2,7 @@
 	import { onMount } from "svelte";
 	import type { PageProps } from "./$types";
 	import { enhance } from "$app/forms";
+	import { clearPasswordsOnFailure } from "$lib/enhance";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import { takeLinkToken } from "$lib/link-token";
@@ -29,9 +30,29 @@
 		<noscript>
 			<FormStatus type="error" class="mb-5">{m.link_token_noscript_code()}</FormStatus>
 		</noscript>
-		<form method="POST" class="flex flex-col gap-5" use:enhance>
+		<form method="POST" class="flex flex-col gap-5" use:enhance={clearPasswordsOnFailure}>
 			{#if form?.resetError}
-				<FormStatus type="error">{m.error_generic()}</FormStatus>
+				<FormStatus type="error">
+					{#if form.resetError === "password"}
+						{m.auth_password_error()}
+					{:else if form.resetError === "link"}
+						{m.auth_reset_error_link()}
+					{:else if form.resetError === "rate_limited"}
+						{m.error_rate_limited()}
+					{:else if form.resetError === "invalid"}
+						{m.error_invalid_input()}
+					{:else}
+						{m.error_generic()}
+					{/if}
+				</FormStatus>
+				{#if form.resetError === "link"}
+					<a
+						href={resolve("/forgot-password")}
+						class="-mt-2 text-sm font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
+					>
+						{m.auth_reset_new_link()}
+					</a>
+				{/if}
 			{/if}
 
 			<Input

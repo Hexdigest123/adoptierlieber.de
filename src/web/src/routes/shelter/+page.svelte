@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
 	import { m } from "$lib/paraglide/messages";
-	import Card from "$lib/components/ui/Card.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import { photoUrl } from "$lib/types/shelter";
 	import { formatDateTime } from "$lib/datetime";
@@ -58,14 +57,17 @@
 	</div>
 </div>
 
-<ul class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+<ul
+	class="mt-6 divide-y divide-sand-200 overflow-hidden rounded-2xl border border-sand-200 bg-white"
+>
 	{#each tiles as tile (tile.label)}
 		<li>
-			<a href={tile.href} class="block">
-				<Card focusable class="h-full">
-					<p class="text-xs font-semibold tracking-wide text-sand-500 uppercase">{tile.label}</p>
-					<p class="mt-2 text-3xl font-black text-sand-950">{tile.value}</p>
-				</Card>
+			<a
+				href={tile.href}
+				class="flex items-center justify-between gap-3 px-4 py-3 focus-ring hover:bg-peach-50 focus-visible:-outline-offset-2"
+			>
+				<span class="text-sm text-sand-700">{tile.label}</span>
+				<span class="text-lg font-bold text-sand-950 tabular-nums">{tile.value}</span>
 			</a>
 		</li>
 	{/each}
@@ -88,7 +90,7 @@
 <section class="mt-8">
 	<div class="flex items-center justify-between">
 		<h2 class="text-lg font-bold text-sand-950">{m.shelter_recent_title()}</h2>
-		<a href="/shelter/messages" class="text-sm font-semibold text-coral-700"
+		<a href="/shelter/messages" class="text-sm font-medium text-coral-700"
 			>{m.shelter_recent_all()}</a
 		>
 	</div>

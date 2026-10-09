@@ -151,7 +151,7 @@
 	{#if showBack}
 		<a
 			href={backHref}
-			class="mb-3 inline-flex w-fit items-center gap-1 text-sm font-semibold text-sand-700 focus-ring hover:text-coral-700"
+			class="mb-3 inline-flex w-fit items-center gap-1 text-sm font-medium text-sand-700 focus-ring hover:text-coral-700"
 		>
 			<ArrowLeft class="size-4" aria-hidden="true" />
 			{m.app_detail_back()}
@@ -160,7 +160,7 @@
 
 	{#if animal.status === "found_home"}
 		<p
-			class="mb-3 rounded-2xl border border-sand-300 bg-sand-100 px-4 py-3 text-sm font-semibold text-sand-800"
+			class="mb-3 rounded-2xl border border-sand-300 bg-sand-100 px-4 py-3 text-sm font-medium text-sand-800"
 		>
 			{m.app_detail_unavailable()}
 		</p>
@@ -228,14 +228,14 @@
 						{ageLabel(animal.age_months, animal.age_unknown)}</span
 					>
 				</h1>
-				<p class="text-base font-semibold text-coral-700">
+				<p class="text-base font-medium text-coral-700">
 					{metaLine(speciesLabel(animal.species), sexLabel(animal.sex), animal.breed)}
 				</p>
 				<p class="text-sm text-sand-700">
 					{placeLabel(animal.distance_km, animal.shelter.city)}
 				</p>
 				{#if animal.bonded_partners?.length}
-					<p class="text-sm font-semibold text-sand-800">
+					<p class="text-sm font-medium text-sand-800">
 						{m.app_detail_bonded_lead()}
 						{#each animal.bonded_partners as partner, index (partner.id)}
 							{index > 0 ? ", " : " "}
@@ -250,7 +250,7 @@
 						{/each}
 					</p>
 				{:else if animal.bonded_partner}
-					<p class="text-sm font-semibold text-sand-800">
+					<p class="text-sm font-medium text-sand-800">
 						{m.app_detail_bonded({ name: animal.bonded_partner })}
 					</p>
 				{/if}
@@ -260,7 +260,7 @@
 				<div class="mt-5 flex flex-col gap-4">
 					{#if looks.length}
 						<div>
-							<p class="text-xs font-bold tracking-wide text-sand-500 uppercase">
+							<p class="text-sm font-medium text-sand-600">
 								{m.app_detail_looks()}
 							</p>
 							<ul class="mt-2 flex flex-wrap gap-2">
@@ -276,7 +276,7 @@
 					{/if}
 					{#if traits.length}
 						<div>
-							<p class="text-xs font-bold tracking-wide text-sand-500 uppercase">
+							<p class="text-sm font-medium text-sand-600">
 								{m.app_detail_traits()}
 							</p>
 							<ul class="mt-2 flex flex-wrap gap-2">
@@ -304,22 +304,22 @@
 
 			<section class="mt-6">
 				<h2 class="text-sm font-bold text-sand-900">{m.app_detail_practical()}</h2>
-				<dl class="mt-2 grid grid-cols-2 gap-2 text-sm">
-					<div class="rounded-xl bg-white px-3 py-2">
+				<dl class="mt-2 grid grid-cols-2 gap-x-6 text-sm">
+					<div class="border-t border-sand-200 py-2">
 						<dt class="text-sand-600">{m.app_detail_vaccinated()}</dt>
-						<dd class="font-semibold text-sand-950">{practicalLabel(animal.vaccinated)}</dd>
+						<dd class="font-medium text-sand-950">{practicalLabel(animal.vaccinated)}</dd>
 					</div>
-					<div class="rounded-xl bg-white px-3 py-2">
+					<div class="border-t border-sand-200 py-2">
 						<dt class="text-sand-600">{neuteredLabel(animal.sex)}</dt>
-						<dd class="font-semibold text-sand-950">{practicalLabel(animal.neutered)}</dd>
+						<dd class="font-medium text-sand-950">{practicalLabel(animal.neutered)}</dd>
 					</div>
-					<div class="rounded-xl bg-white px-3 py-2">
+					<div class="border-t border-sand-200 py-2">
 						<dt class="text-sand-600">{m.app_detail_chipped()}</dt>
-						<dd class="font-semibold text-sand-950">{practicalLabel(animal.chipped)}</dd>
+						<dd class="font-medium text-sand-950">{practicalLabel(animal.chipped)}</dd>
 					</div>
-					<div class="rounded-xl bg-white px-3 py-2">
+					<div class="border-t border-sand-200 py-2">
 						<dt class="text-sand-600">{m.app_detail_house_trained()}</dt>
-						<dd class="font-semibold text-sand-950">{practicalLabel(animal.house_trained)}</dd>
+						<dd class="font-medium text-sand-950">{practicalLabel(animal.house_trained)}</dd>
 					</div>
 				</dl>
 			</section>
@@ -356,7 +356,7 @@
 		<footer
 			class={compact || preview
 				? "mt-6"
-				: "fixed inset-x-0 bottom-14 z-30 border-t border-sand-200 bg-white/95 px-4 py-3 backdrop-blur md:bottom-0"}
+				: "fixed inset-x-0 bottom-14 z-30 border-t border-sand-200 bg-white px-4 py-3 md:bottom-0"}
 		>
 			<div class="mx-auto flex max-w-2xl gap-2">
 				<!-- Content-sized and compact on phones so both labels stay on one line. -->

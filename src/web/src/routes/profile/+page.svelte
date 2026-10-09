@@ -2,6 +2,7 @@
 	import type { PageProps } from "./$types";
 	import { applyAction, enhance } from "$app/forms";
 	import { invalidateAll } from "$app/navigation";
+	import { clearPasswordsOnFailure } from "$lib/enhance";
 	import { m } from "$lib/paraglide/messages";
 	import AuthCard from "$lib/components/auth/AuthCard.svelte";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
@@ -272,11 +273,7 @@
 				method="POST"
 				action="?/password"
 				class="flex flex-col gap-5"
-				use:enhance={() => {
-					return async ({ update }) => {
-						await update();
-					};
-				}}
+				use:enhance={clearPasswordsOnFailure}
 			>
 				{#if form?.passwordSuccess}
 					<FormStatus type="success">{m.profile_password_saved()}</FormStatus>

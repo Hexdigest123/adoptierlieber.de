@@ -19,7 +19,7 @@
 		>
 			<PawPrint class="size-8" />
 		</span>
-		<p class="mt-6 text-sm font-bold tracking-wide text-coral-700 uppercase">
+		<p class="mt-6 text-sm font-medium text-sand-600">
 			{m.error_page_code({ status: String(page.status) })}
 		</p>
 		<h1 id="error-title" class="mt-2 text-3xl font-black tracking-tight text-sand-950">

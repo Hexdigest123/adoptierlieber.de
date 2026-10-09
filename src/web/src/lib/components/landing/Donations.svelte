@@ -53,7 +53,7 @@
 	{#snippet heartIcon()}<Heart class="size-4" aria-hidden="true" />{/snippet}
 	<div class="mx-auto max-w-6xl">
 		<div class="mx-auto max-w-2xl text-center">
-			<h2 id="donations-title" class="text-3xl font-black tracking-tight text-sand-950 sm:text-4xl">
+			<h2 id="donations-title" class="text-3xl font-bold tracking-tight text-sand-950 sm:text-4xl">
 				{m.donations_title()}
 			</h2>
 			<p class="mt-4 text-lg text-sand-700">{m.donations_subtitle()}</p>
@@ -78,7 +78,7 @@
 					{#if hasMany}
 						<button
 							type="button"
-							class="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-sand-900 shadow-sm ring-1 ring-sand-200 focus-ring hover:bg-peach-50"
+							class="flex size-10 shrink-0 items-center justify-center rounded-full border border-sand-200 bg-white text-sand-900 focus-ring hover:bg-peach-50"
 							aria-label={m.donations_carousel_prev()}
 							onclick={() => goTo(index - 1)}
 						>
@@ -110,17 +110,17 @@
 											/>
 										{:else}
 											<span
-												class="flex size-20 items-center justify-center rounded-2xl border border-sand-200 bg-white text-2xl font-black text-coral-700"
+												class="flex size-20 items-center justify-center rounded-2xl border border-sand-200 bg-white text-2xl font-bold text-coral-700"
 												aria-hidden="true"
 											>
 												{initial(shelter)}
 											</span>
 										{/if}
 										<div class="min-w-0">
-											<h3 class="text-xl font-black tracking-tight text-sand-950">
+											<h3 class="text-xl font-bold tracking-tight text-sand-950">
 												{shelter.org_name}
 											</h3>
-											<p class="mt-1 text-sm font-semibold text-coral-700">{shelter.city}</p>
+											<p class="mt-1 text-sm font-medium text-coral-700">{shelter.city}</p>
 										</div>
 										{#if shelter.donation_description}
 											<p
@@ -147,7 +147,7 @@
 					{#if hasMany}
 						<button
 							type="button"
-							class="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-sand-900 shadow-sm ring-1 ring-sand-200 focus-ring hover:bg-peach-50"
+							class="flex size-10 shrink-0 items-center justify-center rounded-full border border-sand-200 bg-white text-sand-900 focus-ring hover:bg-peach-50"
 							aria-label={m.donations_carousel_next()}
 							onclick={() => goTo(index + 1)}
 						>

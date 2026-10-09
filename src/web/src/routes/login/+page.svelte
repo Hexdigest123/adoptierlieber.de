@@ -2,6 +2,7 @@
 	import type { PageProps } from "./$types";
 	import { resolve } from "$app/paths";
 	import { enhance } from "$app/forms";
+	import { clearPasswordsOnFailure } from "$lib/enhance";
 	import { startAuthentication } from "@simplewebauthn/browser";
 	import { m } from "$lib/paraglide/messages";
 	import AuthCard from "$lib/components/auth/AuthCard.svelte";
@@ -77,7 +78,12 @@
 			<Button type="submit" fullWidth>{m.auth_totp_submit()}</Button>
 		</form>
 	{:else}
-		<form method="POST" action="?/password" class="flex flex-col gap-5" use:enhance>
+		<form
+			method="POST"
+			action="?/password"
+			class="flex flex-col gap-5"
+			use:enhance={clearPasswordsOnFailure}
+		>
 			{#if next}
 				<input type="hidden" name="next" value={next} />
 			{/if}

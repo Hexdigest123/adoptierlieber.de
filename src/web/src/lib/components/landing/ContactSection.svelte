@@ -40,7 +40,7 @@
 >
 	<div class="mx-auto max-w-2xl">
 		<div class="text-center">
-			<h2 id="contact-title" class="text-3xl font-black tracking-tight text-sand-950 sm:text-4xl">
+			<h2 id="contact-title" class="text-3xl font-bold tracking-tight text-sand-950 sm:text-4xl">
 				{m.contact_title()}
 			</h2>
 			<p class="mt-4 text-lg text-sand-700">{m.contact_subtitle()}</p>

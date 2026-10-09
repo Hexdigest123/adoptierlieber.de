@@ -46,7 +46,7 @@
 				<p class="truncate font-semibold text-sand-950">{member.display_name || member.name}</p>
 				<p class="truncate text-xs text-sand-600">{member.email}</p>
 			</div>
-			<span class="text-xs font-semibold text-sand-600">
+			<span class="text-xs font-medium text-sand-600">
 				{member.role === 1 ? m.shelter_role_owner() : m.shelter_role_staff()}
 			</span>
 			{#if data.isOwner && !data.readonly && member.user_id !== data.selfId}
@@ -80,7 +80,7 @@
 				class="flex items-center gap-3 rounded-xl border border-dashed border-sand-300 bg-white px-3 py-2 text-sm text-sand-700"
 			>
 				<span class="min-w-0 flex-1 truncate">{invite.email}</span>
-				<span class="text-xs font-semibold text-sand-600">
+				<span class="text-xs font-medium text-sand-600">
 					{invite.role === 1 ? m.shelter_role_owner() : m.shelter_role_staff()} ·
 					{inviteExpired(invite.expires_at)
 						? m.shelter_team_invite_status_expired()

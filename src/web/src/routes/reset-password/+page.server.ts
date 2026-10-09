@@ -16,15 +16,16 @@ export const actions: Actions = {
 		const resetToken = String(data.get("resetToken") ?? "").trim();
 		const newPassword = String(data.get("newPassword") ?? "");
 
+		if (!email || !resetToken) {
+			return fail(400, { resetError: "invalid" as const, email });
+		}
 		if (
-			!email ||
-			!resetToken ||
 			newPassword.length < 8 ||
 			newPassword.length > 128 ||
 			!/[A-Za-z]/.test(newPassword) ||
 			!/\d/.test(newPassword)
 		) {
-			return fail(400, { resetError: true, email });
+			return fail(400, { resetError: "password" as const, email });
 		}
 
 		const response = await fetch("/api/users/reset", {
@@ -34,7 +35,14 @@ export const actions: Actions = {
 		});
 
 		if (!response.ok) {
-			return fail(response.status === 429 ? 429 : 400, { resetError: true, email });
+			if (response.status === 429) return fail(429, { resetError: "rate_limited" as const, email });
+			if (response.status >= 500) return fail(400, { resetError: "generic" as const, email });
+			const body = (await response.json().catch(() => null)) as { error?: string } | null;
+			const error = body?.error;
+			return fail(400, {
+				resetError: error === "invalid reset token" ? ("link" as const) : ("invalid" as const),
+				email,
+			});
 		}
 
 		return { resetSuccess: true };

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
+	import TabNav from "$lib/components/ui/TabNav.svelte";
 
 	const path = $derived(page.url.pathname);
 
@@ -35,11 +36,11 @@
 	const current = $derived(tabs.find((tab) => active(tab.href, tab.match)) ?? tabs[0]);
 </script>
 
-<nav class="mt-6 flex justify-center" aria-label={m.shelter_settings_nav()}>
-	<label class="sr-only sm:hidden" for="shelter-settings-nav">{m.shelter_settings_nav()}</label>
+<div class="mt-6">
+	<label class="sr-only" for="shelter-settings-nav">{m.shelter_settings_nav()}</label>
 	<select
 		id="shelter-settings-nav"
-		class="h-11 w-full max-w-sm rounded-full border border-sand-200 bg-white px-4 text-sm font-semibold focus-ring sm:hidden"
+		class="h-11 w-full rounded-xl border border-sand-300 bg-white px-3.5 text-sm font-medium focus-ring sm:hidden"
 		value={current.href}
 		onchange={(event) => {
 			location.href = event.currentTarget.value;
@@ -49,19 +50,13 @@
 			<option value={tab.href}>{tab.label}</option>
 		{/each}
 	</select>
-	<div
-		class="hidden max-w-full justify-center gap-1 rounded-full border border-sand-200 bg-white p-1 shadow-sm sm:inline-flex"
-	>
-		{#each tabs as tab (tab.href)}
-			<a
-				href={tab.href}
-				class="rounded-full px-4 py-2 text-sm font-semibold focus-ring {active(tab.href, tab.match)
-					? 'bg-coral-600 text-white'
-					: 'text-sand-700 hover:bg-peach-100 hover:text-coral-700'}"
-				aria-current={active(tab.href, tab.match) ? "page" : undefined}
-			>
-				{tab.label}
-			</a>
-		{/each}
-	</div>
-</nav>
+	<TabNav
+		label={m.shelter_settings_nav()}
+		class="max-sm:hidden"
+		items={tabs.map((tab) => ({
+			href: tab.href,
+			label: tab.label,
+			active: active(tab.href, tab.match),
+		}))}
+	/>
+</div>

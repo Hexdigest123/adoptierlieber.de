@@ -71,7 +71,7 @@
 			<div class="shelter-map-popup-body">
 				<p class="shelter-map-popup-title">${escapeHtml(shelter.org_name)}</p>
 				<p class="shelter-map-popup-meta">${escapeHtml(shelter.city)}</p>
-				<p class="shelter-map-popup-text">${escapeHtml(m.showcase_map_animal_count({ count: shelter.live_count }))}</p>
+				<p class="shelter-map-popup-text">${escapeHtml(shelter.live_count === 1 ? m.showcase_map_animal_count_one({ count: shelter.live_count }) : m.showcase_map_animal_count({ count: shelter.live_count }))}</p>
 				${websiteLink}
 				<a class="shelter-map-popup-cta" href="${escapeHtml(ctaHref)}">${escapeHtml(ctaLabel)}</a>
 			</div>
@@ -225,7 +225,7 @@
 	.shelter-map :global(.leaflet-control-attribution) {
 		background: rgb(255 255 255 / 0.86);
 		color: var(--color-sand-600);
-		font-size: 0.65rem;
+		font-size: 0.75rem;
 	}
 
 	.shelter-map :global(.leaflet-popup-content-wrapper) {
@@ -295,7 +295,7 @@
 		border-radius: 9999px;
 		background: var(--color-coral-600);
 		color: white;
-		font-size: 0.65rem;
+		font-size: 0.75rem;
 		font-weight: 700;
 		line-height: 1.25rem;
 		text-align: center;

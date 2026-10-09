@@ -59,23 +59,26 @@
 
 <h1 class="mb-5 text-2xl font-black tracking-tight text-sand-950">{m.admin_home_title()}</h1>
 
-<div class="grid grid-cols-2 gap-3 md:grid-cols-3">
+<ul class="divide-y divide-sand-200 overflow-hidden rounded-2xl border border-sand-200 bg-white">
 	{#each stats as stat (stat.href)}
-		<a href={stat.href} class="block rounded-2xl focus-ring">
-			<Card class="h-full" padding="sm">
-				<p class="text-xs font-semibold tracking-wide text-sand-600 uppercase">{stat.label}</p>
-				<p class="mt-1 text-3xl font-black text-sand-950 tabular-nums">{stat.value}</p>
-			</Card>
-		</a>
+		<li>
+			<a
+				href={stat.href}
+				class="flex items-center justify-between gap-3 px-4 py-3 focus-ring hover:bg-peach-50 focus-visible:-outline-offset-2"
+			>
+				<span class="text-sm text-sand-700">{stat.label}</span>
+				<span class="text-lg font-bold text-sand-950 tabular-nums">{stat.value}</span>
+			</a>
+		</li>
 	{/each}
-</div>
+</ul>
 
 <section class="mt-8" aria-labelledby="admin-queue">
 	<div class="mb-3 flex items-center justify-between">
 		<h2 id="admin-queue" class="text-lg font-bold text-sand-950">{m.admin_home_queue()}</h2>
 		<a
 			href={resolve("/admin/applications")}
-			class="text-sm font-semibold text-coral-700 focus-ring hover:text-coral-800"
+			class="text-sm font-medium text-coral-700 focus-ring hover:text-coral-800"
 		>
 			{m.admin_nav_applications()}
 		</a>
@@ -112,7 +115,7 @@
 		<h2 id="admin-recent" class="text-lg font-bold text-sand-950">{m.admin_home_recent()}</h2>
 		<a
 			href={resolve("/admin/audit")}
-			class="text-sm font-semibold text-coral-700 focus-ring hover:text-coral-800"
+			class="text-sm font-medium text-coral-700 focus-ring hover:text-coral-800"
 		>
 			{m.admin_nav_audit()}
 		</a>

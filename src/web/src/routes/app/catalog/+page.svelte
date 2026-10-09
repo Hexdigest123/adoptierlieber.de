@@ -1,27 +1,31 @@
 <script lang="ts">
 	import { invalidateAll } from "$app/navigation";
 	import { untrack } from "svelte";
+	import { SvelteURLSearchParams } from "svelte/reactivity";
 	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
+	import Select from "$lib/components/ui/Select.svelte";
 	import Spinner from "$lib/components/ui/Spinner.svelte";
 	import AnimalCard from "$lib/components/app/AnimalCard.svelte";
-	import ChoiceChips from "$lib/components/app/ChoiceChips.svelte";
 	import { selectedSpecies, setSelectedSpecies, speciesQuery } from "$lib/app/filters.svelte";
 	import { sexOptions, sizeOptions } from "$lib/app/format";
-	import type { AnimalSex, AnimalSize, ListEnvelope, PublicAnimal } from "$lib/types/catalog";
+	import type { ListEnvelope, PublicAnimal } from "$lib/types/catalog";
 	import { listItems } from "$lib/types/catalog";
 	import { RANGE_STOPS } from "$lib/types/catalog";
 
 	let q = $state("");
-	let sex = $state<AnimalSex>(null);
-	let size = $state<AnimalSize>(null);
-	let sort = $state<"best" | "distance" | "new">("best");
+	/** "" means no restriction. */
+	let sex = $state("");
+	let size = $state("");
+	/** One of best, distance, new. */
+	let sort = $state("best");
 	let animals = $state<PublicAnimal[]>([]);
 	let pageNo = $state(1);
 	let total = $state(0);
 	let inRange = $state(0);
+	let outsideRange = $state(0);
 	let loading = $state(true);
 	let error = $state(false);
 	let requestId = 0;
@@ -44,7 +48,7 @@
 		loading = true;
 		error = false;
 		const nextPage = reset ? 1 : pageNo;
-		const params = new URLSearchParams({
+		const params = new SvelteURLSearchParams({
 			mode: "search",
 			page: String(nextPage),
 			per_page: "24",
@@ -66,6 +70,7 @@
 			const items = listItems(body);
 			total = body.total;
 			inRange = body.in_range ?? body.total;
+			outsideRange = body.outside_range ?? 0;
 			if (reset) {
 				animals = items;
 				pageNo = 2;
@@ -122,10 +127,30 @@
 		await invalidateAll();
 	}
 
+	function selectOption(option: { id: string; label: string }) {
+		return { value: option.id, label: option.label };
+	}
+
+	function sexSelectOptions() {
+		return [{ value: "", label: m.app_search_all() }, ...sexOptions().map(selectOption)];
+	}
+
+	function sizeSelectOptions() {
+		return [{ value: "", label: m.app_search_all() }, ...sizeOptions().map(selectOption)];
+	}
+
+	function sortOptions() {
+		return [
+			{ value: "best", label: m.app_search_sort_best() },
+			{ value: "distance", label: m.app_search_sort_distance() },
+			{ value: "new", label: m.app_search_sort_new() },
+		];
+	}
+
 	function clearFilters() {
 		q = "";
-		sex = null;
-		size = null;
+		sex = "";
+		size = "";
 		setSelectedSpecies([]);
 	}
 </script>
@@ -134,7 +159,7 @@
 	<h1 class="text-2xl font-black tracking-tight text-sand-950">{m.app_catalog_title()}</h1>
 
 	<form
-		class="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_auto] xl:items-end"
+		class="grid gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))] xl:items-end"
 		onsubmit={(event) => {
 			event.preventDefault();
 			void load(true);
@@ -144,38 +169,26 @@
 			id="catalog-q"
 			label={m.app_search_query()}
 			bind:value={q}
-			class="md:col-span-2 xl:col-span-1"
+			class="sm:col-span-2 xl:col-span-1"
 		/>
-		<ChoiceChips
-			legend={m.app_search_sex()}
-			allLabel={m.app_search_all()}
-			options={sexOptions()}
+		<Select
+			id="catalog-sex"
+			label={m.app_search_sex()}
+			options={sexSelectOptions()}
 			bind:value={sex}
 		/>
-		<ChoiceChips
-			legend={m.app_search_size()}
-			allLabel={m.app_search_all()}
-			options={sizeOptions()}
+		<Select
+			id="catalog-size"
+			label={m.app_search_size()}
+			options={sizeSelectOptions()}
 			bind:value={size}
 		/>
-		<div
-			class="flex min-h-11 flex-wrap items-center gap-1 md:col-span-2 xl:col-span-3"
-			role="group"
-			aria-label={m.app_search_sort()}
-		>
-			{#each [{ id: "best" as const, label: m.app_search_sort_best() }, { id: "distance" as const, label: m.app_search_sort_distance() }, { id: "new" as const, label: m.app_search_sort_new() }] as option (option.id)}
-				<button
-					type="button"
-					aria-pressed={sort === option.id}
-					class="rounded-full px-3 py-1.5 text-sm font-semibold focus-ring {sort === option.id
-						? 'bg-coral-600 text-white'
-						: 'text-sand-700 hover:bg-peach-100'}"
-					onclick={() => (sort = option.id)}
-				>
-					{option.label}
-				</button>
-			{/each}
-		</div>
+		<Select
+			id="catalog-sort"
+			label={m.app_search_sort()}
+			options={sortOptions()}
+			bind:value={sort}
+		/>
 	</form>
 
 	{#if error}
@@ -192,7 +205,7 @@
 					>
 					<Button variant="ghost" size="sm" onclick={clearFilters}>{m.app_clear_species()}</Button>
 				</div>
-			{:else if total === 0 && inRange === 0}
+			{:else if total === 0 && inRange === 0 && outsideRange === 0}
 				<p class="text-xl font-bold text-sand-900">{m.app_empty_catalog_title()}</p>
 				<p class="mt-2 text-sm text-sand-700">{m.app_empty_catalog_text()}</p>
 			{:else}

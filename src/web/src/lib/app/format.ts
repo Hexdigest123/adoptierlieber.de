@@ -41,8 +41,15 @@ export function chipLabel(id: string): string {
 
 export function ageLabel(months: number | null, unknown: boolean): string {
 	if (unknown || months == null) return m.app_age_unknown();
-	if (months < 12) return m.animal_age_months({ count: months });
-	return m.animal_age_years({ count: Math.floor(months / 12) });
+	if (months < 12) {
+		return months === 1
+			? m.animal_age_month_one({ count: months })
+			: m.animal_age_months({ count: months });
+	}
+	const years = Math.floor(months / 12);
+	return years === 1
+		? m.animal_age_year_one({ count: years })
+		: m.animal_age_years({ count: years });
 }
 
 export function distanceLabel(km: number | null, city: string): string {
