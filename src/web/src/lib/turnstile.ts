@@ -42,19 +42,20 @@ let loading: Promise<TurnstileApi> | null = null;
 export function loadTurnstile(): Promise<TurnstileApi> {
 	if (window.turnstile) return Promise.resolve(window.turnstile);
 	loading ??= new Promise<TurnstileApi>((resolve, reject) => {
+		const script = document.createElement("script");
+		const fail = (message: string) => {
+			script.remove();
+			// Let the next call (retry button, later widget) inject the script again.
+			loading = null;
+			reject(new Error(message));
+		};
 		window.onTurnstileLoad = () => {
 			if (window.turnstile) resolve(window.turnstile);
-			else reject(new Error("turnstile script loaded without its API"));
+			else fail("turnstile script loaded without its API");
 		};
-		const script = document.createElement("script");
 		script.src = SCRIPT_URL;
 		script.async = true;
-		script.onerror = () => {
-			// Let a later widget (e.g. after a reconnect) try again.
-			script.remove();
-			loading = null;
-			reject(new Error("turnstile script failed to load"));
-		};
+		script.onerror = () => fail("turnstile script failed to load");
 		document.head.appendChild(script);
 	});
 	return loading;

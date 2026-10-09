@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
+	import { trackDonationClick } from "$lib/stats";
 	import type { PublicDonationShelter } from "$lib/types/catalog";
 	import { safeHttpUrl } from "$lib/safe-url";
 	import ChevronLeft from "lucide-svelte/icons/chevron-left";
@@ -135,6 +136,10 @@
 												target="_blank"
 												rel="noopener noreferrer"
 												iconLeft={heartIcon}
+												onclick={() => trackDonationClick(shelter.id)}
+												onauxclick={(event: MouseEvent) => {
+													if (event.button === 1) trackDonationClick(shelter.id);
+												}}
 											>
 												{m.donations_cta()}
 											</Button>

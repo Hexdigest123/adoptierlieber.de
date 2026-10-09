@@ -9,9 +9,17 @@
 	import SupportWidget from "$lib/components/ui/SupportWidget.svelte";
 	import ReviewWidget from "$lib/components/ui/ReviewWidget.svelte";
 
+	import { dev } from "$app/environment";
+	import { afterNavigate } from "$app/navigation";
 	import { page } from "$app/state";
+	import { trackVisit } from "$lib/stats";
 
 	let { data, children }: LayoutProps = $props();
+
+	afterNavigate((navigation) => {
+		if (dev || !navigation.to) return;
+		trackVisit(navigation.to.route.id, navigation.to.url.pathname);
+	});
 
 	// Errors caught by the root +error.svelte (all but /app pages, which have their own
 	// boundary inside the app shell) render with the landing header and footer.

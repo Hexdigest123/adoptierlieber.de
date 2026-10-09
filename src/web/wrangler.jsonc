@@ -39,6 +39,7 @@
 	],
 	"vars": {
 		"PUBLIC_API_URL": "https://api.adoptierlieber.de",
+		"PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFSl1zboe_x5xMIF",
 	},
 	"env": {
 		"staging": {
@@ -69,6 +70,7 @@
 			"vars": {
 				"BASIC_AUTH_USER": "staging",
 				"PUBLIC_API_URL": "https://api.staging.adoptierlieber.de",
+				"PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFSl1zboe_x5xMIF",
 			},
 		},
 	},
