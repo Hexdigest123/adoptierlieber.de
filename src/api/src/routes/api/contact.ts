@@ -19,7 +19,6 @@ contact.post("/", rateLimitByIp("contact", 5, { failClosed: true }), async (c) =
     return c.json({}, 200);
   }
 
-  // empty string must fall back to the default receiver
   const receiver = process.env.SECRET_CONTACT_TO;
   if (receiver) {
     await sendMail(

@@ -32,6 +32,7 @@ import { createUserRepo } from "../repositories/user.repo";
 import { createWebauthnRepo } from "../repositories/webauthn.repo";
 import type { PublicSession } from "../types";
 import { createSessionService } from "./session.service";
+import { recordLogin } from "./stats.service";
 
 function asRegistrationResponse(value: Record<string, unknown>): RegistrationResponseJSON {
   if (typeof value.id !== "string" || typeof value.rawId !== "string") {
@@ -207,7 +208,12 @@ export function createPasskeyService(env: Env) {
       }
       await dropWebauthnAuthChallenge(env, data.challenge_id);
       await creds.updateCounter(stored.id, verification.authenticationInfo.newCounter);
-      return createSessionService(env).create({ userId: user.id, kind: "full" }, userAgent);
+      const session = await createSessionService(env).create(
+        { userId: user.id, kind: "full" },
+        userAgent,
+      );
+      await recordLogin(env);
+      return session;
     },
   };
 }

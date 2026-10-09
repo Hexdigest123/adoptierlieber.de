@@ -2,9 +2,11 @@ import { Hono } from "hono";
 import type { AppEnv } from "../../types";
 import { rateLimitByIp, rateLimitByUser } from "../../middlewares/rate-limit";
 import { readSessionCookie, sessionValidation } from "../../middlewares/session";
+import { tinyJson } from "../../middlewares/tiny-json";
 import { createSessionService } from "../../services/session.service";
 import { createShelterService } from "../../services/shelter.service";
 import { createAnimalService } from "../../services/animal.service";
+import { createStatsService } from "../../services/stats.service";
 import { sendMail } from "../../lib/mail";
 import {
   shelterRegistrationNotificationTemplate,
@@ -12,6 +14,7 @@ import {
 } from "../../lib/email-templates";
 import { readCreateBody } from "../../lib/avatar";
 import { notifyRegistrationAttempt } from "../../lib/create-account";
+import { notifyInBackground } from "../../lib/notify";
 import { requireTurnstile } from "../../lib/turnstile";
 import { acceptShelterInviteSchema } from "../../lib/zod";
 
@@ -32,26 +35,20 @@ shelters.post("/", rateLimitByIp("create-shelter", 5, { failClosed: true }), asy
         verifyEmailTemplate({ to: asString(fields.email), token: result.verificationToken }),
       ),
     );
-    // empty string must fall back to the default receiver
-    const teamInbox = process.env.SECRET_CONTACT_TO;
-    if (teamInbox) {
-      c.executionCtx.waitUntil(
-        sendMail(
-          shelterRegistrationNotificationTemplate({
-            to: teamInbox,
-            orgName: asString(fields.orgName),
-            street: asString(fields.street),
-            zip: asString(fields.zip),
-            city: asString(fields.city),
-            website: asString(fields.website) || undefined,
-            registrationNumber: asString(fields.registrationNumber) || undefined,
-            name: asString(fields.name),
-            email: asString(fields.email),
-            description: asString(fields.description) || undefined,
-          }),
-        ),
-      );
-    }
+    notifyInBackground(c, (to) =>
+      shelterRegistrationNotificationTemplate({
+        to,
+        orgName: asString(fields.orgName),
+        street: asString(fields.street),
+        zip: asString(fields.zip),
+        city: asString(fields.city),
+        website: asString(fields.website) || undefined,
+        registrationNumber: asString(fields.registrationNumber) || undefined,
+        name: asString(fields.name),
+        email: asString(fields.email),
+        description: asString(fields.description) || undefined,
+      }),
+    );
   } else if (result && "existingAccount" in result) {
     c.executionCtx.waitUntil(notifyRegistrationAttempt(c.env, asString(fields.email)));
   }
@@ -68,6 +65,11 @@ shelters.get("/map", rateLimitByIp("shelter-map", 60), async (c) => {
 shelters.get("/donations", rateLimitByIp("shelter-donations", 60), async (c) => {
   const items = await createShelterService(c.env).listPublicDonations();
   return c.json({ items }, 200);
+});
+
+shelters.post("/:id/donation-click", rateLimitByIp("donation-click", 20), tinyJson, async (c) => {
+  await createStatsService(c.env).recordDonationClick(c.req.param("id"), await c.req.json());
+  return c.json({}, 200);
 });
 
 shelters.post(

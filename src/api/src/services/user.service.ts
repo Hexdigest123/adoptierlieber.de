@@ -56,6 +56,7 @@ import {
 } from "../lib/hashing";
 import { HTTPException } from "hono/http-exception";
 import { createSessionService } from "./session.service";
+import { recordLogin } from "./stats.service";
 import { sendMail } from "../lib/mail";
 import {
   accountDeletionTemplate,
@@ -617,7 +618,13 @@ export function createUserService(env: Env) {
         throw new HTTPException(403, { message: "passkey required" });
       }
       const kind = mfaRequired ? "setup" : "full";
-      return createSessionService(env).create({ userId: granted.id, kind }, userAgent);
+      const session = await createSessionService(env).create(
+        { userId: granted.id, kind },
+        userAgent,
+      );
+      // a setup session only enrolls MFA, that is no login yet
+      if (kind === "full") await recordLogin(env);
+      return session;
     },
 
     /**

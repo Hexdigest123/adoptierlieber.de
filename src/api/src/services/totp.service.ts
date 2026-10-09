@@ -17,6 +17,7 @@ import { createUserRepo } from "../repositories/user.repo";
 import { createWebauthnRepo } from "../repositories/webauthn.repo";
 import type { PublicSession } from "../types";
 import { createSessionService } from "./session.service";
+import { recordLogin } from "./stats.service";
 
 // A pending secret is only confirmable shortly after a (step-up checked) start.
 const ENROLL_TTL_SECONDS = 15 * 60;
@@ -111,7 +112,12 @@ export function createTotpService(env: Env) {
       }
       await dropLoginChallenge(env, data.mfa_token);
       await users.updateTotpLastCounter(user.id, counter);
-      return createSessionService(env).create({ userId: user.id, kind: "full" }, userAgent);
+      const session = await createSessionService(env).create(
+        { userId: user.id, kind: "full" },
+        userAgent,
+      );
+      await recordLogin(env);
+      return session;
     },
   };
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { VISIT_SECTIONS } from "./visit-sections";
 
 export const emailSchema = z
   .email()
@@ -434,3 +435,10 @@ export const AUDIT_ACTIONS = [
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+// Public, unauthenticated usage counters. Closed shapes: unknown keys or values are rejected.
+export const recordVisitSchema = z.strictObject({ section: z.enum(VISIT_SECTIONS) });
+
+export const donationClickSchema = z.strictObject({});
+
+export const shelterIdSchema = z.uuid();

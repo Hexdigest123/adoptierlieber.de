@@ -4,12 +4,20 @@ import type { AppEnv } from "../../types";
 import { sessionValidation } from "../../middlewares/session";
 import { rateLimitByIp, rateLimitByUser } from "../../middlewares/rate-limit";
 import { sendMail } from "../../lib/mail";
-import { verifyEmailTemplate } from "../../lib/email-templates";
+import {
+  userRegistrationNotificationTemplate,
+  verifyEmailTemplate,
+} from "../../lib/email-templates";
 import { readCreateBody } from "../../lib/avatar";
 import { notifyRegistrationAttempt } from "../../lib/create-account";
+import { notifyInBackground } from "../../lib/notify";
 import { requireTurnstile } from "../../lib/turnstile";
 
 export const users = new Hono<AppEnv>();
+
+function asString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
 
 /** Register as a new user. */
 users.post("/", rateLimitByIp("create-user", 5, { failClosed: true }), async (c) => {
@@ -20,6 +28,16 @@ users.post("/", rateLimitByIp("create-user", 5, { failClosed: true }), async (c)
   if (result && "verificationToken" in result) {
     c.executionCtx.waitUntil(
       sendMail(verifyEmailTemplate({ to: email, token: result.verificationToken })),
+    );
+    notifyInBackground(c, (to) =>
+      userRegistrationNotificationTemplate({
+        to,
+        name: asString(fields.name),
+        email: email.trim().toLowerCase(),
+        zip: asString(fields.zip),
+        city: asString(fields.city),
+        registeredAt: new Date(),
+      }),
     );
   } else if (result && "existingAccount" in result) {
     c.executionCtx.waitUntil(notifyRegistrationAttempt(c.env, email));

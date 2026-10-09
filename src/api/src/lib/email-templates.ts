@@ -153,6 +153,32 @@ function expiryLabel(hours: number): string {
 	return `${hours} ${hours === 1 ? "Stunde" : "Stunden"}`;
 }
 
+function singleLine(value: string): string {
+	return value
+		.replace(/[\u0000-\u001f\u007f]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+function notifySubject(value: string): string {
+	const tag = process.env.ENVIRONMENT === "staging" ? "[Staging] " : "";
+	return `${tag}${singleLine(value)}`.slice(0, 200);
+}
+
+const BERLIN_TIME = new Intl.DateTimeFormat("de-DE", {
+	timeZone: "Europe/Berlin",
+	dateStyle: "medium",
+	timeStyle: "medium",
+});
+
+const DAY_LABEL = new Intl.DateTimeFormat("de-DE", {
+	timeZone: "UTC",
+	weekday: "long",
+	day: "numeric",
+	month: "long",
+	year: "numeric",
+});
+
 export type EmailTemplateInput = {
 	to: string | string[];
 };
@@ -236,36 +262,89 @@ export function shelterRegistrationNotificationTemplate({
 	email,
 	description,
 }: ShelterRegistrationNotificationInput): MailOptions {
-	const subject = `Neue Tierheim-Registrierung: ${orgName}`;
+	const org = singleLine(orgName);
+	const address = singleLine(`${street}, ${zip} ${city}`);
+	const web = website ? singleLine(website) : "–";
+	const registerNo = registrationNumber ? singleLine(registrationNumber) : "–";
+	const contact = singleLine(`${name} <${email}>`);
+	const subject = notifySubject(`Neue Tierheim-Registrierung: ${org}`);
 	return {
 		to,
 		subject,
-		text: `Neue Tierheim-Registrierung: ${orgName}
+		text: `Neue Tierheim-Registrierung: ${org}
 
-${orgName} hat sich registriert und wartet auf Freischaltung.
+${org} hat sich registriert und wartet auf Freischaltung.
 
-Organisation: ${orgName}
-Adresse: ${street}, ${zip} ${city}
-Webseite: ${website ?? "–"}
-Registernummer: ${registrationNumber ?? "–"}
-Kontakt: ${name} <${email}>
+Organisation: ${org}
+Adresse: ${address}
+Webseite: ${web}
+Registernummer: ${registerNo}
+Kontakt: ${contact}
 
 Beschreibung:
 ${description ?? "–"}`,
 		html: layout({
-			preview: `${orgName} hat sich registriert und wartet auf Freischaltung.`,
+			preview: `${org} hat sich registriert und wartet auf Freischaltung.`,
 			body: [
 				heading("Neue Tierheim-Registrierung"),
-				paragraph(`${orgName} hat sich registriert und wartet auf Freischaltung.`),
+				paragraph(`${org} hat sich registriert und wartet auf Freischaltung.`),
 				detailList([
-					["Organisation", orgName],
-					["Adresse", `${street}, ${zip} ${city}`],
-					["Webseite", website ?? "–"],
-					["Registernummer", registrationNumber ?? "–"],
-					["Kontakt", `${name} <${email}>`],
+					["Organisation", org],
+					["Adresse", address],
+					["Webseite", web],
+					["Registernummer", registerNo],
+					["Kontakt", contact],
 				]),
 				paragraph("Beschreibung:"),
 				quoteBlock(description ?? "–"),
+			].join(""),
+		}),
+	};
+}
+
+export type UserRegistrationNotificationInput = EmailTemplateInput & {
+	name: string;
+	email: string;
+	zip: string;
+	city: string;
+	registeredAt: Date;
+};
+
+export function userRegistrationNotificationTemplate({
+	to,
+	name,
+	email,
+	zip,
+	city,
+	registeredAt,
+}: UserRegistrationNotificationInput): MailOptions {
+	const who = singleLine(name);
+	const mail = singleLine(email);
+	const place = singleLine(`${zip} ${city}`);
+	const when = `${BERLIN_TIME.format(registeredAt)} Uhr`;
+	const subject = notifySubject(`Neue Registrierung: ${who}`);
+	return {
+		to,
+		subject,
+		text: `Neue Registrierung: ${who}
+
+Ein neues Konto wurde angelegt.
+
+Name: ${who}
+E-Mail: ${mail}
+Ort: ${place}
+Zeitpunkt: ${when}`,
+		html: layout({
+			preview: `${who} hat sich registriert.`,
+			body: [
+				heading("Neue Registrierung"),
+				paragraph("Ein neues Konto wurde angelegt."),
+				detailList([
+					["Name", who],
+					["E-Mail", mail],
+					["Ort", place],
+					["Zeitpunkt", when],
+				]),
 			].join(""),
 		}),
 	};
@@ -648,6 +727,92 @@ ${href}`,
 				),
 				quoteBlock(lines),
 				ctaButton(href, "In Nachrichten öffnen"),
+			].join(""),
+		}),
+	};
+}
+
+export type DailyStatsInput = EmailTemplateInput & {
+	day: string;
+	visits: { total: number; bySection: { section: string; count: number }[] };
+	logins: number;
+	views: { total: number; top: { animalName: string; orgName: string; count: number }[] };
+	donations: { total: number; byShelter: { orgName: string; city: string; count: number }[] };
+};
+
+const VISIT_SECTION_LABELS: Record<string, string> = {
+	landing: "Startseite",
+	app: "App",
+	animal: "Tierseiten",
+	shelter: "Tierheim-Bereich",
+	auth: "Anmeldung und Registrierung",
+	other: "Sonstige",
+};
+
+export function dailyStatsTemplate({
+	to,
+	day,
+	visits,
+	logins,
+	views,
+	donations,
+}: DailyStatsInput): MailOptions {
+	const dayLabel = DAY_LABEL.format(new Date(`${day}T12:00:00Z`));
+	const sections = visits.bySection.map(
+		({ section, count }): DetailRow => [
+			VISIT_SECTION_LABELS[section] ?? singleLine(section),
+			String(count),
+		],
+	);
+	const topViews = views.top.map(
+		({ animalName, orgName, count }): DetailRow => [
+			`${count}×`,
+			singleLine(`${animalName} · ${orgName}`),
+		],
+	);
+	const byShelter = donations.byShelter.map(
+		({ orgName, city, count }): DetailRow => [`${count}×`, singleLine(`${orgName} (${city})`)],
+	);
+	const subject = notifySubject(`Tägliche Statistik – ${day}`);
+	const asLines = (rows: DetailRow[]) =>
+		rows.map(([label, value]) => `• ${label} ${value}`).join("\n");
+	return {
+		to,
+		subject,
+		text: `Tägliche Statistik – ${day}
+
+Auswertung für ${dayLabel} (${day}, Europe/Berlin).
+
+Seitenaufrufe: ${visits.total}
+Logins: ${logins}
+Angesehene Tiere: ${views.total}
+Spenden-Klicks: ${donations.total}
+
+Seitenaufrufe nach Bereich:
+${sections.length ? asLines(sections) : "–"}
+
+Meistgesehene Tiere:
+${topViews.length ? asLines(topViews) : "–"}
+
+Spenden-Klicks nach Tierheim:
+${byShelter.length ? asLines(byShelter) : "–"}`,
+		html: layout({
+			preview: `${day}: ${visits.total} Seitenaufrufe, ${logins} Logins, ${donations.total} Spenden-Klicks.`,
+			body: [
+				heading("Tägliche Statistik"),
+				paragraph(`Auswertung für ${dayLabel} (${day}, Europe/Berlin).`),
+				detailList([
+					["Seitenaufrufe", String(visits.total)],
+					["Logins", String(logins)],
+					["Angesehene Tiere", String(views.total)],
+					["Spenden-Klicks", String(donations.total)],
+				]),
+				paragraph("Seitenaufrufe nach Bereich:"),
+				sections.length ? detailList(sections) : note("Keine Seitenaufrufe."),
+				paragraph("Meistgesehene Tiere:"),
+				topViews.length ? detailList(topViews) : note("Keine angesehenen Tiere."),
+				paragraph("Spenden-Klicks nach Tierheim:"),
+				byShelter.length ? detailList(byShelter) : note("Keine Spenden-Klicks."),
 			].join(""),
 		}),
 	};

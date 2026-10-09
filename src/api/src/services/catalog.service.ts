@@ -1,6 +1,7 @@
 import { HTTPException } from "hono/http-exception";
 import { isUniqueConstraint } from "../lib/create-account";
 import type { Env } from "../config/env";
+import { berlinDay } from "../lib/day";
 import { haversineKm } from "../lib/distance";
 import { parseListQuery, listEnvelope, type ListEnvelope } from "../lib/pagination";
 import {
@@ -410,16 +411,16 @@ export function createCatalogService(env: Env) {
       if (!row || row.animal.status !== "live") {
         throw new HTTPException(404, { message: "animal not found" });
       }
-      // Count each (user, animal, UTC day) once. KV is eventually consistent,
+      // Count each (user, animal, Berlin day) once. KV is eventually consistent,
       // so this is best effort, which is plenty for a display counter.
       const now = new Date();
-      const day = now.toISOString().slice(0, 10);
+      const day = berlinDay(now);
       const key = `imp:${day}:${userId}:${animalId}`;
-      const endOfDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
       try {
         if (await env.RATE_LIMIT_KV.get(key)) return;
         await env.RATE_LIMIT_KV.put(key, "1", {
-          expirationTtl: Math.max(60, Math.ceil((endOfDay - now.getTime()) / 1000)),
+          // a Berlin day is at most 25h long
+          expirationTtl: 26 * 60 * 60,
         });
       } catch (error) {
         console.error("impression dedupe failed, not counting", error);
