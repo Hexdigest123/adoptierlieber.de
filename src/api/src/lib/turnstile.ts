@@ -27,7 +27,7 @@ function rejected() {
  * Throws 403 "captcha failed" unless `token` (the widget's
  * cf-turnstile-response, sent by the web as `turnstileToken`) passes Siteverify.
  *
- * Off until SECRET_TURNSTILE is set. If Siteverify cannot be reached or reports
+ * Off until SECRET_TURNSTILE_SECRET is set. If Siteverify cannot be reached or reports
  * an internal error the request passes: a Cloudflare hiccup must not block
  * signups, and the IP rate limits and per-address mail throttles still apply.
  */
@@ -36,11 +36,15 @@ export async function requireTurnstile(
   token: unknown,
   action: TurnstileAction,
 ): Promise<void> {
-  const secret = (c.env.SECRET_TURNSTILE ?? process.env.SECRET_TURNSTILE ?? "").trim();
+  const secret = (
+    c.env.SECRET_TURNSTILE_SECRET ??
+    process.env.SECRET_TURNSTILE_SECRET ??
+    ""
+  ).trim();
   if (!secret) {
     if (!warnedNoSecret) {
       warnedNoSecret = true;
-      console.warn("SECRET_TURNSTILE is not set; Turnstile verification is skipped");
+      console.warn("SECRET_TURNSTILE_SECRET is not set; Turnstile verification is skipped");
     }
     return;
   }
@@ -74,7 +78,7 @@ export async function requireTurnstile(
     }
     if (codes.some((code) => code.endsWith("-input-secret"))) {
       // A wrong secret rejects everyone; fail closed, but say why.
-      console.error(`turnstile ${action}: siteverify rejected SECRET_TURNSTILE`, codes);
+      console.error(`turnstile ${action}: siteverify rejected SECRET_TURNSTILE_SECRET`, codes);
     }
     throw rejected();
   }

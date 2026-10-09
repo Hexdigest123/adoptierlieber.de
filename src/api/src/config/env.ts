@@ -8,7 +8,7 @@ export type Env = {
   /** Shared with the web worker; proves its X-Forwarded-For (see rate-limit.ts). */
   PROXY_SECRET?: string;
   /** Turnstile widget secret; unset = verification skipped (see lib/turnstile.ts). */
-  SECRET_TURNSTILE?: string;
+  SECRET_TURNSTILE_SECRET?: string;
   SECRET_GEOAPIFY?: string;
   /** Upstream Geoapify calls per UTC day; default 2500 (see lib/geocode.ts). */
   GEOAPIFY_DAILY_BUDGET?: string;
