@@ -23,8 +23,10 @@
 		"binding": "ASSETS",
 		"directory": ".svelte-kit/cloudflare",
 	},
-	"workers_dev": true,
-	"preview_urls": true,
+	// Only the custom domains below: no *.workers.dev route or version preview
+	// URLs that would bypass the zone's WAF/rules. Repeated per env on purpose.
+	"workers_dev": false,
+	"preview_urls": false,
 	"routes": [
 		{
 			"pattern": "adoptierlieber.de",
@@ -37,11 +39,13 @@
 	],
 	"vars": {
 		"PUBLIC_API_URL": "https://api.adoptierlieber.de",
+		"PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFSl1zboe_x5xMIF",
 	},
 	"env": {
 		"staging": {
 			"name": "adoptierlieber-web-staging",
 			"workers_dev": false,
+			"preview_urls": false,
 			"observability": {
 				"enabled": false,
 				"head_sampling_rate": 1,
@@ -66,6 +70,7 @@
 			"vars": {
 				"BASIC_AUTH_USER": "staging",
 				"PUBLIC_API_URL": "https://api.staging.adoptierlieber.de",
+				"PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAFSl1zboe_x5xMIF",
 			},
 		},
 	},

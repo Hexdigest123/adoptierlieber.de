@@ -1,8 +1,7 @@
 import { Hono } from "hono";
-import { getCookie } from "hono/cookie";
 import type { AppEnv } from "../../types";
-import { sessionValidation } from "../../middlewares/session";
-import { rateLimitByIp } from "../../middlewares/rate-limit";
+import { readSessionCookie, sessionValidation } from "../../middlewares/session";
+import { rateLimitByIp, rateLimitByUser } from "../../middlewares/rate-limit";
 import { createCatalogService } from "../../services/catalog.service";
 import { createSessionService } from "../../services/session.service";
 
@@ -49,7 +48,7 @@ animals.get("/", sessionValidation, rateLimitByIp("animal-list", 120), async (c)
 });
 
 animals.get("/:id", rateLimitByIp("animal-public", 120), async (c) => {
-  const token = getCookie(c, "sessionToken");
+  const token = readSessionCookie(c);
   if (token) {
     try {
       const session = await createSessionService(c.env).validate(token);
@@ -63,10 +62,16 @@ animals.get("/:id", rateLimitByIp("animal-public", 120), async (c) => {
   return c.json(animal, 200);
 });
 
-animals.post("/:id/impressions", sessionValidation, rateLimitByIp("animal-impression", 60), async (c) => {
-  await createCatalogService(c.env).recordImpression(c.get("userId"), c.req.param("id"));
-  return c.json({}, 200);
-});
+animals.post(
+  "/:id/impressions",
+  sessionValidation,
+  rateLimitByIp("animal-impression", 60),
+  rateLimitByUser("animal-impression-user", 60),
+  async (c) => {
+    await createCatalogService(c.env).recordImpression(c.get("userId"), c.req.param("id"));
+    return c.json({}, 200);
+  },
+);
 
 animals.get("/:id/like", sessionValidation, async (c) => {
   const result = await createCatalogService(c.env).getLike(c.get("userId"), c.req.param("id"));

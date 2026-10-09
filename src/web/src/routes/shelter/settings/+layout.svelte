@@ -7,7 +7,7 @@
 </script>
 
 <div class="mx-auto w-full max-w-2xl">
-	<header class="text-center">
+	<header>
 		<h1 class="text-2xl font-black tracking-tight text-sand-950">{m.shelter_settings_title()}</h1>
 	</header>
 	<SettingsTabs />

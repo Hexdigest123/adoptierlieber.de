@@ -5,7 +5,7 @@ import type { AppEnv } from "../../types";
 
 export const auth = new Hono<AppEnv>();
 
-auth.post("/totp", rateLimitByIp("auth-totp", 10), async (c) => {
+auth.post("/totp", rateLimitByIp("auth-totp", 10, { failClosed: true }), async (c) => {
   const input = await c.req.json();
   const userAgent = c.req.header("User-Agent") ?? null;
   const session = await createTotpService(c.env).verifyLogin(input, userAgent);

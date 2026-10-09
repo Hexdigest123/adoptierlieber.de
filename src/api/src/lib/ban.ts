@@ -1,4 +1,5 @@
 import { hashToken } from "./hashing";
+import { normalizeEmail } from "./roles";
 
 function collapseWs(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -24,4 +25,17 @@ export async function banFingerprint(input: {
 }): Promise<string> {
   const parts = normalizeBanParts(input);
   return hashToken(`${parts.name}|${parts.addr}`);
+}
+
+export async function banEmailHash(email: string): Promise<string> {
+  return hashToken(`email|${normalizeEmail(email)}`);
+}
+
+/**
+ * Email bans share ban_fingerprints with the name/address rows. Their key is
+ * `e:<email hash>:<fingerprint>` so they stay out of the admin list and are
+ * dropped together with the fingerprint they were banned with.
+ */
+export function banEmailKey(emailHash: string, fingerprint: string): string {
+  return `e:${emailHash}:${fingerprint}`;
 }

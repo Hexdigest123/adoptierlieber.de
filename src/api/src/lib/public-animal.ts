@@ -72,6 +72,16 @@ function photoUrls(animalId: string, photos: string[] | null): string[] {
   return Array.from({ length: count }, (_, i) => photoUrl(animalId, i));
 }
 
+/**
+ * Linked bonds are labelled only from the listed partners passed in, so the
+ * stored label can't expose draft names (or a stale foreign label). Free-text
+ * partners without a linked animal keep their stored text.
+ */
+function publicBondLabel(animal: Animal, bonded_partners: BondedPartner[]): string | null {
+  const linked = Boolean(animal.bondGroupId || animal.bondedAnimalId);
+  return bondLabel(bonded_partners) ?? (linked ? null : animal.bondedPartner);
+}
+
 export function toPublicAnimal(
   animal: Animal,
   shelter: Shelter,
@@ -101,8 +111,8 @@ export function toPublicAnimal(
     neutered: animal.neutered,
     chipped: animal.chipped,
     house_trained: animal.houseTrained,
-    bonded_partner: bondLabel(bonded_partners) ?? animal.bondedPartner,
-    bonded_animal_id: bonded_partners[0]?.id ?? animal.bondedAnimalId,
+    bonded_partner: publicBondLabel(animal, bonded_partners),
+    bonded_animal_id: bonded_partners[0]?.id ?? null,
     bond_group_id: animal.bondGroupId,
     bonded_partners,
     like_count: animal.likeCount,
@@ -138,7 +148,7 @@ export function toPublicExcerpt(
     tagline: animal.tagline,
     photos: photoUrls(animal.id, animal.photos),
     traits: animal.traits ?? [],
-    bonded_partner: bondLabel(bonded_partners) ?? animal.bondedPartner,
+    bonded_partner: publicBondLabel(animal, bonded_partners),
     bonded_partners,
     shelter: {
       id: shelter.id,

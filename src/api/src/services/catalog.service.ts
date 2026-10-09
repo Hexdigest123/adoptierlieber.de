@@ -1,6 +1,7 @@
 import { HTTPException } from "hono/http-exception";
 import { isUniqueConstraint } from "../lib/create-account";
 import type { Env } from "../config/env";
+import { berlinDay } from "../lib/day";
 import { haversineKm } from "../lib/distance";
 import { parseListQuery, listEnvelope, type ListEnvelope } from "../lib/pagination";
 import {
@@ -254,7 +255,7 @@ export function createCatalogService(env: Env) {
     async list(
       userId: string,
       search: URLSearchParams,
-    ): Promise<ListEnvelope<PublicAnimal> & { in_range: number }> {
+    ): Promise<ListEnvelope<PublicAnimal> & { in_range: number; outside_range: number }> {
       const user = await users.findById(userId);
       if (!user) throw new HTTPException(404, { message: "user not found" });
 
@@ -271,6 +272,7 @@ export function createCatalogService(env: Env) {
         }
       }
 
+      const candidates = rows;
       rows = applyHardFilters(rows, filters, user, origin);
 
       const likedIds = new Set(await catalog.likedAnimalIds(userId));
@@ -285,6 +287,20 @@ export function createCatalogService(env: Env) {
       }
 
       const inRange = rows.length;
+
+      // animals hidden only by the radius, so the UI can offer to widen it
+      let outsideRange = 0;
+      const effectiveRange = filters.range !== undefined ? filters.range : user.maxRangeKm;
+      if (effectiveRange != null && origin) {
+        let unbounded = applyHardFilters(candidates, { ...filters, range: null }, user, origin);
+        if (filters.mode === "deck") {
+          unbounded = unbounded.filter(
+            (row) => !likedIds.has(row.animal.id) && !skipIds.has(row.animal.id),
+          );
+        }
+        outsideRange = Math.max(0, unbounded.length - inRange);
+      }
+
       const skipSenior = filters.mode === "deck" && skipReasons.has("too_old");
 
       if (filters.sort === "new") {
@@ -328,7 +344,11 @@ export function createCatalogService(env: Env) {
 
       const page = rows.slice(query.offset, query.offset + query.per_page);
       const items = await toPublic(page, user, likedIds);
-      return { ...listEnvelope(items, rows.length, query), in_range: inRange };
+      return {
+        ...listEnvelope(items, rows.length, query),
+        in_range: inRange,
+        outside_range: outsideRange,
+      };
     },
 
     async sitemap(): Promise<{ id: string; updated_at: string }[]> {
@@ -391,9 +411,22 @@ export function createCatalogService(env: Env) {
       if (!row || row.animal.status !== "live") {
         throw new HTTPException(404, { message: "animal not found" });
       }
-      void userId;
+      // Count each (user, animal, Berlin day) once. KV is eventually consistent,
+      // so this is best effort, which is plenty for a display counter.
+      const now = new Date();
+      const day = berlinDay(now);
+      const key = `imp:${day}:${userId}:${animalId}`;
+      try {
+        if (await env.RATE_LIMIT_KV.get(key)) return;
+        await env.RATE_LIMIT_KV.put(key, "1", {
+          // a Berlin day is at most 25h long
+          expirationTtl: 26 * 60 * 60,
+        });
+      } catch (error) {
+        console.error("impression dedupe failed, not counting", error);
+        return;
+      }
       await animals.incrementImpressions(animalId);
-      const day = new Date().toISOString().slice(0, 10);
       await catalog.incrementDailyImpression(animalId, day);
     },
 

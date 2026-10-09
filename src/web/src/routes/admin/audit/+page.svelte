@@ -39,6 +39,8 @@
 		"note",
 		"approve_review",
 		"delete_review",
+		"accept_admin_invite",
+		"grant_super_admin",
 	] as const;
 
 	const labels: Record<string, () => string> = {
@@ -56,6 +58,8 @@
 		ban_lookup_hit: () => m.admin_action_ban_lookup_hit_label(),
 		approve_review: () => m.admin_action_approve_review_label(),
 		delete_review: () => m.admin_action_delete_review_label(),
+		accept_admin_invite: () => m.admin_action_accept_admin_invite_label(),
+		grant_super_admin: () => m.admin_action_grant_super_admin_label(),
 	};
 
 	function onFilter(event: Event) {

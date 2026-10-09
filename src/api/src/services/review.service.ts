@@ -15,13 +15,19 @@ function iso(value: Date | null | undefined): string | null {
   return value ? value.toISOString() : null;
 }
 
+/** "Alex Anders" -> "Alex A.": the landing page never shows a legal surname. */
+function shortName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return parts[0] ?? "";
+  return `${parts[0]} ${parts[parts.length - 1].charAt(0).toUpperCase()}.`;
+}
+
 function publicReview(row: PublicReviewRow) {
   return {
     id: row.id,
-    name: row.displayName?.trim() || row.userName || row.name,
+    name: row.displayName?.trim() || shortName(row.userName || row.name),
     stars: row.stars,
     body: row.body,
-    user_id: row.userId,
     has_avatar: Boolean(row.avatarKey),
   };
 }

@@ -41,14 +41,31 @@ export function chipLabel(id: string): string {
 
 export function ageLabel(months: number | null, unknown: boolean): string {
 	if (unknown || months == null) return m.app_age_unknown();
-	if (months < 12) return m.animal_age_months({ count: months });
-	return m.animal_age_years({ count: Math.floor(months / 12) });
+	if (months < 12) {
+		return months === 1
+			? m.animal_age_month_one({ count: months })
+			: m.animal_age_months({ count: months });
+	}
+	const years = Math.floor(months / 12);
+	return years === 1
+		? m.animal_age_year_one({ count: years })
+		: m.animal_age_years({ count: years });
 }
 
 export function distanceLabel(km: number | null, city: string): string {
 	if (km == null) return city;
 	if (km < 1) return m.app_distance_m({ count: Math.max(50, Math.round(km * 1000)) });
 	return m.app_distance_km({ count: Math.round(km) });
+}
+
+/** Distance plus city ("5 km · Berlin"), or just the city when there is no distance. */
+export function placeLabel(km: number | null, city: string): string {
+	return km == null ? city : metaLine(distanceLabel(km, city), city);
+}
+
+/** Join label parts with " · ", skipping empty ones. */
+export function metaLine(...parts: (string | null | undefined)[]): string {
+	return parts.filter((part) => part?.trim()).join(" · ");
 }
 
 export function sexLabel(sex: AnimalSex): string {
@@ -63,6 +80,24 @@ export function sizeLabel(size: AnimalSize): string {
 	if (size === "l") return m.app_size_l();
 	if (size === "xl") return m.app_size_xl();
 	return "";
+}
+
+/** Filter choices for sex and size (search and catalog). */
+export function sexOptions(): { id: Exclude<AnimalSex, null>; label: string }[] {
+	return [
+		{ id: "female", label: m.app_sex_female() },
+		{ id: "male", label: m.app_sex_male() },
+		{ id: "unknown", label: m.app_sex_unknown() },
+	];
+}
+
+export function sizeOptions(): { id: Exclude<AnimalSize, null>; label: string }[] {
+	return [
+		{ id: "s", label: m.app_size_s() },
+		{ id: "m", label: m.app_size_m() },
+		{ id: "l", label: m.app_size_l() },
+		{ id: "xl", label: m.app_size_xl() },
+	];
 }
 
 export function practicalLabel(value: Practical): string {
@@ -99,7 +134,11 @@ function isNeedTrait(trait: string): boolean {
 	return NEED_KEYS.some((key) => value.includes(key));
 }
 
-export function needTraits(traits: string[], ageMonths?: number | null, ageUnknown?: boolean): string[] {
+export function needTraits(
+	traits: string[],
+	ageMonths?: number | null,
+	ageUnknown?: boolean,
+): string[] {
 	const needs = traits.filter(isNeedTrait);
 	const rest = traits.filter((trait) => !isNeedTrait(trait));
 	const chips = [...needs, ...rest];

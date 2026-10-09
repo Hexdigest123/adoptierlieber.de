@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from "./$types";
 import type { PublicDonationShelter, PublicExcerpt, PublicMapShelter } from "$lib/types/catalog";
 import type { PublicReview } from "$lib/types/review";
 import { excerptsToCards } from "$lib/data/excerpts";
+import { isTurnstileRejection, TURNSTILE_FIELD } from "$lib/turnstile";
 
 export const load: PageServerLoad = async ({ fetch }) => {
 	const [showcase, shelters, reviews, donations] = await Promise.all([
@@ -84,13 +85,17 @@ export const actions: Actions = {
 			return fail(400, { contactError: true, contactValues: values });
 		}
 
+		const turnstileToken = String(data.get(TURNSTILE_FIELD) ?? "");
 		const response = await fetch("/api/contact", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ name, email, message, website }),
+			body: JSON.stringify({ name, email, message, website, turnstileToken }),
 		});
 
 		if (!response.ok) {
+			if (await isTurnstileRejection(response)) {
+				return fail(403, { contactError: "captcha" as const, contactValues: values });
+			}
 			return fail(response.status === 429 ? 429 : 502, {
 				contactError: true,
 				contactValues: values,

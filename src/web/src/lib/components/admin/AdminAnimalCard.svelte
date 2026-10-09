@@ -19,15 +19,10 @@
 	);
 </script>
 
-<article
-	class="relative h-full overflow-hidden rounded-3xl border border-sand-200 bg-white shadow-sm"
->
+<article class="relative h-full overflow-hidden rounded-3xl border border-sand-200 bg-white">
 	<a href={target} class="flex h-full flex-col focus-ring">
 		<div class="relative aspect-4/5 bg-peach-100">
 			<AnimalPhoto src={coverPhoto(animal.photos)} alt="" />
-			<div
-				class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-sand-950/70 to-transparent"
-			></div>
 			{#if animal.photos.length > 1}
 				<div class="absolute inset-x-0 top-3 flex justify-center gap-1">
 					{#each animal.photos as _, i (i)}
@@ -48,11 +43,11 @@
 				</p>
 				<StatusPill status={animal.status} />
 			</div>
-			<p class="text-sm font-semibold text-coral-700">{meta}</p>
+			<p class="text-sm font-medium text-coral-700">{meta}</p>
 			{#if animal.traits.length > 0}
 				<ul class="flex flex-wrap gap-2">
 					{#each animal.traits.slice(0, 3) as trait (trait)}
-						<li class="rounded-xl bg-peach-100 px-3 py-1.5 text-xs font-semibold text-coral-900">
+						<li class="rounded-xl bg-peach-100 px-3 py-1.5 text-xs font-medium text-coral-900">
 							{trait}
 						</li>
 					{/each}

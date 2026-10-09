@@ -22,10 +22,20 @@ const NOINDEX_ROUTES = new Set([
 	"/datenschutz",
 ]);
 
+type PageData = Record<string, unknown>;
+
 type PageMeta = {
-	title: () => string;
+	title: (data: PageData) => string;
 	description: () => string;
 };
+
+/** Name of the animal a page is about, from its load data. */
+function animalName(data: PageData): string | null {
+	const animal = data.animal as { name?: unknown } | undefined;
+	const thread = data.thread as { animal_name?: unknown } | undefined;
+	const name = animal?.name ?? thread?.animal_name;
+	return typeof name === "string" && name.trim() ? name : null;
+}
 
 const pages: Record<string, PageMeta> = {
 	"/": {
@@ -76,6 +86,20 @@ const pages: Record<string, PageMeta> = {
 		title: () => m.meta_app_messages_title(),
 		description: () => m.meta_app_description(),
 	},
+	"/app/animals/[id]": {
+		title: (data) => {
+			const name = animalName(data);
+			return name ? m.meta_app_animal_title({ name }) : m.meta_app_title();
+		},
+		description: () => m.meta_app_description(),
+	},
+	"/app/messages/[id]": {
+		title: (data) => {
+			const name = animalName(data);
+			return name ? m.meta_app_thread_title({ name }) : m.meta_app_messages_title();
+		},
+		description: () => m.meta_app_description(),
+	},
 	"/verify": {
 		title: () => m.meta_verify_title(),
 		description: () => m.meta_verify_description(),
@@ -119,13 +143,22 @@ export function canonicalUrl(pathname: string): string {
 	return `${SITE_ORIGIN}${path}`;
 }
 
-export function seoForRoute(routeId: string | null, pathname: string, status = 200): Seo {
+/**
+ * `errorStatus` is set only while SvelteKit renders an error page (`page.error`),
+ * not for form actions that return `fail(4xx)`.
+ */
+export function seoForRoute(
+	routeId: string | null,
+	pathname: string,
+	errorStatus: number | null = null,
+	data: PageData = {},
+): Seo {
 	const canonical = canonicalUrl(pathname);
 	const image = `${SITE_ORIGIN}${OG_IMAGE_PATH}`;
 
-	if (status >= 400) {
+	if (errorStatus != null) {
 		return {
-			title: m.meta_error_title(),
+			title: errorStatus === 404 ? m.meta_error_title() : m.meta_error_generic_title(),
 			description: m.meta_error_description(),
 			robots: "noindex, nofollow",
 			canonical,
@@ -155,7 +188,7 @@ export function seoForRoute(routeId: string | null, pathname: string, status = 2
 		);
 
 	return {
-		title: page.title(),
+		title: page.title(data),
 		description: page.description(),
 		robots: noindex ? "noindex, nofollow" : "index, follow",
 		canonical,

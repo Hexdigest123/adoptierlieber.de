@@ -6,8 +6,13 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
 	import FormStatus from "$lib/components/ui/FormStatus.svelte";
+	import Turnstile from "$lib/components/ui/Turnstile.svelte";
+	import { turnstileSiteKey } from "$lib/turnstile";
 
 	let { data, form }: PageProps = $props();
+	// A plain POST reloads the page, so every attempt gets a fresh widget.
+	let captchaToken = $state("");
+	const captchaPending = $derived(Boolean(turnstileSiteKey()) && !captchaToken);
 </script>
 
 {#if form?.forgotSuccess}
@@ -25,7 +30,9 @@
 	<AuthCard title={m.auth_forgot_title()} subtitle={m.auth_forgot_subtitle()}>
 		<form method="POST" class="flex flex-col gap-5">
 			{#if form?.forgotError}
-				<FormStatus type="error">{m.error_generic()}</FormStatus>
+				<FormStatus type="error">
+					{form.forgotError === "captcha" ? m.turnstile_failed() : m.error_generic()}
+				</FormStatus>
 			{/if}
 
 			<Input
@@ -38,7 +45,16 @@
 				value={form?.email ?? data.email}
 			/>
 
-			<Button type="submit" fullWidth>{m.auth_forgot_submit()}</Button>
+			<Turnstile action="reset" bind:token={captchaToken} />
+
+			<Button
+				type="submit"
+				fullWidth
+				disabled={captchaPending}
+				class="disabled:cursor-not-allowed disabled:opacity-60"
+			>
+				{m.auth_forgot_submit()}
+			</Button>
 
 			<p class="text-center text-sm text-sand-700">
 				<a

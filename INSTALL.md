@@ -17,7 +17,7 @@ bun run dev
 ## Other scripts
 
 ```bash
-bun run check           # Type check (web)
+bun run check           # Type check (API and web)
 bun run deploy          # Deploy API and web
 bun run deploy:staging  # Deploy to staging
 bun run db:generate     # Generate Drizzle migrations (SQL, no DB access)

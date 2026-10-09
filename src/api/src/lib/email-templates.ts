@@ -13,11 +13,13 @@ export function siteUrl(): string {
 	return BRAND_URL;
 }
 
-function actionUrl(path: string, params: Record<string, string>): string {
+/** Secret tokens go in the fragment (#token=…): browsers never send it, so it stays out of request logs. */
+function actionUrl(path: string, params: Record<string, string>, token?: string): string {
 	const url = new URL(path, `${siteUrl()}/`);
 	for (const [key, value] of Object.entries(params)) {
 		url.searchParams.set(key, value);
 	}
+	if (token) url.hash = new URLSearchParams({ token }).toString();
 	return url.toString();
 }
 
@@ -151,6 +153,32 @@ function expiryLabel(hours: number): string {
 	return `${hours} ${hours === 1 ? "Stunde" : "Stunden"}`;
 }
 
+function singleLine(value: string): string {
+	return value
+		.replace(/[\u0000-\u001f\u007f]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+function notifySubject(value: string): string {
+	const tag = process.env.ENVIRONMENT === "staging" ? "[Staging] " : "";
+	return `${tag}${singleLine(value)}`.slice(0, 200);
+}
+
+const BERLIN_TIME = new Intl.DateTimeFormat("de-DE", {
+	timeZone: "Europe/Berlin",
+	dateStyle: "medium",
+	timeStyle: "medium",
+});
+
+const DAY_LABEL = new Intl.DateTimeFormat("de-DE", {
+	timeZone: "UTC",
+	weekday: "long",
+	day: "numeric",
+	month: "long",
+	year: "numeric",
+});
+
 export type EmailTemplateInput = {
 	to: string | string[];
 };
@@ -158,6 +186,8 @@ export type EmailTemplateInput = {
 export type VerifyEmailInput = EmailTemplateInput & {
 	token: string;
 	expiresInHours?: number;
+	/** Re-sent because someone registered again with a still unverified address. */
+	repeated?: boolean;
 };
 
 /** Verification link for new user and shelter owner accounts (24h default). */
@@ -165,11 +195,15 @@ export function verifyEmailTemplate({
 	to,
 	token,
 	expiresInHours = 24,
+	repeated = false,
 }: VerifyEmailInput): MailOptions {
 	const expiry = expiryLabel(expiresInHours);
 	const recipient = Array.isArray(to) ? to[0] : to;
-	const href = actionUrl("/verify", { email: recipient, token });
+	const href = actionUrl("/verify", { email: recipient }, token);
 	const subject = "Bestätige deine E-Mail-Adresse";
+	const repeatNote = repeated
+		? `Mit dieser Adresse wurde schon früher ein Konto angelegt. Es gilt das Passwort von damals. Hast du es vergessen, setze es nach der Bestätigung zurück: ${actionUrl("/forgot-password", {})}`
+		: "";
 	return {
 		to,
 		subject,
@@ -182,7 +216,7 @@ ${href}
 Oder gib auf der Bestätigungsseite diesen Code ein:
 
 ${token}
-
+${repeatNote ? `\n${repeatNote}\n` : ""}
 Der Link ist ${expiry} gültig. Solltest du keine Registrierung vorgenommen haben, kannst du diese E-Mail einfach ignorieren.`,
 		html: layout({
 			preview: "Fast geschafft – bestätige deine E-Mail-Adresse, um dein Konto zu aktivieren.",
@@ -194,6 +228,7 @@ Der Link ist ${expiry} gültig. Solltest du keine Registrierung vorgenommen habe
 				ctaButton(href, "E-Mail bestätigen"),
 				note("Falls der Button nicht funktioniert, nutze diesen Code auf der Bestätigungsseite:"),
 				tokenBox(token),
+				repeatNote ? note(repeatNote) : "",
 				note(
 					`Der Link ist ${expiry} gültig. Solltest du keine Registrierung vorgenommen haben, kannst du diese E-Mail einfach ignorieren.`,
 				),
@@ -227,36 +262,89 @@ export function shelterRegistrationNotificationTemplate({
 	email,
 	description,
 }: ShelterRegistrationNotificationInput): MailOptions {
-	const subject = `Neue Tierheim-Registrierung: ${orgName}`;
+	const org = singleLine(orgName);
+	const address = singleLine(`${street}, ${zip} ${city}`);
+	const web = website ? singleLine(website) : "–";
+	const registerNo = registrationNumber ? singleLine(registrationNumber) : "–";
+	const contact = singleLine(`${name} <${email}>`);
+	const subject = notifySubject(`Neue Tierheim-Registrierung: ${org}`);
 	return {
 		to,
 		subject,
-		text: `Neue Tierheim-Registrierung: ${orgName}
+		text: `Neue Tierheim-Registrierung: ${org}
 
-${orgName} hat sich registriert und wartet auf Freischaltung.
+${org} hat sich registriert und wartet auf Freischaltung.
 
-Organisation: ${orgName}
-Adresse: ${street}, ${zip} ${city}
-Webseite: ${website ?? "–"}
-Registernummer: ${registrationNumber ?? "–"}
-Kontakt: ${name} <${email}>
+Organisation: ${org}
+Adresse: ${address}
+Webseite: ${web}
+Registernummer: ${registerNo}
+Kontakt: ${contact}
 
 Beschreibung:
 ${description ?? "–"}`,
 		html: layout({
-			preview: `${orgName} hat sich registriert und wartet auf Freischaltung.`,
+			preview: `${org} hat sich registriert und wartet auf Freischaltung.`,
 			body: [
 				heading("Neue Tierheim-Registrierung"),
-				paragraph(`${orgName} hat sich registriert und wartet auf Freischaltung.`),
+				paragraph(`${org} hat sich registriert und wartet auf Freischaltung.`),
 				detailList([
-					["Organisation", orgName],
-					["Adresse", `${street}, ${zip} ${city}`],
-					["Webseite", website ?? "–"],
-					["Registernummer", registrationNumber ?? "–"],
-					["Kontakt", `${name} <${email}>`],
+					["Organisation", org],
+					["Adresse", address],
+					["Webseite", web],
+					["Registernummer", registerNo],
+					["Kontakt", contact],
 				]),
 				paragraph("Beschreibung:"),
 				quoteBlock(description ?? "–"),
+			].join(""),
+		}),
+	};
+}
+
+export type UserRegistrationNotificationInput = EmailTemplateInput & {
+	name: string;
+	email: string;
+	zip: string;
+	city: string;
+	registeredAt: Date;
+};
+
+export function userRegistrationNotificationTemplate({
+	to,
+	name,
+	email,
+	zip,
+	city,
+	registeredAt,
+}: UserRegistrationNotificationInput): MailOptions {
+	const who = singleLine(name);
+	const mail = singleLine(email);
+	const place = singleLine(`${zip} ${city}`);
+	const when = `${BERLIN_TIME.format(registeredAt)} Uhr`;
+	const subject = notifySubject(`Neue Registrierung: ${who}`);
+	return {
+		to,
+		subject,
+		text: `Neue Registrierung: ${who}
+
+Ein neues Konto wurde angelegt.
+
+Name: ${who}
+E-Mail: ${mail}
+Ort: ${place}
+Zeitpunkt: ${when}`,
+		html: layout({
+			preview: `${who} hat sich registriert.`,
+			body: [
+				heading("Neue Registrierung"),
+				paragraph("Ein neues Konto wurde angelegt."),
+				detailList([
+					["Name", who],
+					["E-Mail", mail],
+					["Ort", place],
+					["Zeitpunkt", when],
+				]),
 			].join(""),
 		}),
 	};
@@ -314,7 +402,7 @@ export function accountDeletionTemplate({
 	expiresInHours = 1,
 }: AccountDeletionInput): MailOptions {
 	const expiry = expiryLabel(expiresInHours);
-	const href = actionUrl("/delete-account", { token });
+	const href = actionUrl("/delete-account", {}, token);
 	const subject = "Konto löschen – Bestätigung";
 	return {
 		to,
@@ -382,7 +470,7 @@ export function passwordResetTemplate({
 }: PasswordResetInput): MailOptions {
 	const expiry = expiryLabel(expiresInHours);
 	const recipient = Array.isArray(to) ? to[0] : to;
-	const href = actionUrl("/reset-password", { email: recipient, token });
+	const href = actionUrl("/reset-password", { email: recipient }, token);
 	const subject = "Passwort zurücksetzen";
 	return {
 		to,
@@ -410,6 +498,39 @@ Der Link ist ${expiry} gültig. Falls du das Zurücksetzen nicht angefordert has
 				tokenBox(token),
 				note(
 					`Der Link ist ${expiry} gültig. Falls du das Zurücksetzen nicht angefordert hast, kannst du diese E-Mail ignorieren.`,
+				),
+			].join(""),
+		}),
+	};
+}
+
+/** Someone tried to register with an address that already has an account. */
+export function registrationAttemptTemplate({ to }: EmailTemplateInput): MailOptions {
+	const loginHref = actionUrl("/login", {});
+	const resetHref = actionUrl("/forgot-password", {});
+	const subject = "Registrierung mit deiner E-Mail-Adresse";
+	return {
+		to,
+		subject,
+		text: `Registrierung mit deiner E-Mail-Adresse
+
+Gerade hat jemand versucht, mit dieser E-Mail-Adresse ein neues Konto bei Adoptier Lieber anzulegen. Du hast hier aber schon ein Konto.
+
+Melde dich einfach an: ${loginHref}
+Passwort vergessen? ${resetHref}
+
+Warst du das nicht, kannst du diese E-Mail ignorieren. An deinem Konto hat sich nichts geändert.`,
+		html: layout({
+			preview: "Mit deiner Adresse besteht schon ein Konto.",
+			body: [
+				heading("Registrierung mit deiner E-Mail-Adresse"),
+				paragraph(
+					"Gerade hat jemand versucht, mit dieser E-Mail-Adresse ein neues Konto bei Adoptier Lieber anzulegen. Du hast hier aber schon ein Konto.",
+				),
+				ctaButton(loginHref, "Anmelden"),
+				note(`Passwort vergessen? Du kannst es hier zurücksetzen: ${resetHref}`),
+				note(
+					"Warst du das nicht, kannst du diese E-Mail ignorieren. An deinem Konto hat sich nichts geändert.",
 				),
 			].join(""),
 		}),
@@ -473,7 +594,7 @@ export type AdminInviteInput = EmailTemplateInput & {
 
 export function adminInviteTemplate({ to, token, expiresInHours = 168 }: AdminInviteInput): MailOptions {
 	const expiry = expiryLabel(expiresInHours);
-	const href = actionUrl("/invite", { token });
+	const href = actionUrl("/invite", {}, token);
 	const subject = "Einladung ins Admin-Team";
 	return {
 		to,
@@ -501,6 +622,7 @@ export type ShelterStaffInviteInput = EmailTemplateInput & {
 	orgName: string;
 	token: string;
 	existingUser: boolean;
+	expiresInDays?: number;
 };
 
 export function shelterStaffInviteTemplate({
@@ -508,25 +630,35 @@ export function shelterStaffInviteTemplate({
 	orgName,
 	token,
 	existingUser,
+	expiresInDays = 14,
 }: ShelterStaffInviteInput): MailOptions {
-	const href = existingUser
-		? actionUrl("/login", { next: "/shelter" })
-		: actionUrl("/register", { invite: token });
+	// Joining is always an explicit step on this page, logged in as the invited address.
+	const href = actionUrl("/shelter/invite", {}, token);
+	const registerHref = actionUrl("/register", {});
+	const steps = existingUser
+		? "Melde dich mit dieser E-Mail-Adresse an und nimm die Einladung an."
+		: "Du hast noch kein Konto? Registriere dich zuerst mit dieser E-Mail-Adresse und bestätige sie. Öffne danach den Einladungslink und nimm die Einladung an.";
+	const footer = `Der Link ist ${expiresInDays} Tage gültig. Du trittst erst bei, wenn du die Einladung annimmst. Wenn du sie nicht erwartet hast, ignoriere diese E-Mail einfach.`;
 	const subject = `Einladung zu ${orgName}`;
 	return {
 		to,
 		subject,
 		text: `Einladung zu ${orgName}
 
-Du wurdest zum Team von ${orgName} eingeladen.
+Du wurdest zum Team von ${orgName} eingeladen. ${steps}
 
-${href}`,
+${href}
+${existingUser ? "" : `\nKonto erstellen: ${registerHref}\n`}
+${footer}`,
 		html: layout({
 			preview: `Einladung zum Team von ${orgName}.`,
 			body: [
 				heading("Team-Einladung"),
 				paragraph(`Du wurdest zum Team von ${orgName} eingeladen.`),
-				ctaButton(href, existingUser ? "Anmelden und beitreten" : "Konto erstellen"),
+				paragraph(steps),
+				existingUser ? "" : ctaButton(registerHref, "Konto erstellen"),
+				ctaButton(href, "Einladung ansehen"),
+				note(footer),
 			].join(""),
 		}),
 	};
@@ -595,6 +727,92 @@ ${href}`,
 				),
 				quoteBlock(lines),
 				ctaButton(href, "In Nachrichten öffnen"),
+			].join(""),
+		}),
+	};
+}
+
+export type DailyStatsInput = EmailTemplateInput & {
+	day: string;
+	visits: { total: number; bySection: { section: string; count: number }[] };
+	logins: number;
+	views: { total: number; top: { animalName: string; orgName: string; count: number }[] };
+	donations: { total: number; byShelter: { orgName: string; city: string; count: number }[] };
+};
+
+const VISIT_SECTION_LABELS: Record<string, string> = {
+	landing: "Startseite",
+	app: "App",
+	animal: "Tierseiten",
+	shelter: "Tierheim-Bereich",
+	auth: "Anmeldung und Registrierung",
+	other: "Sonstige",
+};
+
+export function dailyStatsTemplate({
+	to,
+	day,
+	visits,
+	logins,
+	views,
+	donations,
+}: DailyStatsInput): MailOptions {
+	const dayLabel = DAY_LABEL.format(new Date(`${day}T12:00:00Z`));
+	const sections = visits.bySection.map(
+		({ section, count }): DetailRow => [
+			VISIT_SECTION_LABELS[section] ?? singleLine(section),
+			String(count),
+		],
+	);
+	const topViews = views.top.map(
+		({ animalName, orgName, count }): DetailRow => [
+			`${count}×`,
+			singleLine(`${animalName} · ${orgName}`),
+		],
+	);
+	const byShelter = donations.byShelter.map(
+		({ orgName, city, count }): DetailRow => [`${count}×`, singleLine(`${orgName} (${city})`)],
+	);
+	const subject = notifySubject(`Tägliche Statistik – ${day}`);
+	const asLines = (rows: DetailRow[]) =>
+		rows.map(([label, value]) => `• ${label} ${value}`).join("\n");
+	return {
+		to,
+		subject,
+		text: `Tägliche Statistik – ${day}
+
+Auswertung für ${dayLabel} (${day}, Europe/Berlin).
+
+Seitenaufrufe: ${visits.total}
+Logins: ${logins}
+Angesehene Tiere: ${views.total}
+Spenden-Klicks: ${donations.total}
+
+Seitenaufrufe nach Bereich:
+${sections.length ? asLines(sections) : "–"}
+
+Meistgesehene Tiere:
+${topViews.length ? asLines(topViews) : "–"}
+
+Spenden-Klicks nach Tierheim:
+${byShelter.length ? asLines(byShelter) : "–"}`,
+		html: layout({
+			preview: `${day}: ${visits.total} Seitenaufrufe, ${logins} Logins, ${donations.total} Spenden-Klicks.`,
+			body: [
+				heading("Tägliche Statistik"),
+				paragraph(`Auswertung für ${dayLabel} (${day}, Europe/Berlin).`),
+				detailList([
+					["Seitenaufrufe", String(visits.total)],
+					["Logins", String(logins)],
+					["Angesehene Tiere", String(views.total)],
+					["Spenden-Klicks", String(donations.total)],
+				]),
+				paragraph("Seitenaufrufe nach Bereich:"),
+				sections.length ? detailList(sections) : note("Keine Seitenaufrufe."),
+				paragraph("Meistgesehene Tiere:"),
+				topViews.length ? detailList(topViews) : note("Keine angesehenen Tiere."),
+				paragraph("Spenden-Klicks nach Tierheim:"),
+				byShelter.length ? detailList(byShelter) : note("Keine Spenden-Klicks."),
 			].join(""),
 		}),
 	};

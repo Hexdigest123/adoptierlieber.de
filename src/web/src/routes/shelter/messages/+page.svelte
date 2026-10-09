@@ -2,6 +2,7 @@
 	import type { PageProps } from "./$types";
 	import { m } from "$lib/paraglide/messages";
 	import { photoUrl } from "$lib/types/shelter";
+	import { formatDateTime } from "$lib/datetime";
 
 	let { data }: PageProps = $props();
 
@@ -15,10 +16,6 @@
 				row.adopter_name.toLowerCase().includes(q) || row.animal_name.toLowerCase().includes(q),
 		);
 	});
-
-	function timeLabel(iso: string): string {
-		return new Date(iso).toLocaleString();
-	}
 </script>
 
 <h1 class="text-2xl font-black tracking-tight text-sand-950">{m.shelter_messages_title()}</h1>
@@ -26,35 +23,38 @@
 <div class="mt-4 flex flex-wrap gap-2">
 	<a
 		href="/shelter/messages"
-		class="inline-flex h-11 items-center rounded-full px-3 text-sm font-semibold focus-ring {data.filter ===
+		aria-current={data.filter === "all" && !data.animalId ? "page" : undefined}
+		class="inline-flex h-11 items-center rounded-full px-3 text-sm font-medium focus-ring {data.filter ===
 			'all' && !data.animalId
-			? 'bg-coral-600 text-white'
-			: 'bg-white text-sand-700'}"
+			? 'bg-coral-50 text-coral-800'
+			: 'bg-white text-sand-700 hover:bg-peach-100'}"
 	>
 		{m.shelter_filter_all()}
 	</a>
 	<a
 		href="/shelter/messages?filter=unread"
-		class="inline-flex h-11 items-center rounded-full px-3 text-sm font-semibold focus-ring {data.filter ===
+		aria-current={data.filter === "unread" ? "page" : undefined}
+		class="inline-flex h-11 items-center rounded-full px-3 text-sm font-medium focus-ring {data.filter ===
 		'unread'
-			? 'bg-coral-600 text-white'
-			: 'bg-white text-sand-700'}"
+			? 'bg-coral-50 text-coral-800'
+			: 'bg-white text-sand-700 hover:bg-peach-100'}"
 	>
 		{m.shelter_filter_unread()}
 	</a>
 	<a
 		href="/shelter/messages?filter=mine"
-		class="inline-flex h-11 items-center rounded-full px-3 text-sm font-semibold focus-ring {data.filter ===
+		aria-current={data.filter === "mine" ? "page" : undefined}
+		class="inline-flex h-11 items-center rounded-full px-3 text-sm font-medium focus-ring {data.filter ===
 		'mine'
-			? 'bg-coral-600 text-white'
-			: 'bg-white text-sand-700'}"
+			? 'bg-coral-50 text-coral-800'
+			: 'bg-white text-sand-700 hover:bg-peach-100'}"
 	>
 		{m.shelter_mine()}
 	</a>
 	<label class="sr-only" for="shelter-messages-animal">{m.shelter_filter_animal()}</label>
 	<select
 		id="shelter-messages-animal"
-		class="h-11 rounded-full border border-sand-300 bg-white px-3 text-sm font-semibold focus-ring"
+		class="h-11 rounded-full border border-sand-300 bg-white px-3 text-sm font-medium focus-ring"
 		onchange={(event) => {
 			const value = event.currentTarget.value;
 			location.href = value ? `/shelter/messages?animal=${value}` : "/shelter/messages";
@@ -103,7 +103,7 @@
 						{#if thread.assigned_name}
 							<p class="text-xs text-sand-500">{m.shelter_assign()}: {thread.assigned_name}</p>
 						{/if}
-						<p class="text-xs text-sand-500">{timeLabel(thread.last_message_at)}</p>
+						<p class="text-xs text-sand-500">{formatDateTime(thread.last_message_at)}</p>
 					</div>
 					{#if thread.unread_for_me}
 						<span class="size-2.5 shrink-0 rounded-full bg-coral-600" aria-hidden="true"></span>

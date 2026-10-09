@@ -125,5 +125,9 @@ export async function readCreateBody(
     }
     return { fields, avatar };
   }
-  return { fields: (await request.json()) as Record<string, unknown>, avatar: null };
+  const body: unknown = await request.json();
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    throw new HTTPException(400, { message: "Invalid request" });
+  }
+  return { fields: body as Record<string, unknown>, avatar: null };
 }

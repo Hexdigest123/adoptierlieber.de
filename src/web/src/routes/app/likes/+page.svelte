@@ -3,6 +3,7 @@
 	import { untrack } from "svelte";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
+	import Select from "$lib/components/ui/Select.svelte";
 	import AnimalCard from "$lib/components/app/AnimalCard.svelte";
 	import { speciesQuery } from "$lib/app/filters.svelte";
 	import type { ListEnvelope, PublicAnimal } from "$lib/types/catalog";
@@ -12,7 +13,16 @@
 	let loading = $state(true);
 	let error = $state(false);
 	let toast = $state("");
-	let sort = $state<"recent" | "distance" | "name">("recent");
+	/** One of recent, distance, name. */
+	let sort = $state("recent");
+
+	function sortOptions() {
+		return [
+			{ value: "recent", label: m.app_saved_sort_recent() },
+			{ value: "distance", label: m.app_saved_sort_distance() },
+			{ value: "name", label: m.app_saved_sort_name() },
+		];
+	}
 
 	async function load() {
 		loading = true;
@@ -60,24 +70,17 @@
 		class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3"
 	>
 		<h1 class="text-2xl font-black text-sand-950">{m.app_saved_title()}</h1>
-		<div class="flex flex-wrap gap-1" role="group" aria-label={m.app_search_sort()}>
-			{#each [{ id: "recent", label: m.app_saved_sort_recent() }, { id: "distance", label: m.app_saved_sort_distance() }, { id: "name", label: m.app_saved_sort_name() }] as option (option.id)}
-				<button
-					type="button"
-					aria-pressed={sort === option.id}
-					class="rounded-full px-3 py-1.5 text-sm font-semibold focus-ring {sort === option.id
-						? 'bg-coral-600 text-white'
-						: 'text-sand-700 hover:bg-peach-100'}"
-					onclick={() => (sort = option.id as typeof sort)}
-				>
-					{option.label}
-				</button>
-			{/each}
-		</div>
+		<Select
+			id="likes-sort"
+			class="sm:w-56"
+			label={m.app_search_sort()}
+			options={sortOptions()}
+			bind:value={sort}
+		/>
 	</div>
 
 	{#if toast}
-		<p class="text-sm font-semibold text-sand-800" role="status">{toast}</p>
+		<p class="text-sm font-medium text-sand-800" role="status">{toast}</p>
 	{/if}
 
 	{#if loading}

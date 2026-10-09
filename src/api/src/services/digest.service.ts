@@ -32,7 +32,7 @@ export async function sendDailyDigests(env: Env): Promise<void> {
       items.push({
         animalName: animal?.name ?? "–",
         adopterName: adopter?.displayName || adopter?.name || "–",
-        hours: Math.max(48, Math.round((Date.now() - row.lastMessageAt.getTime()) / 3_600_000)),
+        hours: Math.floor((Date.now() - row.lastMessageAt.getTime()) / 3_600_000),
         threadId: row.id,
       });
     }

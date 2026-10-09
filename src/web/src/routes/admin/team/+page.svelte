@@ -25,20 +25,24 @@
 	<FormStatus type="error" class="mb-4">{m.admin_error_generic()}</FormStatus>
 {/if}
 
-<Card class="mb-8">
-	<h2 class="text-lg font-bold text-sand-950">{m.admin_team_invite()}</h2>
-	<form method="POST" action="?/invite" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-		<Input
-			id="invite-email"
-			name="email"
-			type="email"
-			label={m.invite_email()}
-			required
-			class="flex-1"
-		/>
-		<Button type="submit" size="sm">{m.admin_team_invite_submit()}</Button>
-	</form>
-</Card>
+{#if isSuper}
+	<Card class="mb-8">
+		<h2 class="text-lg font-bold text-sand-950">{m.admin_team_invite()}</h2>
+		<form method="POST" action="?/invite" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+			<Input
+				id="invite-email"
+				name="email"
+				type="email"
+				label={m.invite_email()}
+				required
+				class="flex-1"
+			/>
+			<Button type="submit" size="sm">{m.admin_team_invite_submit()}</Button>
+		</form>
+	</Card>
+{:else}
+	<p class="mb-8 text-sm text-sand-700">{m.admin_team_invite_super_only()}</p>
+{/if}
 
 <div class="flex flex-col gap-3">
 	{#each data.team.items as member (member.id)}
@@ -79,10 +83,12 @@
 							{m.admin_team_expires()}: {formatDate(invite.expires_at)}
 						</p>
 					</div>
-					<form method="POST" action="?/revoke">
-						<input type="hidden" name="id" value={invite.id} />
-						<Button type="submit" variant="outline" size="sm">{m.admin_team_revoke()}</Button>
-					</form>
+					{#if isSuper}
+						<form method="POST" action="?/revoke">
+							<input type="hidden" name="id" value={invite.id} />
+							<Button type="submit" variant="outline" size="sm">{m.admin_team_revoke()}</Button>
+						</form>
+					{/if}
 				</div>
 			</Card>
 		{/each}

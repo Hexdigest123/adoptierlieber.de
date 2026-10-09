@@ -11,6 +11,7 @@
 
 	const shelter = $derived(data.shelter);
 	const locked = $derived(!data.isOwner || data.readonly);
+	const identityLocked = $derived(locked || data.identityLocked);
 </script>
 
 <p class="text-center text-sm text-sand-700">{m.shelter_settings_subtitle()}</p>
@@ -29,9 +30,10 @@
 			id="org_name"
 			name="org_name"
 			label={m.shelter_field_org()}
+			hint={data.identityLocked ? m.shelter_identity_locked_hint() : undefined}
 			value={shelter.org_name}
 			required
-			disabled={locked}
+			disabled={identityLocked}
 		/>
 		<Input
 			id="street"
@@ -86,8 +88,9 @@
 			id="registration_number"
 			name="registration_number"
 			label={m.shelter_field_reg()}
+			hint={data.identityLocked ? m.shelter_identity_locked_hint() : undefined}
 			value={shelter.registration_number ?? ""}
-			disabled={locked}
+			disabled={identityLocked}
 		/>
 		<Textarea
 			id="description"
@@ -165,6 +168,8 @@
 		</p>
 		{#if form?.success}
 			<FormStatus type="success">{m.shelter_saved()}</FormStatus>
+		{:else if form?.identityLocked}
+			<FormStatus type="error">{m.shelter_identity_locked_error()}</FormStatus>
 		{:else if form?.error}
 			<FormStatus type="error">{m.error_invalid_input()}</FormStatus>
 		{/if}

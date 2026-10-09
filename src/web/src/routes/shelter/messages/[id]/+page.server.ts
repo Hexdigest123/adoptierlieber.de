@@ -6,9 +6,9 @@ export const load: PageServerLoad = async ({ parent, fetch, params }) => {
 	const { current } = await parent();
 	if (!current) error(404, "not found");
 	const [threadRes, messagesRes, appRes, membersRes, snippetsRes] = await Promise.all([
-		fetch(`/api/chats/${params.id}`),
-		fetch(`/api/chats/${params.id}/messages`),
-		fetch(`/api/chats/${params.id}/application`),
+		fetch(`/api/chats/${encodeURIComponent(params.id)}`),
+		fetch(`/api/chats/${encodeURIComponent(params.id)}/messages`),
+		fetch(`/api/chats/${encodeURIComponent(params.id)}/application`),
 		fetch(`/api/shelters/${current.shelter_id}/members`),
 		fetch(`/api/shelters/${current.shelter_id}/snippets`),
 	]);
@@ -30,6 +30,6 @@ export const load: PageServerLoad = async ({ parent, fetch, params }) => {
 	const snippets = snippetsRes.ok
 		? ((await snippetsRes.json()) as { items: { id: string; title: string; body: string }[] }).items
 		: [];
-	await fetch(`/api/chats/${params.id}/read`, { method: "POST" });
+	await fetch(`/api/chats/${encodeURIComponent(params.id)}/read`, { method: "POST" });
 	return { thread, messages, application, members, snippets };
 };

@@ -10,6 +10,7 @@
 	import ConfirmDialog from "$lib/components/admin/ConfirmDialog.svelte";
 	import StatusPill from "$lib/components/admin/StatusPill.svelte";
 	import { formatDate } from "$lib/admin/format";
+	import { safeHttpUrl } from "$lib/safe-url";
 
 	let { data, form }: PageProps = $props();
 	let dialog = $state<"approve" | "deny" | null>(null);
@@ -20,12 +21,13 @@
 	);
 	const pending = $derived(application.verification_status === "pending");
 	const showNotes = $derived(application.verification_status !== "verified");
+	const websiteHref = $derived(safeHttpUrl(application.website));
 </script>
 
 <div class="mb-5">
 	<a
 		href={resolve("/admin/applications")}
-		class="text-sm font-semibold text-coral-700 focus-ring hover:text-coral-800"
+		class="text-sm font-medium text-coral-700 focus-ring hover:text-coral-800"
 	>
 		{m.admin_applications_title()}
 	</a>
@@ -59,35 +61,39 @@
 		</div>
 		<dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
 			<div>
-				<dt class="font-semibold text-sand-700">{m.admin_application_website()}</dt>
+				<dt class="font-medium text-sand-700">{m.admin_application_website()}</dt>
 				<dd>
-					{#if application.website}
+					{#if websiteHref}
+						<!-- eslint-disable svelte/no-navigation-without-resolve -- external, http(s)-only -->
 						<a
-							href={application.website}
-							class="font-semibold text-coral-700 underline underline-offset-2"
+							href={websiteHref}
+							class="font-medium text-coral-700 underline underline-offset-2"
 							target="_blank"
 							rel="noopener noreferrer">{application.website}</a
 						>
+						<!-- eslint-enable svelte/no-navigation-without-resolve -->
+					{:else if application.website}
+						<span class="break-all">{application.website}</span>
 					{:else}
 						—
 					{/if}
 				</dd>
 			</div>
 			<div>
-				<dt class="font-semibold text-sand-700">{m.admin_application_registration()}</dt>
+				<dt class="font-medium text-sand-700">{m.admin_application_registration()}</dt>
 				<dd>{application.registration_number ?? "—"}</dd>
 			</div>
 			<div>
-				<dt class="font-semibold text-sand-700">{m.admin_application_submitted()}</dt>
+				<dt class="font-medium text-sand-700">{m.admin_application_submitted()}</dt>
 				<dd class="tabular-nums">{formatDate(application.created_at)}</dd>
 			</div>
 		</dl>
 		{#if application.description}
-			<h2 class="mt-5 text-sm font-semibold text-sand-700">{m.admin_application_description()}</h2>
+			<h2 class="mt-5 text-sm font-medium text-sand-700">{m.admin_application_description()}</h2>
 			<p class="mt-1 text-sm leading-relaxed text-sand-800">{application.description}</p>
 		{/if}
 		{#if application.verification_reason}
-			<h2 class="mt-5 text-sm font-semibold text-sand-700">{m.admin_deny_reason()}</h2>
+			<h2 class="mt-5 text-sm font-medium text-sand-700">{m.admin_deny_reason()}</h2>
 			<p class="mt-1 text-sm leading-relaxed text-sand-800">{application.verification_reason}</p>
 		{/if}
 	</Card>
@@ -98,9 +104,7 @@
 			class="block rounded-2xl focus-ring"
 		>
 			<Card focusable>
-				<p class="text-xs font-semibold tracking-wide text-sand-600 uppercase">
-					{m.admin_shelter_owner()}
-				</p>
+				<p class="text-sm font-medium text-sand-600">{m.admin_shelter_owner()}</p>
 				<div class="mt-3 flex items-center gap-3">
 					<Avatar
 						name={owner.name}

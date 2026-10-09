@@ -5,8 +5,8 @@ import type { ChatMessage, ChatThreadDetail } from "$lib/types/shelter";
 export const load: PageServerLoad = async ({ fetch, params, parent }) => {
 	const { user } = await parent();
 	const [threadRes, messagesRes] = await Promise.all([
-		fetch(`/api/chats/${params.id}`),
-		fetch(`/api/chats/${params.id}/messages`),
+		fetch(`/api/chats/${encodeURIComponent(params.id)}`),
+		fetch(`/api/chats/${encodeURIComponent(params.id)}/messages`),
 	]);
 	if (!threadRes.ok) error(threadRes.status === 404 ? 404 : 502, "thread");
 	const thread = (await threadRes.json()) as ChatThreadDetail;
@@ -14,6 +14,6 @@ export const load: PageServerLoad = async ({ fetch, params, parent }) => {
 	const messages = messagesRes.ok
 		? ((await messagesRes.json()) as { items: ChatMessage[] }).items
 		: [];
-	await fetch(`/api/chats/${params.id}/read`, { method: "POST" });
+	await fetch(`/api/chats/${encodeURIComponent(params.id)}/read`, { method: "POST" });
 	return { thread, messages };
 };

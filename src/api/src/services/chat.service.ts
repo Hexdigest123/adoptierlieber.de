@@ -317,14 +317,14 @@ export function createChatService(env: Env) {
 
     async listMessages(userId: string, threadId: string, after?: string) {
       await requireThreadAccess(userId, threadId);
-      let afterDate: Date | undefined;
+      let afterId: string | undefined;
       if (after) {
         const previous = await messageRepo.findById(after);
         if (previous && previous.threadId === threadId) {
-          afterDate = previous.createdAt;
+          afterId = previous.id;
         }
       }
-      const rows = await messageRepo.listByThread(threadId, afterDate);
+      const rows = await messageRepo.listByThread(threadId, afterId);
       return rows.map(toMessageView);
     },
 
@@ -353,7 +353,10 @@ export function createChatService(env: Env) {
       });
       const view = toMessageView(row);
       try {
-        await chatRoomStub(env, threadId).fanout({ type: "message", message: view });
+        // Only current members and the adopter get it; stale sockets are closed.
+        const staff = await memberRepo.listByShelter(thread.shelterId);
+        const recipients = [thread.adopterUserId, ...staff.map((member) => member.userId)];
+        await chatRoomStub(env, threadId).fanout({ type: "message", message: view }, recipients);
       } catch (error) {
         console.error(error);
       }

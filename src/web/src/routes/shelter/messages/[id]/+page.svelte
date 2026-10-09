@@ -103,20 +103,20 @@
 				<h1 class="text-xl font-black text-sand-950">{data.thread.adopter_name}</h1>
 				<a
 					href="/shelter/animals/{data.thread.animal_id}"
-					class="text-sm font-semibold text-coral-700"
+					class="text-sm font-medium text-coral-700"
 				>
 					{data.thread.animal_name}
 				</a>
 				{#if data.thread.animal_status === "found_home"}
-					<p class="mt-1 text-xs font-semibold text-sand-600">{m.shelter_status_home()}</p>
+					<p class="mt-1 text-xs font-medium text-sand-600">{m.shelter_status_home()}</p>
 				{/if}
 			</div>
 			<div class="flex flex-wrap gap-2">
-				<label class="flex items-center gap-2 text-sm font-semibold text-sand-800">
+				<label class="flex items-center gap-2 text-sm font-medium text-sand-800">
 					{m.shelter_assign()}
 					<select
 						bind:value={assigned}
-						class="h-9 rounded-full border border-sand-300 bg-white px-3 text-sm font-semibold"
+						class="h-9 rounded-full border border-sand-300 bg-white px-3 text-sm font-medium"
 						onchange={() => void assign()}
 					>
 						<option value="">{m.shelter_assign_none()}</option>
@@ -133,21 +133,23 @@
 		</header>
 
 		{#if data.thread.prior.length}
-			<div class="mt-3 flex flex-wrap gap-2">
+			<ul class="mt-3 flex flex-wrap gap-x-4 gap-y-1">
 				{#each data.thread.prior as prior (prior.id)}
-					<a
-						href="/shelter/messages/{prior.id}"
-						class="rounded-full bg-peach-100 px-3 py-1 text-xs font-semibold text-coral-900"
-					>
-						{m.shelter_also({ animal: prior.animal_name })}
-					</a>
+					<li>
+						<a
+							href="/shelter/messages/{prior.id}"
+							class="text-sm font-medium text-coral-700 underline underline-offset-2 focus-ring"
+						>
+							{m.shelter_also({ animal: prior.animal_name })}
+						</a>
+					</li>
 				{/each}
-			</div>
+			</ul>
 		{/if}
 
 		{#if data.application.answers.length}
 			<section class="mt-4 rounded-xl border border-sand-200 bg-sand-50 p-4">
-				<p class="text-xs font-bold tracking-wide text-sand-500 uppercase">
+				<p class="text-sm font-medium text-sand-600">
 					{m.shelter_app_internal()}
 				</p>
 				<dl class="mt-2 grid gap-2">
@@ -164,7 +166,7 @@
 		<ul class="mt-4 flex w-full min-w-0 flex-col gap-2" aria-live="polite">
 			{#each messages as message (message.id)}
 				<li
-					class="max-w-[85%] min-w-0 overflow-hidden [overflow-wrap:anywhere] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm {message.kind ===
+					class="max-w-[85%] min-w-0 overflow-hidden rounded-2xl px-3 py-2 text-sm [overflow-wrap:anywhere] whitespace-pre-wrap {message.kind ===
 					'system'
 						? 'self-center bg-sand-200 text-sand-700'
 						: message.author_user_id === data.thread.adopter_user_id
@@ -185,13 +187,14 @@
 			{#if data.snippets.length}
 				<div class="mt-4 flex flex-wrap gap-2">
 					{#each data.snippets as snippet (snippet.id)}
-						<button
+						<Button
 							type="button"
-							class="rounded-full bg-peach-100 px-3 py-1 text-xs font-semibold text-coral-900"
+							variant="outline"
+							size="sm"
 							onclick={() => (draft = snippet.body)}
 						>
 							{m.shelter_snippet_insert()}: {snippet.title}
-						</button>
+						</Button>
 					{/each}
 				</div>
 			{/if}
@@ -213,8 +216,7 @@
 							event.preventDefault();
 							void send();
 						}
-					}}
-				></textarea>
+					}}></textarea>
 				<Button type="submit" loading={sending}>{m.shelter_send()}</Button>
 			</form>
 		{/if}
@@ -258,7 +260,7 @@
 		{#if data.thread.grant?.email}
 			<a
 				href="mailto:{data.thread.grant.email}"
-				class="mt-2 block text-sm font-semibold text-coral-700"
+				class="mt-2 block text-sm font-medium text-coral-700"
 			>
 				{data.thread.grant.email}
 			</a>
