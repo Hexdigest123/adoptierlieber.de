@@ -64,7 +64,7 @@
 	let lat = $state(seed()?.lat ?? "");
 	let lng = $state(seed()?.lng ?? "");
 	let geoBusy = $state(false);
-	let geoHint = $state<"ok" | "fail" | null>(null);
+	let geoHint = $state<"ok" | "coords" | "fail" | null>(null);
 
 	const steps = $derived(
 		accountType === "shelter"
@@ -148,6 +148,7 @@
 			});
 			lat = String(pos.coords.latitude);
 			lng = String(pos.coords.longitude);
+			let filled = false;
 			try {
 				const res = await fetch("/api/geo/reverse", {
 					method: "POST",
@@ -162,11 +163,13 @@
 					if (a?.street) street = a.street;
 					if (a?.zip) zip = a.zip;
 					if (a?.city) city = a.city;
+					filled = Boolean(a?.street || a?.zip || a?.city);
 				}
 			} catch {
 				// Reverse geocode optional. Lat/lng still saved.
 			}
-			geoHint = "ok";
+			// Lookup down or empty: coordinates are kept, the address must be typed.
+			geoHint = filled ? "ok" : "coords";
 		} catch {
 			geoHint = "fail";
 		} finally {
@@ -435,6 +438,8 @@
 				</Button>
 				{#if geoHint === "ok"}
 					<p class="text-sm text-sand-600">{m.auth_use_location_ok()}</p>
+				{:else if geoHint === "coords"}
+					<p class="text-sm text-sand-600">{m.auth_use_location_coords()}</p>
 				{:else if geoHint === "fail"}
 					<p class="text-sm text-sand-600">{m.auth_use_location_fail()}</p>
 				{/if}
@@ -484,6 +489,8 @@
 				</Button>
 				{#if geoHint === "ok"}
 					<p class="text-sm text-sand-600">{m.auth_use_location_ok()}</p>
+				{:else if geoHint === "coords"}
+					<p class="text-sm text-sand-600">{m.auth_use_location_coords()}</p>
 				{:else if geoHint === "fail"}
 					<p class="text-sm text-sand-600">{m.auth_use_location_fail()}</p>
 				{/if}

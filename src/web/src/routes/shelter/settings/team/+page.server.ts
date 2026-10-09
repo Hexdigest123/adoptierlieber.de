@@ -5,7 +5,7 @@ import { resolveMembership } from "$lib/server/shelter-cookie";
 
 export const load: PageServerLoad = async ({ parent, fetch }) => {
 	const { current, shelter, user } = await parent();
-	if (!current) error(404, "not found");
+	if (!current || !user) error(404, "not found");
 	const response = await fetch(`/api/shelters/${current.shelter_id}/members`);
 	if (!response.ok) error(502, "team");
 	const body = (await response.json()) as {

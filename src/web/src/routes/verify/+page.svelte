@@ -1,8 +1,10 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onMount, tick } from "svelte";
 	import type { PageProps } from "./$types";
+	import { enhance } from "$app/forms";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
+	import { takeLinkToken } from "$lib/link-token";
 	import AuthCard from "$lib/components/auth/AuthCard.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
@@ -10,12 +12,15 @@
 
 	let { data, form }: PageProps = $props();
 
+	let token = $state("");
 	let autoForm: HTMLFormElement | undefined = $state();
 	const autoVerify = $derived(
-		Boolean(data.email && data.token && !data.verifySuccess && !form?.verifyError),
+		Boolean(data.email && token && !data.verifySuccess && !form?.verifyError),
 	);
 
-	onMount(() => {
+	onMount(async () => {
+		token = takeLinkToken();
+		await tick();
 		if (autoVerify) autoForm?.requestSubmit();
 	});
 </script>
@@ -31,15 +36,18 @@
 	</AuthCard>
 {:else if autoVerify}
 	<AuthCard title={m.auth_verify_title()} subtitle={m.auth_verify_working()}>
-		<form method="POST" class="flex flex-col gap-5" bind:this={autoForm}>
+		<form method="POST" class="flex flex-col gap-5" bind:this={autoForm} use:enhance>
 			<input type="hidden" name="email" value={data.email} />
-			<input type="hidden" name="token" value={data.token} />
+			<input type="hidden" name="token" value={token} />
 			<Button type="submit" fullWidth>{m.auth_verify_submit()}</Button>
 		</form>
 	</AuthCard>
 {:else}
 	<AuthCard title={m.auth_verify_title()} subtitle={m.auth_verify_subtitle()}>
-		<form method="POST" class="flex flex-col gap-5">
+		<noscript>
+			<FormStatus type="error" class="mb-5">{m.link_token_noscript_code()}</FormStatus>
+		</noscript>
+		<form method="POST" class="flex flex-col gap-5" use:enhance>
 			{#if form?.verifyError}
 				<FormStatus type="error">{m.error_generic()}</FormStatus>
 			{/if}
@@ -59,7 +67,7 @@
 				label={m.auth_verify_token()}
 				required
 				autocomplete="one-time-code"
-				value={form?.token ?? data.token}
+				value={token}
 			/>
 
 			<Button type="submit" fullWidth>{m.auth_verify_submit()}</Button>

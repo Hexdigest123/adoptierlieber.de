@@ -1,13 +1,22 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import type { PageProps } from "./$types";
+	import { enhance } from "$app/forms";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
+	import { takeLinkToken } from "$lib/link-token";
 	import AuthCard from "$lib/components/auth/AuthCard.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
 	import FormStatus from "$lib/components/ui/FormStatus.svelte";
 
 	let { data, form }: PageProps = $props();
+
+	let token = $state("");
+
+	onMount(() => {
+		token = takeLinkToken();
+	});
 </script>
 
 {#if form?.resetSuccess}
@@ -17,7 +26,10 @@
 	</AuthCard>
 {:else}
 	<AuthCard title={m.auth_reset_title()} subtitle={m.auth_reset_subtitle()}>
-		<form method="POST" class="flex flex-col gap-5">
+		<noscript>
+			<FormStatus type="error" class="mb-5">{m.link_token_noscript_code()}</FormStatus>
+		</noscript>
+		<form method="POST" class="flex flex-col gap-5" use:enhance>
 			{#if form?.resetError}
 				<FormStatus type="error">{m.error_generic()}</FormStatus>
 			{/if}
@@ -31,8 +43,8 @@
 				autocomplete="email"
 				value={form?.email ?? data.email}
 			/>
-			{#if data.token}
-				<input type="hidden" name="resetToken" value={data.token} />
+			{#if token}
+				<input type="hidden" name="resetToken" value={token} />
 			{:else}
 				<Input
 					id="reset-token"

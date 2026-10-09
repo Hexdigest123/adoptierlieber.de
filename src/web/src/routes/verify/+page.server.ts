@@ -5,7 +5,6 @@ import { safeNextPath } from "$lib/server/safe-next";
 export const load: PageServerLoad = async ({ url }) => {
 	return {
 		email: url.searchParams.get("email") ?? "",
-		token: url.searchParams.get("token") ?? "",
 		verifySuccess: url.searchParams.get("ok") === "1",
 		next: safeNextPath(url.searchParams.get("next")) ?? "",
 	};
@@ -20,7 +19,7 @@ export const actions: Actions = {
 		const token = String(data.get("token") ?? "").trim();
 
 		if (!email || !token) {
-			return fail(400, { verifyError: true, email, token });
+			return fail(400, { verifyError: true, email });
 		}
 
 		const response = await fetch("/api/users/verify", {
@@ -30,7 +29,7 @@ export const actions: Actions = {
 		});
 
 		if (!response.ok) {
-			return fail(response.status === 429 ? 429 : 400, { verifyError: true, email, token });
+			return fail(response.status === 429 ? 429 : 400, { verifyError: true, email });
 		}
 
 		const next = safeNextPath(url.searchParams.get("next"));

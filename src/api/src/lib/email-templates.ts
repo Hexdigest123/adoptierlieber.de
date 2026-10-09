@@ -13,11 +13,13 @@ export function siteUrl(): string {
 	return BRAND_URL;
 }
 
-function actionUrl(path: string, params: Record<string, string>): string {
+/** Secret tokens go in the fragment (#token=…): browsers never send it, so it stays out of request logs. */
+function actionUrl(path: string, params: Record<string, string>, token?: string): string {
 	const url = new URL(path, `${siteUrl()}/`);
 	for (const [key, value] of Object.entries(params)) {
 		url.searchParams.set(key, value);
 	}
+	if (token) url.hash = new URLSearchParams({ token }).toString();
 	return url.toString();
 }
 
@@ -171,7 +173,7 @@ export function verifyEmailTemplate({
 }: VerifyEmailInput): MailOptions {
 	const expiry = expiryLabel(expiresInHours);
 	const recipient = Array.isArray(to) ? to[0] : to;
-	const href = actionUrl("/verify", { email: recipient, token });
+	const href = actionUrl("/verify", { email: recipient }, token);
 	const subject = "Bestätige deine E-Mail-Adresse";
 	const repeatNote = repeated
 		? `Mit dieser Adresse wurde schon früher ein Konto angelegt. Es gilt das Passwort von damals. Hast du es vergessen, setze es nach der Bestätigung zurück: ${actionUrl("/forgot-password", {})}`
@@ -321,7 +323,7 @@ export function accountDeletionTemplate({
 	expiresInHours = 1,
 }: AccountDeletionInput): MailOptions {
 	const expiry = expiryLabel(expiresInHours);
-	const href = actionUrl("/delete-account", { token });
+	const href = actionUrl("/delete-account", {}, token);
 	const subject = "Konto löschen – Bestätigung";
 	return {
 		to,
@@ -389,7 +391,7 @@ export function passwordResetTemplate({
 }: PasswordResetInput): MailOptions {
 	const expiry = expiryLabel(expiresInHours);
 	const recipient = Array.isArray(to) ? to[0] : to;
-	const href = actionUrl("/reset-password", { email: recipient, token });
+	const href = actionUrl("/reset-password", { email: recipient }, token);
 	const subject = "Passwort zurücksetzen";
 	return {
 		to,
@@ -513,7 +515,7 @@ export type AdminInviteInput = EmailTemplateInput & {
 
 export function adminInviteTemplate({ to, token, expiresInHours = 168 }: AdminInviteInput): MailOptions {
 	const expiry = expiryLabel(expiresInHours);
-	const href = actionUrl("/invite", { token });
+	const href = actionUrl("/invite", {}, token);
 	const subject = "Einladung ins Admin-Team";
 	return {
 		to,
@@ -552,7 +554,7 @@ export function shelterStaffInviteTemplate({
 	expiresInDays = 14,
 }: ShelterStaffInviteInput): MailOptions {
 	// Joining is always an explicit step on this page, logged in as the invited address.
-	const href = actionUrl("/shelter/invite", { token });
+	const href = actionUrl("/shelter/invite", {}, token);
 	const registerHref = actionUrl("/register", {});
 	const steps = existingUser
 		? "Melde dich mit dieser E-Mail-Adresse an und nimm die Einladung an."

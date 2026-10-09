@@ -1,25 +1,8 @@
 import { fail, redirect } from "@sveltejs/kit";
-import type { Actions, PageServerLoad } from "./$types";
+import type { Actions } from "./$types";
 import { setSessionCookie } from "$lib/server/session-cookie";
-import type { InvitePreview } from "$lib/admin/types";
 
-export const load: PageServerLoad = async ({ url, fetch }) => {
-	const token = url.searchParams.get("token") ?? "";
-	if (!token) {
-		return { invite: null as InvitePreview | null, token: "" };
-	}
-	const response = await fetch("/api/invites/preview", {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify({ token }),
-	});
-	if (!response.ok) {
-		return { invite: null as InvitePreview | null, token };
-	}
-	const invite = (await response.json()) as InvitePreview;
-	return { invite, token };
-};
-
+// The invite token comes from the URL fragment; the page previews it in the browser.
 export const actions: Actions = {
 	accept: async ({ request, fetch, cookies }) => {
 		const data = await request.formData();
@@ -41,16 +24,16 @@ export const actions: Actions = {
 		});
 
 		if (response.status === 401) {
-			redirect(303, `/login?next=${encodeURIComponent(`/invite?token=${token}`)}`);
+			redirect(303, `/login?next=${encodeURIComponent("/invite")}`);
 		}
 		if (response.status === 409) {
-			return fail(409, { inviteError: "wrong_email" as const, token });
+			return fail(409, { inviteError: "wrong_email" as const });
 		}
 		if (!response.ok) {
 			if (response.status === 404) {
-				return fail(404, { inviteError: "invalid" as const, token });
+				return fail(404, { inviteError: "invalid" as const });
 			}
-			return fail(response.status === 400 ? 400 : 502, { inviteError: "generic" as const, token });
+			return fail(response.status === 400 ? 400 : 502, { inviteError: "generic" as const });
 		}
 
 		if (response.status === 201) {
