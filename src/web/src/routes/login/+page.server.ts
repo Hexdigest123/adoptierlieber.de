@@ -13,6 +13,14 @@ type AuthBody = {
 	mfa_token?: string;
 };
 
+async function apiError(response: Response): Promise<string | undefined> {
+	try {
+		return ((await response.json()) as { error?: string }).error;
+	} catch {
+		return undefined;
+	}
+}
+
 export const load: PageServerLoad = async ({ locals, url, cookies }) => {
 	const next = safeNextPath(url.searchParams.get("next"));
 	if (locals.user?.session_kind === "setup") {
@@ -40,6 +48,10 @@ export const actions: Actions = {
 		});
 
 		if (!response.ok) {
+			// Admins who have a passkey must sign in with it; the password alone is refused.
+			if (response.status === 403 && (await apiError(response)) === "passkey required") {
+				return fail(403, { loginError: "passkey_required" as const, email, next: next ?? "" });
+			}
 			const status = response.status === 429 ? 429 : 401;
 			return fail(status, {
 				loginError: response.status === 429 ? ("rate_limited" as const) : ("credentials" as const),

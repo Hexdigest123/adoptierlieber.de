@@ -12,11 +12,20 @@
 
 	let { data, children }: LayoutProps = $props();
 
+	// Errors caught by the root +error.svelte (all but /app pages, which have their own
+	// boundary inside the app shell) render with the landing header and footer.
+	const rootError = $derived(Boolean(page.error) && !page.route.id?.startsWith("/app"));
 	const ownChrome = $derived(
-		page.url.pathname.startsWith("/admin") ||
-			page.url.pathname.startsWith("/shelter") ||
-			page.url.pathname.startsWith("/app") ||
-			page.url.pathname.startsWith("/invite") ||
+		!rootError &&
+			(page.url.pathname.startsWith("/admin") ||
+				page.url.pathname.startsWith("/shelter") ||
+				page.url.pathname.startsWith("/app") ||
+				page.url.pathname.startsWith("/invite") ||
+				(page.url.pathname.startsWith("/profile") && data.chrome === "app")),
+	);
+	// The app shell has sticky action bars; review/support live in its account menu instead.
+	const appShell = $derived(
+		page.url.pathname.startsWith("/app") ||
 			(page.url.pathname.startsWith("/profile") && data.chrome === "app"),
 	);
 </script>
@@ -36,5 +45,5 @@
 	</div>
 {/if}
 
-<ReviewWidget user={data.user} />
-<SupportWidget user={data.user} />
+<ReviewWidget user={data.user} fab={!appShell} />
+<SupportWidget user={data.user} fab={!appShell} />

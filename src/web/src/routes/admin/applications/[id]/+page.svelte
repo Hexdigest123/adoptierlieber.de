@@ -10,6 +10,7 @@
 	import ConfirmDialog from "$lib/components/admin/ConfirmDialog.svelte";
 	import StatusPill from "$lib/components/admin/StatusPill.svelte";
 	import { formatDate } from "$lib/admin/format";
+	import { safeHttpUrl } from "$lib/safe-url";
 
 	let { data, form }: PageProps = $props();
 	let dialog = $state<"approve" | "deny" | null>(null);
@@ -20,6 +21,7 @@
 	);
 	const pending = $derived(application.verification_status === "pending");
 	const showNotes = $derived(application.verification_status !== "verified");
+	const websiteHref = $derived(safeHttpUrl(application.website));
 </script>
 
 <div class="mb-5">
@@ -61,13 +63,17 @@
 			<div>
 				<dt class="font-semibold text-sand-700">{m.admin_application_website()}</dt>
 				<dd>
-					{#if application.website}
+					{#if websiteHref}
+						<!-- eslint-disable svelte/no-navigation-without-resolve -- external, http(s)-only -->
 						<a
-							href={application.website}
+							href={websiteHref}
 							class="font-semibold text-coral-700 underline underline-offset-2"
 							target="_blank"
 							rel="noopener noreferrer">{application.website}</a
 						>
+						<!-- eslint-enable svelte/no-navigation-without-resolve -->
+					{:else if application.website}
+						<span class="break-all">{application.website}</span>
 					{:else}
 						—
 					{/if}

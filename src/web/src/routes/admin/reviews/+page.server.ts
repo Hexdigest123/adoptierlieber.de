@@ -23,7 +23,12 @@ export const actions: Actions = {
 		if (!id) {
 			return fail(400, { adminError: "generic" as const });
 		}
-		const result = await adminMutate(fetch, `/api/admin/reviews/${id}/approval`, "POST", {});
+		const result = await adminMutate(
+			fetch,
+			`/api/admin/reviews/${encodeURIComponent(id)}/approval`,
+			"POST",
+			{},
+		);
 		if (!("ok" in result)) return result;
 		return { approved: true };
 	},
@@ -33,7 +38,11 @@ export const actions: Actions = {
 		if (!id) {
 			return fail(400, { adminError: "generic" as const });
 		}
-		const result = await adminMutate(fetch, `/api/admin/reviews/${id}`, "DELETE");
+		const result = await adminMutate(
+			fetch,
+			`/api/admin/reviews/${encodeURIComponent(id)}`,
+			"DELETE",
+		);
 		if (!("ok" in result)) return result;
 		return { deleted: true };
 	},

@@ -111,8 +111,13 @@
 				</p>
 
 				<form class="mt-5 flex flex-col gap-4" onsubmit={submit}>
+					<p id="grants-hint" class="text-sm text-sand-700">
+						{m.shelter_interest_grants_hint({ org: context.org_name })}
+					</p>
 					<Checkbox
 						id="grant-email"
+						required
+						aria-describedby="grants-hint"
 						checked={grantEmail}
 						onchange={(event) => (grantEmail = event.currentTarget.checked)}
 					>
@@ -120,6 +125,8 @@
 					</Checkbox>
 					<Checkbox
 						id="grant-profile"
+						required
+						aria-describedby="grants-hint"
 						checked={grantProfile}
 						onchange={(event) => (grantProfile = event.currentTarget.checked)}
 					>

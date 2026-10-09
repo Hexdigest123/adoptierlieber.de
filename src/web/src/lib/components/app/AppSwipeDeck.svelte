@@ -13,6 +13,7 @@
 		bondedNames,
 		coverPhoto,
 		distanceLabel,
+		metaLine,
 		needTraits,
 		speciesLabel,
 	} from "$lib/app/format";
@@ -321,8 +322,10 @@
 						>
 					</p>
 					<p class="text-base font-semibold text-coral-700">
-						{speciesLabel(animal.species)}
-						{distanceLabel(animal.distance_km, animal.shelter.city)}
+						{metaLine(
+							speciesLabel(animal.species),
+							distanceLabel(animal.distance_km, animal.shelter.city),
+						)}
 					</p>
 					{#if bond}
 						<p class="text-sm font-semibold text-sand-800">

@@ -9,6 +9,7 @@
 		bondedNames,
 		coverPhoto,
 		distanceLabel,
+		metaLine,
 		needTraits,
 		speciesLabel,
 	} from "$lib/app/format";
@@ -26,7 +27,7 @@
 
 	const href = $derived(withFrom(resolve(`/app/animals/${animal.id}`), from));
 	const meta = $derived(
-		`${speciesLabel(animal.species)} ${distanceLabel(animal.distance_km, animal.shelter.city)}`,
+		metaLine(speciesLabel(animal.species), distanceLabel(animal.distance_km, animal.shelter.city)),
 	);
 	const bond = $derived(bondedNames(animal.bonded_partners, animal.bonded_partner));
 	const needs = $derived(needTraits(animal.traits, animal.age_months, animal.age_unknown));

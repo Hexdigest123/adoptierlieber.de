@@ -5,7 +5,9 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
 	import AnimalCard from "$lib/components/app/AnimalCard.svelte";
+	import ChoiceChips from "$lib/components/app/ChoiceChips.svelte";
 	import { speciesQuery } from "$lib/app/filters.svelte";
+	import { sexOptions, sizeOptions } from "$lib/app/format";
 	import type { AnimalSex, AnimalSize, ListEnvelope, PublicAnimal } from "$lib/types/catalog";
 	import { listItems } from "$lib/types/catalog";
 
@@ -142,62 +144,41 @@
 			{/if}
 		</div>
 
-		<fieldset>
-			<legend class="mb-2 text-sm font-semibold text-sand-900">{m.app_search_sex()}</legend>
-			<div class="flex flex-wrap gap-2">
-				{#each [{ id: null, label: m.app_search_all() }, { id: "female" as const, label: m.app_sex_female() }, { id: "male" as const, label: m.app_sex_male() }, { id: "unknown" as const, label: m.app_sex_unknown() }] as option (String(option.id))}
-					<button
-						type="button"
-						aria-pressed={sex === option.id}
-						class="rounded-full border px-3 py-1.5 text-sm font-semibold focus-ring {sex ===
-						option.id
-							? 'border-coral-600 bg-coral-600 text-white'
-							: 'border-sand-200 text-sand-800'}"
-						onclick={() => (sex = option.id)}
-					>
-						{option.label}
-					</button>
-				{/each}
-			</div>
-		</fieldset>
+		<ChoiceChips
+			legend={m.app_search_sex()}
+			allLabel={m.app_search_all()}
+			options={sexOptions()}
+			bind:value={sex}
+		/>
+
+		<ChoiceChips
+			legend={m.app_search_size()}
+			allLabel={m.app_search_all()}
+			options={sizeOptions()}
+			bind:value={size}
+		/>
 
 		<fieldset>
-			<legend class="mb-2 text-sm font-semibold text-sand-900">{m.app_search_size()}</legend>
-			<div class="flex flex-wrap gap-2">
-				{#each [{ id: "s" as const, label: m.app_size_s() }, { id: "m" as const, label: m.app_size_m() }, { id: "l" as const, label: m.app_size_l() }, { id: "xl" as const, label: m.app_size_xl() }] as option (option.id)}
-					<button
-						type="button"
-						aria-pressed={size === option.id}
-						class="rounded-full border px-3 py-1.5 text-sm font-semibold focus-ring {size ===
-						option.id
-							? 'border-coral-600 bg-coral-600 text-white'
-							: 'border-sand-200 text-sand-800'}"
-						onclick={() => (size = size === option.id ? null : option.id)}
-					>
-						{option.label}
-					</button>
-				{/each}
+			<legend class="mb-2 text-sm font-semibold text-sand-900">{m.app_search_age()}</legend>
+			<div class="grid grid-cols-2 gap-3">
+				<Input
+					id="age-min"
+					type="number"
+					min="0"
+					max="360"
+					label={m.app_search_age_min()}
+					bind:value={minAge}
+				/>
+				<Input
+					id="age-max"
+					type="number"
+					min="0"
+					max="360"
+					label={m.app_search_age_max()}
+					bind:value={maxAge}
+				/>
 			</div>
 		</fieldset>
-
-		<div class="grid grid-cols-2 gap-3">
-			<Input
-				id="age-min"
-				type="number"
-				min="0"
-				max="360"
-				label={m.app_search_age_min()}
-				bind:value={minAge}
-			/>
-			<Input
-				id="age-max"
-				type="number"
-				min="0"
-				max="360"
-				label={m.app_search_age_max()}
-				bind:value={maxAge}
-			/>
-		</div>
 
 		<fieldset>
 			<legend class="mb-2 text-sm font-semibold text-sand-900">{m.app_search_colors()}</legend>

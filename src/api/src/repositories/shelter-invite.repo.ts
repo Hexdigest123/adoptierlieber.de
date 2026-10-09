@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getDb, type Env } from "../config/env";
 import { shelterInvitesTable } from "../schema";
@@ -34,14 +34,6 @@ export function createShelterInviteRepo(env: Env) {
         .all();
     },
 
-    listPendingByEmail(email: string) {
-      return db
-        .select()
-        .from(shelterInvitesTable)
-        .where(and(eq(shelterInvitesTable.email, email), isNull(shelterInvitesTable.consumedAt)))
-        .all();
-    },
-
     findPending(shelterId: string, email: string) {
       return db
         .select()
@@ -65,10 +57,37 @@ export function createShelterInviteRepo(env: Env) {
         .get();
     },
 
-    refresh(id: string, tokenHash: string, expiresAt: Date) {
+    /** Unaccepted, unexpired invites of a shelter. */
+    async countOpen(shelterId: string, now: Date) {
+      const row = await db
+        .select({ n: sql<number>`count(*)` })
+        .from(shelterInvitesTable)
+        .where(
+          and(
+            eq(shelterInvitesTable.shelterId, shelterId),
+            isNull(shelterInvitesTable.consumedAt),
+            gt(shelterInvitesTable.expiresAt, now),
+          ),
+        )
+        .get();
+      return Number(row?.n ?? 0);
+    },
+
+    /** New token for a fresh mail; createdAt marks when it was last sent. */
+    reissue(id: string, tokenHash: string, role: number, expiresAt: Date) {
       return db
         .update(shelterInvitesTable)
-        .set({ tokenHash, expiresAt, consumedAt: null })
+        .set({ tokenHash, role, expiresAt, consumedAt: null, createdAt: new Date() })
+        .where(eq(shelterInvitesTable.id, id))
+        .returning()
+        .get();
+    },
+
+    /** Keep the mailed token valid, only push the expiry (and role). */
+    extend(id: string, role: number, expiresAt: Date) {
+      return db
+        .update(shelterInvitesTable)
+        .set({ role, expiresAt })
         .where(eq(shelterInvitesTable.id, id))
         .returning()
         .get();

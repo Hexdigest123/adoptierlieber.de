@@ -2,6 +2,7 @@
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
 	import type { PublicDonationShelter } from "$lib/types/catalog";
+	import { safeHttpUrl } from "$lib/safe-url";
 	import ChevronLeft from "lucide-svelte/icons/chevron-left";
 	import ChevronRight from "lucide-svelte/icons/chevron-right";
 	import Heart from "lucide-svelte/icons/heart";
@@ -92,6 +93,7 @@
 					>
 						<div class="flex">
 							{#each shelters as shelter (shelter.id)}
+								{@const donationHref = safeHttpUrl(shelter.donation_url)}
 								<article
 									class="max-w-full min-w-0 shrink-0 basis-full snap-center"
 									aria-roledescription="slide"
@@ -127,14 +129,16 @@
 												{shelter.donation_description}
 											</p>
 										{/if}
-										<Button
-											href={shelter.donation_url}
-											target="_blank"
-											rel="noopener noreferrer"
-											iconLeft={heartIcon}
-										>
-											{m.donations_cta()}
-										</Button>
+										{#if donationHref}
+											<Button
+												href={donationHref}
+												target="_blank"
+												rel="noopener noreferrer"
+												iconLeft={heartIcon}
+											>
+												{m.donations_cta()}
+											</Button>
+										{/if}
 									</div>
 								</article>
 							{/each}

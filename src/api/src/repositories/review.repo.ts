@@ -23,7 +23,7 @@ export type ReviewListParams = {
 };
 
 function likePattern(q: string): string {
-  return `%${q.toLowerCase().replace(/[%_]/g, "\\$&")}%`;
+  return `%${q.toLowerCase().replace(/[\\%_]/g, "\\$&")}%`;
 }
 
 export function createReviewRepo(env: Env) {

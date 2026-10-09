@@ -4,6 +4,11 @@ type Handlers = {
 	onmessage: (row: ChatMessage) => void;
 };
 
+// Close codes from the API's ChatRoom: the socket outlived its access check
+// (reconnect right away, which re-authorizes) or access is gone (stop).
+const CLOSE_REAUTH = 4001;
+const CLOSE_FORBIDDEN = 4003;
+
 export function connectThread(threadId: string, handlers: Handlers): () => void {
 	const proto = location.protocol === "https:" ? "wss:" : "ws:";
 	const url = `${proto}//${location.host}/api/chats/${threadId}/socket`;
@@ -42,8 +47,14 @@ export function connectThread(threadId: string, handlers: Handlers): () => void 
 				// ignore
 			}
 		});
-		socket.addEventListener("close", () => {
+		socket.addEventListener("close", (event) => {
 			clearInterval(ping);
+			if (event.code === CLOSE_FORBIDDEN) return;
+			if (event.code === CLOSE_REAUTH) {
+				clearTimeout(retry);
+				retry = setTimeout(open, 250);
+				return;
+			}
 			schedule();
 		});
 		socket.addEventListener("error", () => {

@@ -19,8 +19,8 @@
 	<div
 		class="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 px-4 py-3 sm:px-6"
 	>
-		<a href={resolve("/")} class="rounded-full focus-ring" aria-label={m.brand_name()}>
-			<Logo />
+		<a href={resolve("/")} class="shrink-0 rounded-full focus-ring" aria-label={m.brand_name()}>
+			<Logo class="size-11" />
 		</a>
 		<div class="flex items-center gap-2">
 			<div
@@ -46,7 +46,8 @@
 				<AccountMenu {user} />
 			{:else}
 				<Button href={resolve("/login")} variant="ghost" size="sm">{m.header_login()}</Button>
-				<Button href={resolve("/register")} size="sm" class="hidden sm:inline-flex"
+				<!-- max-sm:hidden, because the Button's own inline-flex beats a plain `hidden` -->
+				<Button href={resolve("/register")} size="sm" class="max-sm:hidden"
 					>{m.header_register()}</Button
 				>
 			{/if}
@@ -59,21 +60,22 @@
 			class="absolute -top-32 left-1/2 h-96 w-[42rem] -translate-x-1/2 rounded-full bg-peach-300/40 blur-3xl"
 		></div>
 
-		<!-- Floating paws (decorative) -->
+		<!-- Floating paws (decorative). On phones only two, in the bands the text never reaches
+		     (below the top bar, beside the scroll hint). -->
 		<PawPrint
-			class="absolute top-[12%] left-[8%] size-10 rotate-[-18deg] animate-float text-coral-300"
+			class="absolute top-20 left-[6%] size-8 rotate-[-18deg] animate-float text-coral-300 sm:top-[12%] sm:left-[8%] sm:size-10"
 			style="--float-rotate: -18deg"
 		/>
 		<PawPrint
-			class="absolute top-[22%] right-[10%] size-14 rotate-[14deg] animate-float-slow text-peach-400"
+			class="absolute top-[22%] right-[10%] hidden size-14 rotate-[14deg] animate-float-slow text-peach-400 sm:block"
 			style="--float-rotate: 14deg"
 		/>
 		<PawPrint
-			class="absolute bottom-[18%] left-[14%] size-8 rotate-[24deg] animate-float-slow text-peach-500/70"
+			class="absolute bottom-4 left-[6%] size-8 rotate-[24deg] animate-float-slow text-peach-500/70 sm:bottom-[18%] sm:left-[14%]"
 			style="--float-rotate: 24deg"
 		/>
 		<PawPrint
-			class="absolute right-[16%] bottom-[26%] size-9 rotate-[-10deg] animate-float text-coral-400/60"
+			class="absolute right-[16%] bottom-[26%] hidden size-9 rotate-[-10deg] animate-float text-coral-400/60 sm:block"
 			style="--float-rotate: -10deg"
 		/>
 	</div>

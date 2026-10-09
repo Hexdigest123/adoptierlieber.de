@@ -51,6 +51,16 @@ export function distanceLabel(km: number | null, city: string): string {
 	return m.app_distance_km({ count: Math.round(km) });
 }
 
+/** Distance plus city ("5 km · Berlin"), or just the city when there is no distance. */
+export function placeLabel(km: number | null, city: string): string {
+	return km == null ? city : metaLine(distanceLabel(km, city), city);
+}
+
+/** Join label parts with " · ", skipping empty ones. */
+export function metaLine(...parts: (string | null | undefined)[]): string {
+	return parts.filter((part) => part?.trim()).join(" · ");
+}
+
 export function sexLabel(sex: AnimalSex): string {
 	if (sex === "female") return m.app_sex_female();
 	if (sex === "male") return m.app_sex_male();
@@ -63,6 +73,24 @@ export function sizeLabel(size: AnimalSize): string {
 	if (size === "l") return m.app_size_l();
 	if (size === "xl") return m.app_size_xl();
 	return "";
+}
+
+/** Filter choices for sex and size (search and catalog). */
+export function sexOptions(): { id: Exclude<AnimalSex, null>; label: string }[] {
+	return [
+		{ id: "female", label: m.app_sex_female() },
+		{ id: "male", label: m.app_sex_male() },
+		{ id: "unknown", label: m.app_sex_unknown() },
+	];
+}
+
+export function sizeOptions(): { id: Exclude<AnimalSize, null>; label: string }[] {
+	return [
+		{ id: "s", label: m.app_size_s() },
+		{ id: "m", label: m.app_size_m() },
+		{ id: "l", label: m.app_size_l() },
+		{ id: "xl", label: m.app_size_xl() },
+	];
 }
 
 export function practicalLabel(value: Practical): string {
@@ -99,7 +127,11 @@ function isNeedTrait(trait: string): boolean {
 	return NEED_KEYS.some((key) => value.includes(key));
 }
 
-export function needTraits(traits: string[], ageMonths?: number | null, ageUnknown?: boolean): string[] {
+export function needTraits(
+	traits: string[],
+	ageMonths?: number | null,
+	ageUnknown?: boolean,
+): string[] {
 	const needs = traits.filter(isNeedTrait);
 	const rest = traits.filter((trait) => !isNeedTrait(trait));
 	const chips = [...needs, ...rest];

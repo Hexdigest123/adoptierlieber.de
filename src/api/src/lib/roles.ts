@@ -1,14 +1,17 @@
 import { secretsEqual } from "./hashing";
 
+// Platform privilege lives on users.platform_role, never on a membership.
+// The DB rejects any other shelter_members.role value (migration 0016).
 export const SHELTER_ROLE = {
-  // Unused leftover. Platform privilege lives on users.platform_role.
-  // Do not assign this. New checks use PLATFORM_ROLE only.
-  GLOBAL_ADMIN: 0,
   OWNER: 1,
   STAFF: 2,
 } as const;
 
 export type ShelterRole = (typeof SHELTER_ROLE)[keyof typeof SHELTER_ROLE];
+
+export function isShelterRole(role: number): role is ShelterRole {
+  return role === SHELTER_ROLE.OWNER || role === SHELTER_ROLE.STAFF;
+}
 
 export const PLATFORM_ROLE = {
   SUPER_ADMIN: 0,
@@ -22,6 +25,7 @@ export type RoleSubject = {
   email: string;
   platformRole: number;
   emailVerifiedAt?: Date | null;
+  passwordChangedAt?: Date | null;
 };
 
 // Ring semantics (x86-style): lower integer = more privilege.
@@ -58,9 +62,19 @@ export function isBreakGlassEmail(email: string, allowlist: readonly string[]): 
   return matched;
 }
 
+/**
+ * Break-glass needs the password to be set on or after verification (reset
+ * link, admin invite). A password from before that may belong to whoever
+ * registered the address first, not to the inbox owner who clicked verify.
+ */
+export function passwordSetAfterVerification(subject: RoleSubject): boolean {
+  if (!subject.emailVerifiedAt || !subject.passwordChangedAt) return false;
+  return subject.passwordChangedAt.getTime() >= subject.emailVerifiedAt.getTime();
+}
+
 export function isSuperAdmin(subject: RoleSubject, allowlist: readonly string[]): boolean {
   if (subject.platformRole === PLATFORM_ROLE.SUPER_ADMIN) return true;
-  if (!subject.emailVerifiedAt) return false;
+  if (!passwordSetAfterVerification(subject)) return false;
   return isBreakGlassEmail(subject.email, allowlist);
 }
 

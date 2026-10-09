@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
-	import { enhance } from "$app/forms";
+	import { applyAction, enhance } from "$app/forms";
 	import { invalidateAll } from "$app/navigation";
 	import { m } from "$lib/paraglide/messages";
 	import AuthCard from "$lib/components/auth/AuthCard.svelte";
@@ -23,6 +23,44 @@
 		form?.avatarRemoved ? false : Boolean(form?.avatarSuccess) || data.user.hasAvatar,
 	);
 	const avatarSrc = $derived(hasAvatar ? `/api/users/me/avatar?v=${avatarVersion}` : null);
+	const homeQuery = $derived(form?.homeQuery ?? data.user.home_query ?? data.user.home_label ?? "");
+	/** Saved while place search was down; coordinates follow from the daily backfill. */
+	const homePending = $derived(
+		data.user.home_lat == null && Boolean(data.user.home_label && data.user.home_query),
+	);
+	let gpsFail = $state(false);
+
+	function useGps() {
+		gpsFail = false;
+		if (!navigator.geolocation) {
+			gpsFail = true;
+			return;
+		}
+		navigator.geolocation.getCurrentPosition(
+			async (pos) => {
+				const res = await fetch("/api/users/me", {
+					method: "PATCH",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						home_lat: pos.coords.latitude,
+						home_lng: pos.coords.longitude,
+						location_precision: "gps",
+					}),
+				});
+				if (!res.ok) {
+					gpsFail = true;
+					return;
+				}
+				// Replaces a pending "search unavailable" result with the saved state.
+				await applyAction({ type: "success", status: 200, data: { homeSuccess: true } });
+				await invalidateAll();
+			},
+			() => {
+				gpsFail = true;
+			},
+			{ enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
+		);
+	}
 </script>
 
 <AuthCard title={m.profile_title()} subtitle={m.profile_subtitle()} class="max-w-4xl">
@@ -176,9 +214,13 @@
 					<p class="mt-1 text-sm text-sand-700">{m.app_profile_home_hint()}</p>
 				</div>
 				{#if form?.homeSuccess}
-					<FormStatus type="success">{m.app_profile_home_saved()}</FormStatus>
+					<FormStatus type="success">
+						{homePending ? m.app_profile_home_saved_pending() : m.app_profile_home_saved()}
+					</FormStatus>
 				{:else if form?.homeError}
-					<FormStatus type="error">{m.app_location_none()}</FormStatus>
+					<FormStatus type="error">
+						{form.homeError === "generic" ? m.error_generic() : m.app_location_none()}
+					</FormStatus>
 				{/if}
 				<form method="POST" action="?/home" class="flex flex-col gap-3" use:enhance>
 					<Input
@@ -186,30 +228,27 @@
 						name="home_query"
 						label={m.app_location_place()}
 						hint={m.app_location_place_hint()}
-						value={data.user.home_query ?? data.user.home_label ?? ""}
+						value={homeQuery}
 					/>
 					<Button type="submit" variant="secondary" fullWidth>{m.app_profile_home_save()}</Button>
 				</form>
-				<Button
-					type="button"
-					variant="ghost"
-					fullWidth
-					onclick={() => {
-						if (!navigator.geolocation) return;
-						navigator.geolocation.getCurrentPosition(async (pos) => {
-							await fetch("/api/users/me", {
-								method: "PATCH",
-								headers: { "content-type": "application/json" },
-								body: JSON.stringify({
-									home_lat: pos.coords.latitude,
-									home_lng: pos.coords.longitude,
-									location_precision: "gps",
-								}),
-							});
-							await invalidateAll();
-						});
-					}}>{m.app_profile_gps()}</Button
+				{#if form?.homeUnavailable}
+					<div class="flex flex-col gap-3 rounded-2xl border border-sand-200 bg-sand-50 p-4">
+						<p class="text-sm text-sand-800" role="status">{m.app_profile_home_unavailable()}</p>
+						<form method="POST" action="?/homeTyped" use:enhance>
+							<input type="hidden" name="home_query" value={form.homeQuery} />
+							<Button type="submit" variant="outline" fullWidth
+								>{m.app_location_save_anyway()}</Button
+							>
+						</form>
+					</div>
+				{/if}
+				<Button type="button" variant="ghost" fullWidth onclick={useGps}
+					>{m.app_profile_gps()}</Button
 				>
+				{#if gpsFail}
+					<p class="text-sm text-coral-700">{m.app_location_gps_fail()}</p>
+				{/if}
 				{#if data.user.home_label || data.user.home_lat}
 					<form method="POST" action="?/homeClear" use:enhance>
 						<Button type="submit" variant="ghost" fullWidth>{m.app_profile_home_clear()}</Button>
@@ -247,6 +286,8 @@
 							{m.profile_password_current_error()}
 						{:else if form.passwordError === "rate_limited"}
 							{m.error_rate_limited()}
+						{:else if form.passwordError === "reset"}
+							{m.profile_password_reset_required()}
 						{:else}
 							{m.error_invalid_input()}
 						{/if}

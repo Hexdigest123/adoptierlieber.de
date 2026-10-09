@@ -1,4 +1,4 @@
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import { getCookie } from "hono/cookie";
 import { HTTPException } from "hono/http-exception";
 import { createSessionService } from "../services/session.service";
@@ -18,8 +18,17 @@ function setupAllowed(method: string, path: string): boolean {
   return false;
 }
 
+/**
+ * The web sets `__Host-sessionToken` in production (no sibling-subdomain
+ * planting) and plain `sessionToken` in dev. The plain name is also accepted
+ * while pre-rename production cookies get migrated by the web hooks.
+ */
+export function readSessionCookie(c: Context): string | undefined {
+  return getCookie(c, "__Host-sessionToken") || getCookie(c, "sessionToken") || undefined;
+}
+
 export const sessionValidation: MiddlewareHandler = async (c, next) => {
-  const sessionToken = getCookie(c, "sessionToken");
+  const sessionToken = readSessionCookie(c);
   if (!sessionToken) {
     return c.json({ error: "invalid session" }, 401);
   }

@@ -1,0 +1,9 @@
+# Workers static assets skip hooks.server.ts, so their security headers live
+# here. adapter-cloudflare copies this file (it must sit in the project root,
+# not static/) into the build and appends its /_app/* cache rules.
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Content-Security-Policy: frame-ancestors 'none'
+  Strict-Transport-Security: max-age=31536000; includeSubDomains

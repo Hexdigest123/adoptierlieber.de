@@ -10,7 +10,13 @@ import {
   updateShelterSchema,
 } from "../lib/zod";
 import { generateToken, hashPassword, hashToken } from "../lib/hashing";
-import { hasPrivilege, isPlatformAdmin, SHELTER_ROLE, type ShelterRole } from "../lib/roles";
+import {
+  hasPrivilege,
+  isPlatformAdmin,
+  isShelterRole,
+  SHELTER_ROLE,
+  type ShelterRole,
+} from "../lib/roles";
 import { createUserRepo } from "../repositories/user.repo";
 import { createShelterRepo } from "../repositories/shelter.repo";
 import { createShelterMemberRepo } from "../repositories/shelter-member.repo";
@@ -44,6 +50,13 @@ import { sendMail } from "../lib/mail";
 import { shelterStaffInviteTemplate } from "../lib/email-templates";
 
 const INVITE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+// Invite mail goes to arbitrary addresses and anyone can register a shelter,
+// so cap it: open (unaccepted, unexpired) invites per shelter, and at most
+// one mail per address per cooldown. Repeats inside the cooldown only
+// extend the existing invite; its emailed link keeps working.
+const INVITE_OPEN_MAX_VERIFIED = 20;
+const INVITE_OPEN_MAX_UNVERIFIED = 3;
+const INVITE_RESEND_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 function asForm(value: unknown): ApplicationField[] {
   return Array.isArray(value) ? (value as ApplicationField[]) : [];
@@ -81,6 +94,17 @@ export function createShelterService(env: Env) {
     if (shelter.verificationStatus === "rejected") {
       throw new HTTPException(403, { message: "shelter rejected" });
     }
+  }
+
+  async function openInvite(token: string) {
+    const invite = await inviteRepo.findByTokenHash(await hashToken(token));
+    if (!invite || invite.consumedAt) {
+      throw new HTTPException(404, { message: "invite not found" });
+    }
+    if (invite.expiresAt.getTime() < Date.now()) {
+      throw new HTTPException(400, { message: "invite expired" });
+    }
+    return invite;
   }
 
   async function ownerCount(shelterId: string): Promise<number> {
@@ -127,7 +151,7 @@ export function createShelterService(env: Env) {
     async create(
       input: unknown,
       avatarFile: File | null = null,
-    ): Promise<{ verificationToken: string } | null> {
+    ): Promise<{ verificationToken: string } | { existingAccount: true } | null> {
       const data = createShelterSchema.parse(input);
       const parsedAvatar = avatarFile ? await parseAvatarFile(avatarFile) : null;
 
@@ -136,6 +160,7 @@ export function createShelterService(env: Env) {
         street: data.street,
         zip: data.zip,
         city: data.city,
+        email: data.email,
       });
 
       const hashedPassword = await hashPassword(data.password);
@@ -144,9 +169,10 @@ export function createShelterService(env: Env) {
 
       let lat = data.lat;
       let lng = data.lng;
-      let geocodedAt: Date | undefined;
+      // geocoded_at null = coordinates missing or stale; the daily backfill retries those.
+      let geocodedAt: Date | undefined = lat != null && lng != null ? new Date() : undefined;
       if (lat == null || lng == null) {
-        const geo = await geocodeAddress(data.street, data.zip, data.city);
+        const geo = await geocodeAddress(env, data.street, data.zip, data.city);
         if (geo) {
           lat = geo.lat;
           lng = geo.lng;
@@ -171,8 +197,9 @@ export function createShelterService(env: Env) {
         });
       } catch (e: unknown) {
         if (e instanceof HTTPException) throw e;
+        // Same 201 as a fresh signup; the route mails the owner instead.
         if (await userRepo.findByEmail(data.email)) {
-          throw new HTTPException(409, { message: "email already registered" });
+          return { existingAccount: true };
         }
         throw e;
       }
@@ -231,7 +258,8 @@ export function createShelterService(env: Env) {
 
     /**
      * Assert that a user holds at least `minPrivilege` within a shelter.
-     * Ring check: role <= minPrivilege. GLOBAL_ADMIN bypasses shelter checks.
+     * Ring check: role <= minPrivilege. Only OWNER and STAFF are valid roles;
+     * anything else (e.g. a stray 0) grants nothing.
      */
     async assertRole(
       userId: string,
@@ -242,10 +270,7 @@ export function createShelterService(env: Env) {
       if (!membership) {
         throw new HTTPException(403, { message: "insufficient shelter privileges" });
       }
-      if (
-        membership.role !== SHELTER_ROLE.GLOBAL_ADMIN &&
-        !hasPrivilege(membership.role, minPrivilege)
-      ) {
+      if (!isShelterRole(membership.role) || !hasPrivilege(membership.role, minPrivilege)) {
         throw new HTTPException(403, { message: "insufficient shelter privileges" });
       }
       return membership;
@@ -262,6 +287,21 @@ export function createShelterService(env: Env) {
       await assertWritable(shelter);
       const data = updateShelterSchema.parse(input);
 
+      // The verified badge vouches for this name and registration number.
+      // Changing them needs a new review by the team, not a self-service edit.
+      if (shelter.verificationStatus === "verified") {
+        const renamed = data.org_name !== undefined && data.org_name !== shelter.orgName;
+        const renumbered =
+          data.registration_number !== undefined &&
+          (data.registration_number ?? null) !== (shelter.registrationNumber ?? null);
+        if (renamed || renumbered) {
+          throw new HTTPException(409, {
+            message:
+              "org_name and registration_number are locked after verification; contact support to change them",
+          });
+        }
+      }
+
       const addressChanged =
         (data.street !== undefined && data.street !== shelter.street) ||
         (data.zip !== undefined && data.zip !== shelter.zip) ||
@@ -272,14 +312,19 @@ export function createShelterService(env: Env) {
       let geocodedAt = shelter.geocodedAt;
       if (addressChanged) {
         const geo = await geocodeAddress(
+          env,
           data.street ?? shelter.street,
           data.zip ?? shelter.zip,
           data.city ?? shelter.city,
+          userId,
         );
         if (geo) {
           lat = geo.lat;
           lng = geo.lng;
           geocodedAt = new Date();
+        } else {
+          // Keep the old pin for the map but mark it stale; the daily backfill re-geocodes.
+          geocodedAt = null;
         }
       }
 
@@ -456,51 +501,52 @@ export function createShelterService(env: Env) {
       };
     },
 
-    async invite(userId: string, shelterId: string, input: unknown) {
+    /**
+     * Invite by email. Never adds a member directly, not even for an existing
+     * account: the membership is only created once that person accepts the
+     * emailed link while logged in as the invited address (acceptInvite).
+     */
+    async invite(userId: string, shelterId: string, input: unknown): Promise<{ mailed: boolean }> {
       await this.assertRole(userId, shelterId, SHELTER_ROLE.OWNER);
       const shelter = await requireShelter(shelterId);
       await assertWritable(shelter);
       const data = inviteMemberSchema.parse(input);
+      const email = data.email.toLowerCase();
       const role = data.role ?? SHELTER_ROLE.STAFF;
-      if (role !== SHELTER_ROLE.OWNER && role !== SHELTER_ROLE.STAFF) {
+      if (!isShelterRole(role)) {
         throw new HTTPException(400, { message: "invalid role" });
       }
 
-      const existingUser = await userRepo.findByEmail(data.email);
-      if (existingUser) {
-        const already = await memberRepo.findMembership(existingUser.id, shelterId);
-        if (already) {
-          throw new HTTPException(409, { message: "already a member" });
+      const existingUser = await userRepo.findByEmail(email);
+      if (existingUser && (await memberRepo.findMembership(existingUser.id, shelterId))) {
+        throw new HTTPException(409, { message: "already a member" });
+      }
+
+      const now = Date.now();
+      const expiresAt = new Date(now + INVITE_TTL_MS);
+      const pending = await inviteRepo.findPending(shelterId, email);
+      if (pending && now - pending.createdAt.getTime() < INVITE_RESEND_COOLDOWN_MS) {
+        await inviteRepo.extend(pending.id, role, expiresAt);
+        return { mailed: false };
+      }
+      if (!pending || pending.expiresAt.getTime() < now) {
+        const open = await inviteRepo.countOpen(shelterId, new Date(now));
+        const max =
+          shelter.verificationStatus === "verified"
+            ? INVITE_OPEN_MAX_VERIFIED
+            : INVITE_OPEN_MAX_UNVERIFIED;
+        if (open >= max) {
+          throw new HTTPException(429, { message: "too many open invites" });
         }
-        await memberRepo.create({
-          userId: existingUser.id,
-          shelterId,
-          role,
-        });
-        try {
-          await sendMail(
-            shelterStaffInviteTemplate({
-              to: data.email,
-              orgName: shelter.orgName,
-              token: "joined",
-              existingUser: true,
-            }),
-          );
-        } catch (error: unknown) {
-          console.error(error);
-        }
-        return {};
       }
 
       const { token, hashedToken } = await generateToken();
-      const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
-      const pending = await inviteRepo.findPending(shelterId, data.email);
       if (pending) {
-        await inviteRepo.refresh(pending.id, hashedToken, expiresAt);
+        await inviteRepo.reissue(pending.id, hashedToken, role, expiresAt);
       } else {
         await inviteRepo.create({
           shelterId,
-          email: data.email.toLowerCase(),
+          email,
           role,
           tokenHash: hashedToken,
           invitedBy: userId,
@@ -511,17 +557,17 @@ export function createShelterService(env: Env) {
       try {
         await sendMail(
           shelterStaffInviteTemplate({
-            to: data.email,
+            to: email,
             orgName: shelter.orgName,
             token,
-            existingUser: false,
+            existingUser: Boolean(existingUser),
           }),
         );
       } catch (error: unknown) {
         console.error(error);
       }
 
-      return {};
+      return { mailed: true };
     },
 
     async removeMember(actorId: string, shelterId: string, targetUserId: string) {
@@ -555,18 +601,35 @@ export function createShelterService(env: Env) {
       return {};
     },
 
-    async acceptInvite(userId: string, token: string) {
-      const hashed = await hashToken(token);
-      const invite = await inviteRepo.findByTokenHash(hashed);
-      if (!invite || invite.consumedAt) {
+    /** What the invite page shows before the user explicitly accepts. */
+    async previewInvite(userId: string, token: string) {
+      const invite = await openInvite(token);
+      const [shelter, user] = await Promise.all([
+        shelterRepo.findById(invite.shelterId),
+        userRepo.findById(userId),
+      ]);
+      if (!shelter) {
         throw new HTTPException(404, { message: "invite not found" });
       }
-      if (invite.expiresAt.getTime() < Date.now()) {
-        throw new HTTPException(400, { message: "invite expired" });
-      }
+      return {
+        org_name: shelter.orgName,
+        role: invite.role,
+        email_matches: Boolean(user && user.email.toLowerCase() === invite.email.toLowerCase()),
+      };
+    },
+
+    async acceptInvite(userId: string, token: string) {
+      const invite = await openInvite(token);
       const user = await userRepo.findById(userId);
-      if (!user || user.email.toLowerCase() !== invite.email.toLowerCase()) {
+      if (
+        !user ||
+        !user.emailVerifiedAt ||
+        user.email.toLowerCase() !== invite.email.toLowerCase()
+      ) {
         throw new HTTPException(403, { message: "invite email mismatch" });
+      }
+      if (!isShelterRole(invite.role)) {
+        throw new HTTPException(400, { message: "invalid role" });
       }
       const already = await memberRepo.findMembership(userId, invite.shelterId);
       if (!already) {

@@ -1,8 +1,7 @@
 import { Hono } from "hono";
-import { getCookie } from "hono/cookie";
 import type { AppEnv } from "../../types";
-import { rateLimitByIp } from "../../middlewares/rate-limit";
-import { sessionValidation } from "../../middlewares/session";
+import { rateLimitByIp, rateLimitByUser } from "../../middlewares/rate-limit";
+import { readSessionCookie, sessionValidation } from "../../middlewares/session";
 import { createSessionService } from "../../services/session.service";
 import { createShelterService } from "../../services/shelter.service";
 import { createAnimalService } from "../../services/animal.service";
@@ -12,6 +11,8 @@ import {
   verifyEmailTemplate,
 } from "../../lib/email-templates";
 import { readCreateBody } from "../../lib/avatar";
+import { notifyRegistrationAttempt } from "../../lib/create-account";
+import { requireTurnstile } from "../../lib/turnstile";
 import { acceptShelterInviteSchema } from "../../lib/zod";
 
 export const shelters = new Hono<AppEnv>();
@@ -21,8 +22,9 @@ function asString(value: unknown): string {
 }
 
 /** Register a new shelter together with its owner account. */
-shelters.post("/", rateLimitByIp("create-shelter", 5), async (c) => {
+shelters.post("/", rateLimitByIp("create-shelter", 5, { failClosed: true }), async (c) => {
   const { fields, avatar } = await readCreateBody(c.req.raw);
+  await requireTurnstile(c, fields.turnstileToken, "register");
   const result = await createShelterService(c.env).create(fields, avatar);
   if (result && "verificationToken" in result) {
     c.executionCtx.waitUntil(
@@ -50,6 +52,8 @@ shelters.post("/", rateLimitByIp("create-shelter", 5), async (c) => {
         ),
       );
     }
+  } else if (result && "existingAccount" in result) {
+    c.executionCtx.waitUntil(notifyRegistrationAttempt(c.env, asString(fields.email)));
   }
   return c.json({}, 201);
 });
@@ -65,6 +69,17 @@ shelters.get("/donations", rateLimitByIp("shelter-donations", 60), async (c) => 
   const items = await createShelterService(c.env).listPublicDonations();
   return c.json({ items }, 200);
 });
+
+shelters.post(
+  "/invites/preview",
+  sessionValidation,
+  rateLimitByUser("invite-preview", 30),
+  async (c) => {
+    const body = acceptShelterInviteSchema.parse(await c.req.json());
+    const result = await createShelterService(c.env).previewInvite(c.get("userId"), body.token);
+    return c.json(result, 200);
+  },
+);
 
 shelters.post("/invites/accept", sessionValidation, async (c) => {
   const body = acceptShelterInviteSchema.parse(await c.req.json());
@@ -127,10 +142,20 @@ shelters.get("/:id/members", sessionValidation, async (c) => {
   return c.json(team, 200);
 });
 
-shelters.post("/:id/invites", sessionValidation, async (c) => {
-  await createShelterService(c.env).invite(c.get("userId"), c.req.param("id"), await c.req.json());
-  return c.json({}, 201);
-});
+// Sends mail to arbitrary addresses: per-user limit here, per-shelter caps in the service.
+shelters.post(
+  "/:id/invites",
+  sessionValidation,
+  rateLimitByUser("shelter-invite", 10, { failClosed: true }),
+  async (c) => {
+    const result = await createShelterService(c.env).invite(
+      c.get("userId"),
+      c.req.param("id"),
+      await c.req.json(),
+    );
+    return c.json(result, 201);
+  },
+);
 
 shelters.delete("/:id/members/:userId", sessionValidation, async (c) => {
   await createShelterService(c.env).removeMember(
@@ -191,19 +216,24 @@ shelters.post("/:id/animals/:animalId/clone", sessionValidation, async (c) => {
   return c.json(animal, 201);
 });
 
-shelters.put("/:id/logo", sessionValidation, async (c) => {
-  const form = await c.req.formData();
-  const file = form.get("logo") ?? form.get("avatar");
-  if (!(file instanceof File) || file.size === 0) {
-    return c.json({ error: "missing logo" }, 400);
-  }
-  const shelter = await createShelterService(c.env).putLogo(
-    c.get("userId"),
-    c.req.param("id"),
-    file,
-  );
-  return c.json(shelter, 200);
-});
+shelters.put(
+  "/:id/logo",
+  sessionValidation,
+  rateLimitByUser("shelter-logo-upload", 10),
+  async (c) => {
+    const form = await c.req.formData();
+    const file = form.get("logo") ?? form.get("avatar");
+    if (!(file instanceof File) || file.size === 0) {
+      return c.json({ error: "missing logo" }, 400);
+    }
+    const shelter = await createShelterService(c.env).putLogo(
+      c.get("userId"),
+      c.req.param("id"),
+      file,
+    );
+    return c.json(shelter, 200);
+  },
+);
 
 shelters.delete("/:id/logo", sessionValidation, async (c) => {
   const shelter = await createShelterService(c.env).deleteLogo(c.get("userId"), c.req.param("id"));
@@ -211,7 +241,7 @@ shelters.delete("/:id/logo", sessionValidation, async (c) => {
 });
 
 shelters.get("/:id/logo", rateLimitByIp("shelter-logo", 120), async (c) => {
-  const token = getCookie(c, "sessionToken");
+  const token = readSessionCookie(c);
   let userId: string | null = null;
   if (token) {
     try {
@@ -227,7 +257,8 @@ shelters.get("/:id/logo", rateLimitByIp("shelter-logo", 120), async (c) => {
   }
   const headers = new Headers();
   headers.set("content-type", object.httpMetadata?.contentType ?? "application/octet-stream");
-  headers.set("cache-control", "public, max-age=86400");
+  // private: unverified shelters' logos are only served to staff sessions
+  headers.set("cache-control", "private, max-age=86400");
   if (object.httpEtag) headers.set("etag", object.httpEtag);
   return new Response(object.body, { status: 200, headers });
 });
@@ -307,20 +338,25 @@ shelters.post("/:id/animals/:animalId/home", sessionValidation, async (c) => {
   return c.json(animal, 200);
 });
 
-shelters.put("/:id/animals/:animalId/photos", sessionValidation, async (c) => {
-  const form = await c.req.formData();
-  const file = form.get("photo") ?? form.get("avatar");
-  if (!(file instanceof File) || file.size === 0) {
-    return c.json({ error: "missing photo" }, 400);
-  }
-  const animal = await createAnimalService(c.env).putPhoto(
-    c.get("userId"),
-    c.req.param("id"),
-    c.req.param("animalId"),
-    file,
-  );
-  return c.json(animal, 200);
-});
+shelters.put(
+  "/:id/animals/:animalId/photos",
+  sessionValidation,
+  rateLimitByUser("animal-photo-upload", 60),
+  async (c) => {
+    const form = await c.req.formData();
+    const file = form.get("photo") ?? form.get("avatar");
+    if (!(file instanceof File) || file.size === 0) {
+      return c.json({ error: "missing photo" }, 400);
+    }
+    const animal = await createAnimalService(c.env).putPhoto(
+      c.get("userId"),
+      c.req.param("id"),
+      c.req.param("animalId"),
+      file,
+    );
+    return c.json(animal, 200);
+  },
+);
 
 shelters.patch("/:id/animals/:animalId/photos", sessionValidation, async (c) => {
   const animal = await createAnimalService(c.env).reorderPhotos(

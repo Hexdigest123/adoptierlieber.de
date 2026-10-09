@@ -1,9 +1,10 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
-	import { onMount } from "svelte";
+	import { onMount, tick } from "svelte";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import { connectThread } from "$lib/chat/live";
+	import { dayKey, formatDay, formatTime } from "$lib/datetime";
 	import Button from "$lib/components/ui/Button.svelte";
 	import type { ChatMessage } from "$lib/types/shelter";
 
@@ -19,6 +20,31 @@
 	});
 
 	const closed = $derived(data.thread.animal_status === "found_home");
+	const today = dayKey(new Date());
+	const yesterday = dayKey(new Date(Date.now() - 86_400_000));
+
+	function dayLabel(iso: string): string {
+		const key = dayKey(iso);
+		if (key === today) return m.app_messages_today();
+		if (key === yesterday) return m.app_messages_yesterday();
+		return formatDay(iso);
+	}
+
+	function nearEnd(): boolean {
+		const doc = document.documentElement;
+		return window.innerHeight + window.scrollY >= doc.scrollHeight - 160;
+	}
+
+	function scrollToEnd() {
+		window.scrollTo({ top: document.documentElement.scrollHeight });
+	}
+
+	/** Append rows; follow them down unless the reader scrolled up to older messages. */
+	async function append(rows: ChatMessage[], follow = nearEnd()) {
+		messages = [...messages, ...rows];
+		await tick();
+		if (follow) scrollToEnd();
+	}
 
 	function systemLabel(body: string): string {
 		if (body === "opened") return m.shelter_sys_opened();
@@ -42,8 +68,8 @@
 				return;
 			}
 			const row = (await response.json()) as ChatMessage;
-			messages = [...messages, row];
 			draft = "";
+			await append([row], true);
 		} catch {
 			sendError = true;
 		} finally {
@@ -53,10 +79,11 @@
 
 	function merge(row: ChatMessage) {
 		if (messages.some((item) => item.id === row.id)) return;
-		messages = [...messages, row];
+		void append([row]);
 	}
 
 	onMount(() => {
+		scrollToEnd();
 		const stop = connectThread(data.thread.id, { onmessage: merge });
 		const timer = setInterval(async () => {
 			const last = messages.at(-1)?.id;
@@ -68,7 +95,7 @@
 			if (items.length) {
 				const known = new Set(messages.map((row) => row.id));
 				const extra = items.filter((row) => !known.has(row.id));
-				if (extra.length) messages = [...messages, ...extra];
+				if (extra.length) void append(extra);
 			}
 		}, 8000);
 		return () => {
@@ -78,7 +105,7 @@
 	});
 </script>
 
-<div class="mx-auto flex w-full min-w-0 max-w-2xl flex-col">
+<div class="mx-auto flex w-full max-w-2xl min-w-0 flex-col {closed ? '' : 'pb-20'}">
 	<a
 		href={resolve("/app/messages")}
 		class="mb-3 inline-flex w-fit text-sm font-semibold text-sand-700 focus-ring hover:text-coral-700"
@@ -99,47 +126,65 @@
 	</header>
 
 	<ul class="mt-4 flex w-full min-w-0 flex-col gap-2" aria-live="polite">
-		{#each messages as message (message.id)}
+		{#each messages as message, index (message.id)}
+			{#if index === 0 || dayKey(messages[index - 1].created_at) !== dayKey(message.created_at)}
+				<li class="mt-2 self-center text-xs font-semibold text-sand-500">
+					{dayLabel(message.created_at)}
+				</li>
+			{/if}
 			<li
-				class="max-w-[85%] min-w-0 overflow-hidden [overflow-wrap:anywhere] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm {message.kind ===
+				class="max-w-[85%] min-w-0 overflow-hidden rounded-2xl px-3 py-2 text-sm [overflow-wrap:anywhere] {message.kind ===
 				'system'
 					? 'self-center bg-sand-200 text-sand-700'
 					: message.author_user_id === data.user.id
 						? 'self-end bg-coral-200 text-coral-950'
 						: 'self-start bg-white'}"
 			>
-				{message.kind === "system" ? systemLabel(message.body) : message.body}
+				<p class="whitespace-pre-wrap">
+					{message.kind === "system" ? systemLabel(message.body) : message.body}
+				</p>
+				<time datetime={message.created_at} class="mt-0.5 block text-right text-xs opacity-70"
+					>{formatTime(message.created_at)}</time
+				>
 			</li>
 		{/each}
 	</ul>
 
-	{#if sendError}
-		<p class="mt-4 text-sm text-coral-700">{m.error_generic()}</p>
-	{/if}
 	{#if closed}
+		{#if sendError}
+			<p class="mt-4 text-sm text-coral-700">{m.error_generic()}</p>
+		{/if}
 		<p class="mt-4 text-sm text-sand-600">{m.shelter_composer_closed()}</p>
 	{:else}
+		<!-- Pinned above the bottom nav (mobile) like the animal detail action bar. -->
 		<form
-			class="mt-4 flex items-end gap-2"
+			class="fixed inset-x-0 bottom-14 z-30 border-t border-sand-200 bg-white/95 px-4 py-3 backdrop-blur md:bottom-0"
 			onsubmit={(event) => {
 				event.preventDefault();
 				void send();
 			}}
 		>
-			<textarea
-				bind:value={draft}
-				rows={3}
-				maxlength={2000}
-				class="min-h-11 min-w-0 flex-1 resize-y rounded-xl border border-sand-300 bg-white px-3.5 py-2.5 focus-ring"
-				placeholder={m.shelter_composer_placeholder()}
-				onkeydown={(event) => {
-					if (event.key === "Enter" && !event.shiftKey) {
-						event.preventDefault();
-						void send();
-					}
-				}}
-			></textarea>
-			<Button type="submit" loading={sending}>{m.shelter_send()}</Button>
+			<div class="mx-auto flex max-w-2xl flex-col gap-2">
+				{#if sendError}
+					<p class="text-sm text-coral-700">{m.error_generic()}</p>
+				{/if}
+				<div class="flex items-end gap-2">
+					<textarea
+						bind:value={draft}
+						rows={2}
+						maxlength={2000}
+						aria-label={m.shelter_composer_placeholder()}
+						class="min-h-11 min-w-0 flex-1 resize-y rounded-xl border border-sand-300 bg-white px-3.5 py-2.5 focus-ring"
+						placeholder={m.shelter_composer_placeholder()}
+						onkeydown={(event) => {
+							if (event.key === "Enter" && !event.shiftKey) {
+								event.preventDefault();
+								void send();
+							}
+						}}></textarea>
+					<Button type="submit" loading={sending}>{m.shelter_send()}</Button>
+				</div>
+			</div>
 		</form>
 	{/if}
 </div>

@@ -26,6 +26,8 @@
 	let leaflet = $state<LeafletApi | undefined>(undefined);
 	let markers = $state<LayerGroup | undefined>(undefined);
 	let zoomControl = $state<Control.Zoom | undefined>(undefined);
+	/** Last marker set the view was fitted to, so a locale switch does not reset the view. */
+	let fittedKey = "";
 	const locale = $derived(getLocale());
 	const interactive = $derived(shelters.length > 0);
 
@@ -105,14 +107,25 @@
 		}
 	}
 
+	/** Zoom to the markers (capped so one shelter still shows its region); none keeps the default. */
+	function fitToMarkers(points: [number, number][]) {
+		if (!map || !leaflet || points.length === 0) return;
+		const key = points.map((point) => point.join(",")).join(";");
+		if (key === fittedKey) return;
+		fittedKey = key;
+		map.fitBounds(leaflet.latLngBounds(points), { padding: [48, 48], maxZoom: 10 });
+	}
+
 	function placeMarkers() {
 		if (!map || !leaflet || !markers) return;
 		const L = leaflet;
+		const points: [number, number][] = [];
 
 		markers.clearLayers();
 
 		for (const shelter of shelters) {
 			if (shelter.lat == null || shelter.lng == null) continue;
+			points.push([shelter.lat, shelter.lng]);
 			const logo = shelter.has_logo
 				? `<img src="${escapeHtml(`/api/shelters/${shelter.id}/logo`)}" alt="" width="44" height="44" />`
 				: `<span>${escapeHtml(pinInitial(shelter.org_name))}</span>`;
@@ -136,6 +149,7 @@
 				.bindPopup(popupHtml(shelter), { maxWidth: 240 })
 				.addTo(markers);
 		}
+		fitToMarkers(points);
 	}
 
 	onMount(() => {

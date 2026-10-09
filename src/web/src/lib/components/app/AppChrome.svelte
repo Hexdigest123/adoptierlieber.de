@@ -3,7 +3,7 @@
 	import { resolve } from "$app/paths";
 	import { invalidateAll } from "$app/navigation";
 	import { page } from "$app/state";
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import Compass from "lucide-svelte/icons/compass";
 	import LayoutGrid from "lucide-svelte/icons/layout-grid";
 	import Heart from "lucide-svelte/icons/heart";
@@ -19,6 +19,7 @@
 	import LocationSheet from "$lib/components/app/LocationSheet.svelte";
 	import PrefsSheet from "$lib/components/app/PrefsSheet.svelte";
 	import { hydrateSpecies, selectedSpecies, speciesQuery } from "$lib/app/filters.svelte";
+	import { metaLine } from "$lib/app/format";
 	import type { UserPreferences } from "$lib/types/catalog";
 	import type { SessionUser } from "$lib/types/session";
 
@@ -31,14 +32,29 @@
 	let likeCount = $state(0);
 	let unreadMessages = $state(0);
 	let inRange = $state<number | null>(null);
+	let onboardingChecked = false;
 
 	const prefs = $derived((user.preferences ?? null) as UserPreferences | null);
 	const needsLocation = $derived(
 		prefs?.onboarded !== true && user.home_lat == null && user.home_label == null,
 	);
 	const needsPrefs = $derived(prefs?.onboarded === true && prefs?.prefs_done !== true);
+	/** Saved while geocoding was down: the daily backfill resolves home_query, or drops it if unknown. */
+	const placePending = $derived(
+		user.home_lat == null && Boolean(user.home_label && user.home_query),
+	);
 	const placeLabel = $derived(
-		user.home_label ?? (user.home_lat != null ? m.app_location_you() : m.app_location_unset()),
+		user.home_label
+			? placePending
+				? metaLine(user.home_label, m.app_location_pending())
+				: user.home_label
+			: user.home_lat != null
+				? m.app_location_you()
+				: m.app_location_unset(),
+	);
+	// Without coordinates there is nothing to measure a range from.
+	const rangeHint = $derived(
+		user.home_lat != null ? "" : placePending ? m.app_range_pending() : m.app_range_no_place(),
 	);
 	const filtersActive = $derived(selectedSpecies().length > 0);
 
@@ -47,15 +63,24 @@
 	const showFilters = $derived(
 		path === "/app" || onSearch || path.startsWith("/app/catalog") || path.startsWith("/app/likes"),
 	);
+	// Deep links (animal detail, threads) skip onboarding until the user reaches deck or catalog.
+	const onboardingPath = $derived(path === "/app" || path.startsWith("/app/catalog"));
 
 	onMount(() => {
 		hydrateSpecies();
-		if (needsLocation) {
-			locationOnboard = true;
-			locationOpen = true;
-		} else if (needsPrefs) prefsOpen = true;
 		void refreshLikes();
 		void refreshInRange();
+	});
+
+	$effect(() => {
+		if (onboardingChecked || !onboardingPath) return;
+		onboardingChecked = true;
+		untrack(() => {
+			if (needsLocation) {
+				locationOnboard = true;
+				locationOpen = true;
+			} else if (needsPrefs) prefsOpen = true;
+		});
 	});
 
 	$effect(() => {
@@ -278,6 +303,7 @@
 	rangeKm={user.max_range_km}
 	{inRange}
 	{placeLabel}
+	{rangeHint}
 	showLocation
 	onchange={() => {
 		void refreshInRange();
@@ -292,6 +318,7 @@
 <LocationSheet
 	bind:open={locationOpen}
 	onboard={locationOnboard}
+	initialQuery={user.home_query ?? user.city ?? ""}
 	onsaved={() => {
 		void invalidateAll();
 		if (locationOnboard) prefsOpen = true;

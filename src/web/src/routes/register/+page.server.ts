@@ -1,12 +1,15 @@
 import { fail } from "@sveltejs/kit";
-import type { Actions } from "./$types";
+import type { Actions, PageServerLoad } from "./$types";
 import { checkAvatarFile } from "$lib/server/avatar";
+import { safeNextPath } from "$lib/server/safe-next";
+import { isTurnstileRejection, TURNSTILE_FIELD } from "$lib/turnstile";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function readApiError(
 	response: Response,
-): Promise<"email_taken" | "not_allowed" | "rate_limited" | "invalid" | "generic"> {
+): Promise<"email_taken" | "not_allowed" | "rate_limited" | "invalid" | "captcha" | "generic"> {
+	if (await isTurnstileRejection(response)) return "captcha";
 	if (response.status === 409) {
 		try {
 			const body = (await response.clone().json()) as { error?: string };
@@ -26,6 +29,11 @@ async function readApiError(
 	}
 	return "generic";
 }
+
+/** Where to go after verify + login, e.g. the animal page that sent the user here. */
+export const load: PageServerLoad = async ({ url }) => {
+	return { next: safeNextPath(url.searchParams.get("next")) ?? "" };
+};
 
 export const actions: Actions = {
 	default: async ({ request, fetch }) => {
@@ -102,6 +110,8 @@ export const actions: Actions = {
 			}
 			body.set("avatar", avatar);
 		}
+		const turnstileToken = String(data.get(TURNSTILE_FIELD) ?? "");
+		if (turnstileToken) body.set("turnstileToken", turnstileToken);
 
 		const response = await fetch(endpoint, {
 			method: "POST",

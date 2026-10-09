@@ -29,7 +29,9 @@
 	];
 </script>
 
-<footer class="border-t border-sand-200 bg-sand-50 px-4 py-10 sm:px-6">
+<!-- Bottom padding keeps the last lines clear of the floating review/support buttons
+     (not needed from 2xl, where the content column ends before them). -->
+<footer class="border-t border-sand-200 bg-sand-50 px-4 pt-10 pb-32 sm:px-6 sm:pb-40 2xl:pb-10">
 	<div
 		class="mx-auto flex max-w-6xl flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left"
 	>

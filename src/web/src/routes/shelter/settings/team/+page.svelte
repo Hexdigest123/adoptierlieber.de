@@ -11,14 +11,24 @@
 
 	const locked = $derived(!data.isOwner || data.readonly);
 	const owners = $derived(data.members.filter((row) => row.role === 1).length);
+
+	function inviteExpired(expiresAt: string): boolean {
+		return new Date(expiresAt).getTime() < Date.now();
+	}
 </script>
 
 <p class="text-center text-sm text-sand-700">{m.shelter_team_subtitle()}</p>
 
 {#if form?.invited}
-	<FormStatus class="mt-4" type="success">{m.shelter_team_invited()}</FormStatus>
+	<FormStatus class="mt-4" type="success">
+		{form.mailed ? m.shelter_team_invited_pending() : m.shelter_team_invite_open()}
+	</FormStatus>
 {:else if form?.transferred}
 	<FormStatus class="mt-4" type="success">{m.shelter_team_transferred()}</FormStatus>
+{:else if form?.inviteError === "member"}
+	<FormStatus class="mt-4" type="error">{m.shelter_team_invite_member()}</FormStatus>
+{:else if form?.inviteError === "limit"}
+	<FormStatus class="mt-4" type="error">{m.shelter_team_invite_limit()}</FormStatus>
 {:else if form?.inviteError || form?.teamError}
 	<FormStatus class="mt-4" type="error">{m.error_invalid_input()}</FormStatus>
 {/if}
@@ -67,9 +77,15 @@
 	<ul class="mt-2 flex flex-col gap-2">
 		{#each data.invites as invite (invite.id)}
 			<li
-				class="rounded-xl border border-dashed border-sand-300 bg-white px-3 py-2 text-sm text-sand-700"
+				class="flex items-center gap-3 rounded-xl border border-dashed border-sand-300 bg-white px-3 py-2 text-sm text-sand-700"
 			>
-				{invite.email}
+				<span class="min-w-0 flex-1 truncate">{invite.email}</span>
+				<span class="text-xs font-semibold text-sand-600">
+					{invite.role === 1 ? m.shelter_role_owner() : m.shelter_role_staff()} ·
+					{inviteExpired(invite.expires_at)
+						? m.shelter_team_invite_status_expired()
+						: m.shelter_team_invite_status_pending()}
+				</span>
 			</li>
 		{/each}
 	</ul>
@@ -78,7 +94,14 @@
 {#if !locked}
 	<form method="POST" action="?/invite" use:enhance class="mt-8 flex flex-col gap-3">
 		<h2 class="text-lg font-bold text-sand-950">{m.shelter_team_invite()}</h2>
-		<Input id="invite-email" name="email" type="email" label={m.contact_email()} required />
+		<Input
+			id="invite-email"
+			name="email"
+			type="email"
+			label={m.contact_email()}
+			hint={m.shelter_team_invite_hint()}
+			required
+		/>
 		<Button type="submit">{m.shelter_team_send()}</Button>
 	</form>
 {/if}

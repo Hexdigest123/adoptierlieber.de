@@ -353,7 +353,10 @@ export function createChatService(env: Env) {
       });
       const view = toMessageView(row);
       try {
-        await chatRoomStub(env, threadId).fanout({ type: "message", message: view });
+        // Only current members and the adopter get it; stale sockets are closed.
+        const staff = await memberRepo.listByShelter(thread.shelterId);
+        const recipients = [thread.adopterUserId, ...staff.map((member) => member.userId)];
+        await chatRoomStub(env, threadId).fanout({ type: "message", message: view }, recipients);
       } catch (error) {
         console.error(error);
       }

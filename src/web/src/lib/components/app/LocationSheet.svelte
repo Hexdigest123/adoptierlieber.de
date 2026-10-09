@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from "svelte";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
@@ -8,11 +9,14 @@
 	let {
 		open = $bindable(false),
 		onboard = false,
+		initialQuery = "",
 		onsaved,
 		onskip,
 	}: {
 		open?: boolean;
 		onboard?: boolean;
+		/** Prefills an empty search field when the sheet opens, e.g. the registered city. */
+		initialQuery?: string;
 		onsaved: () => void;
 		onskip: () => void;
 	} = $props();
@@ -30,9 +34,21 @@
 	let error = $state("");
 	let loading = $state(false);
 	let gpsFail = $state(false);
+	/** Search returned 503 (or our own 429): offer saving the typed place without coordinates. */
+	let unavailable = $state(false);
+	let savingTyped = $state(false);
+
+	$effect(() => {
+		if (!open || !initialQuery) return;
+		const prefill = initialQuery;
+		untrack(() => {
+			if (!query.trim()) query = prefill;
+		});
+	});
 
 	async function searchPlace() {
 		error = "";
+		unavailable = false;
 		hits = [];
 		const q = query.trim();
 		if (!q) return;
@@ -43,16 +59,57 @@
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({ q }),
 			});
+			if (res.status === 503 || res.status === 429) {
+				unavailable = true;
+				return;
+			}
 			if (!res.ok) {
-				error = m.app_location_none();
+				error = m.error_generic();
 				return;
 			}
 			const data = (await res.json()) as { items: GeocodeHit[] };
 			hits = data.items;
 			if (hits.length === 0) error = m.app_location_none();
 			if (hits.length === 1) await pick(hits[0]);
+		} catch {
+			error = m.error_generic();
 		} finally {
 			loading = false;
+		}
+	}
+
+	/** The API keeps the text as label; coordinates follow once geocoding works again. */
+	async function saveTyped() {
+		const q = query.trim();
+		if (!q) return;
+		savingTyped = true;
+		error = "";
+		try {
+			const res = await fetch("/api/users/me", {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					home_query: q,
+					home_label: q,
+					home_country: null,
+					home_lat: null,
+					home_lng: null,
+					location_precision: "place",
+					max_range_km: 25,
+				}),
+			});
+			if (!res.ok) {
+				unavailable = false;
+				error = res.status === 400 ? m.app_location_none() : m.error_generic();
+				return;
+			}
+			await persistOnboarded();
+			open = false;
+			onsaved();
+		} catch {
+			error = m.error_generic();
+		} finally {
+			savingTyped = false;
 		}
 	}
 
@@ -183,7 +240,18 @@
 				<Button type="submit" {loading} fullWidth>{m.app_location_search()}</Button>
 			</form>
 
-			{#if error}
+			{#if unavailable}
+				<div class="mt-4 flex flex-col gap-3 rounded-2xl border border-sand-200 bg-sand-50 p-4">
+					<p class="text-sm text-sand-800" role="status">{m.app_location_unavailable()}</p>
+					<Button
+						variant="outline"
+						fullWidth
+						loading={savingTyped}
+						disabled={!query.trim()}
+						onclick={() => void saveTyped()}>{m.app_location_save_anyway()}</Button
+					>
+				</div>
+			{:else if error}
 				<p class="mt-3 text-sm text-coral-700">{error}</p>
 			{/if}
 

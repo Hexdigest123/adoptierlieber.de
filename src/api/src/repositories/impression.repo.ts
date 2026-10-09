@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getDb, type Env } from "../config/env";
 import { animalImpressionsDailyTable, animalsTable } from "../schema";
@@ -36,7 +36,7 @@ export function createImpressionRepo(env: Env) {
           and(
             eq(animalsTable.shelterId, shelterId),
             eq(animalsTable.status, "draft"),
-            sql`${animalsTable.updatedAt} < ${before.getTime()}`,
+            lt(animalsTable.updatedAt, before),
           ),
         )
         .all();

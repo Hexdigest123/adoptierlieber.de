@@ -5,6 +5,15 @@ export type Env = {
   PUBLIC_SITE_URL?: string;
   SUPER_ADMIN_EMAIL?: string;
   SECRET_TOTP_KEY?: string;
+  /** Shared with the web worker; proves its X-Forwarded-For (see rate-limit.ts). */
+  PROXY_SECRET?: string;
+  /** Turnstile widget secret; unset = verification skipped (see lib/turnstile.ts). */
+  SECRET_TURNSTILE?: string;
+  SECRET_GEOAPIFY?: string;
+  /** Upstream Geoapify calls per UTC day; default 2500 (see lib/geocode.ts). */
+  GEOAPIFY_DAILY_BUDGET?: string;
+  /** Development only: loopback mock for Geoapify (see lib/geocode.ts). */
+  GEOAPIFY_BASE_URL?: string;
   RATE_LIMIT_KV: KVNamespace;
   adoptierlieber?: D1Database;
   adoptierlieber_staging?: D1Database;

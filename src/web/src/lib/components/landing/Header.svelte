@@ -63,7 +63,7 @@
 			class="relative z-10 rounded-full focus-ring"
 			aria-label={m.brand_name()}
 		>
-			<Logo />
+			<Logo class="size-11" />
 		</a>
 
 		{#if !isApp}

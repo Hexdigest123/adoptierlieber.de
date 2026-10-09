@@ -2,6 +2,7 @@
 	import type { PageProps } from "./$types";
 	import { m } from "$lib/paraglide/messages";
 	import { photoUrl } from "$lib/types/shelter";
+	import { formatDateTime } from "$lib/datetime";
 
 	let { data }: PageProps = $props();
 
@@ -15,10 +16,6 @@
 				row.adopter_name.toLowerCase().includes(q) || row.animal_name.toLowerCase().includes(q),
 		);
 	});
-
-	function timeLabel(iso: string): string {
-		return new Date(iso).toLocaleString();
-	}
 </script>
 
 <h1 class="text-2xl font-black tracking-tight text-sand-950">{m.shelter_messages_title()}</h1>
@@ -103,7 +100,7 @@
 						{#if thread.assigned_name}
 							<p class="text-xs text-sand-500">{m.shelter_assign()}: {thread.assigned_name}</p>
 						{/if}
-						<p class="text-xs text-sand-500">{timeLabel(thread.last_message_at)}</p>
+						<p class="text-xs text-sand-500">{formatDateTime(thread.last_message_at)}</p>
 					</div>
 					{#if thread.unread_for_me}
 						<span class="size-2.5 shrink-0 rounded-full bg-coral-600" aria-hidden="true"></span>

@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ parent, fetch }) => {
 export const actions: Actions = {
 	invite: async ({ request, fetch, cookies, locals }) => {
 		const current = resolveMembership(locals.user?.memberships ?? [], cookies);
-		if (!current || current.role !== 1) return fail(403, { inviteError: true });
+		if (!current || current.role !== 1) return fail(403, { inviteError: "generic" as const });
 		const data = await request.formData();
 		const email = String(data.get("email") ?? "")
 			.trim()
@@ -34,15 +34,17 @@ export const actions: Actions = {
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ email, role: 2 }),
 		});
-		if (!response.ok) {
-			return fail(response.status === 409 ? 409 : 400, { inviteError: true });
-		}
+		if (response.status === 409) return fail(409, { inviteError: "member" as const });
+		if (response.status === 429) return fail(429, { inviteError: "limit" as const });
+		if (!response.ok) return fail(400, { inviteError: "generic" as const });
+		// mailed=false: an open invite for this address was only extended (mail cooldown)
+		const result = (await response.json().catch(() => ({}))) as { mailed?: boolean };
 		await fetch(`/api/shelters/${current.shelter_id}/checklist`, {
 			method: "PATCH",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ team: true }),
 		});
-		return { invited: true };
+		return { invited: true, mailed: result.mailed !== false };
 	},
 
 	remove: async ({ request, fetch, cookies, locals }) => {
@@ -50,9 +52,12 @@ export const actions: Actions = {
 		if (!current || current.role !== 1) return fail(403, { teamError: true });
 		const data = await request.formData();
 		const userId = String(data.get("user_id") ?? "");
-		const response = await fetch(`/api/shelters/${current.shelter_id}/members/${userId}`, {
-			method: "DELETE",
-		});
+		const response = await fetch(
+			`/api/shelters/${current.shelter_id}/members/${encodeURIComponent(userId)}`,
+			{
+				method: "DELETE",
+			},
+		);
 		if (!response.ok) return fail(response.status === 409 ? 409 : 400, { teamError: true });
 		return { removed: true };
 	},

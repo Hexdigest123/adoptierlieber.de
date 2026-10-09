@@ -1,6 +1,6 @@
 import { HTTPException } from "hono/http-exception";
 import type { Env } from "../config/env";
-import { banFingerprint } from "../lib/ban";
+import { banEmailHash, banEmailKey, banFingerprint } from "../lib/ban";
 import {
   assertRegistrationAllowed,
   grantSuperAdminIfAllowlisted,
@@ -113,6 +113,14 @@ export function createAdminService(env: Env) {
     return actor;
   }
 
+  async function requireSuperAdmin(actorId: string): Promise<User> {
+    const actor = await requireActor(actorId);
+    if (!isSuperAdmin(actor, superAdminAllowlist(env))) {
+      throw new HTTPException(403, { message: "insufficient privilege" });
+    }
+    return actor;
+  }
+
   async function requireUser(id: string): Promise<User> {
     const user = await userRepo.findById(id);
     if (!user) {
@@ -133,6 +141,17 @@ export function createAdminService(env: Env) {
       targetId: target.id,
       targetLabel: target.label,
       reason: target.reason ?? null,
+    });
+  }
+
+  /** The ADMIN grant itself: actor is the new admin, reason names the inviter. */
+  async function auditAcceptedInvite(user: User, invitedBy: string | null): Promise<void> {
+    const inviter = invitedBy ? await userRepo.findById(invitedBy) : null;
+    await audit(user, "accept_admin_invite", {
+      type: "user",
+      id: user.id,
+      label: user.email,
+      reason: inviter ? `invited by ${inviter.email}` : null,
     });
   }
 
@@ -299,6 +318,12 @@ export function createAdminService(env: Env) {
         city: target.city,
       });
       await banRepo.insert({ hash, bannedBy: actor.id, reason: data.reason });
+      // The address too, so a slightly different name cannot re-register it.
+      await banRepo.insert({
+        hash: banEmailKey(await banEmailHash(target.email), hash),
+        bannedBy: actor.id,
+        reason: data.reason,
+      });
       if (target.avatarKey) {
         await deleteAvatar(env, target.id);
       }
@@ -639,6 +664,7 @@ export function createAdminService(env: Env) {
         throw new HTTPException(404, { message: "not found" });
       }
       await banRepo.deleteByHash(hash);
+      await banRepo.deleteEmailsForFingerprint(hash);
       await audit(actor, "drop_ban", {
         type: "ban",
         id: hash,
@@ -723,7 +749,7 @@ export function createAdminService(env: Env) {
 
     async invite(actorId: string, input: unknown): Promise<void> {
       const data = adminInviteSchema.parse(input);
-      const actor = await requireActor(actorId);
+      const actor = await requireSuperAdmin(actorId);
       const existing = await userRepo.findByEmail(data.email);
       if (existing && isSuperAdmin(existing, superAdminAllowlist(env))) {
         throw new HTTPException(409, { message: "already on the team" });
@@ -744,17 +770,18 @@ export function createAdminService(env: Env) {
           expiresAt,
         });
       }
+      // Audit before mailing: the invite row exists even if the mail fails.
+      await audit(actor, "invite", { type: "invite", id: null, label: data.email });
       try {
         await sendMail(adminInviteTemplate({ to: data.email, token }));
       } catch (e: unknown) {
         console.error(e);
         throw new HTTPException(500, { message: "failed to send invite email" });
       }
-      await audit(actor, "invite", { type: "invite", id: null, label: data.email });
     },
 
     async revokeInvite(actorId: string, inviteId: string): Promise<void> {
-      const actor = await requireActor(actorId);
+      const actor = await requireSuperAdmin(actorId);
       const invite = await adminRepo.findInviteById(inviteId);
       if (!invite || invite.consumedAt) {
         throw new HTTPException(404, { message: "not found" });
@@ -764,10 +791,7 @@ export function createAdminService(env: Env) {
     },
 
     async removeAdmin(actorId: string, targetId: string): Promise<void> {
-      const actor = await requireActor(actorId);
-      if (!isSuperAdmin(actor, superAdminAllowlist(env))) {
-        throw new HTTPException(403, { message: "insufficient privilege" });
-      }
+      const actor = await requireSuperAdmin(actorId);
       const target = await requireUser(targetId);
       if (target.platformRole !== PLATFORM_ROLE.ADMIN) {
         throw new HTTPException(409, { message: "not an admin" });
@@ -821,6 +845,7 @@ export function createAdminService(env: Env) {
           throw new HTTPException(409, { message: "invite already used" });
         }
         await userRepo.updatePlatformRole(existing.id, PLATFORM_ROLE.ADMIN);
+        await auditAcceptedInvite(existing, invite.invitedBy);
         return {};
       }
 
@@ -834,12 +859,15 @@ export function createAdminService(env: Env) {
         street: data.street,
         zip: data.zip,
         city: data.city,
+        email: invite.email,
       });
       const consumed = await adminRepo.consumeInvite(invite.id);
       if (!consumed) {
         throw new HTTPException(409, { message: "invite already used" });
       }
       const password = await hashPassword(data.password);
+      // The invite link proved the inbox, and the password is set right now.
+      const now = new Date();
       const user = await insertRegisteredUser(env, {
         name: data.name,
         displayName: data.displayName,
@@ -853,12 +881,11 @@ export function createAdminService(env: Env) {
         platformRole: PLATFORM_ROLE.ADMIN,
         emailVerificationToken: null,
         emailVerificationTokenExpiresAt: null,
+        emailVerifiedAt: now,
+        passwordChangedAt: now,
       });
-      await userRepo.verifyEmail(user.id);
-      const verified = await userRepo.findById(user.id);
-      if (verified) {
-        await grantSuperAdminIfAllowlisted(env, verified);
-      }
+      await auditAcceptedInvite(user, invite.invitedBy);
+      await grantSuperAdminIfAllowlisted(env, user);
       const session = await createSessionService(env).create(
         { userId: user.id, kind: "setup" },
         null,

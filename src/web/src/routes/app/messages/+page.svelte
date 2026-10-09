@@ -3,12 +3,9 @@
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
+	import { formatDateTime } from "$lib/datetime";
 
 	let { data }: PageProps = $props();
-
-	function timeLabel(iso: string): string {
-		return new Date(iso).toLocaleString();
-	}
 </script>
 
 <div class="flex flex-col gap-4">
@@ -45,7 +42,7 @@
 								<span class="font-normal text-sand-600"> {thread.shelter_name}</span>
 							</p>
 							<p class="truncate text-sm text-sand-600">{thread.last_preview ?? ""}</p>
-							<p class="text-xs text-sand-500">{timeLabel(thread.last_message_at)}</p>
+							<p class="text-xs text-sand-500">{formatDateTime(thread.last_message_at)}</p>
 						</div>
 						{#if thread.unread_for_me}
 							<span class="size-2.5 shrink-0 rounded-full bg-coral-600" aria-hidden="true"></span>

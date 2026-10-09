@@ -3,12 +3,16 @@ import type { Actions, PageServerLoad } from "./$types";
 import { setSessionCookie } from "$lib/server/session-cookie";
 import type { InvitePreview } from "$lib/admin/types";
 
-export const load: PageServerLoad = async ({ url, fetch, locals }) => {
+export const load: PageServerLoad = async ({ url, fetch }) => {
 	const token = url.searchParams.get("token") ?? "";
 	if (!token) {
 		return { invite: null as InvitePreview | null, token: "" };
 	}
-	const response = await fetch(`/api/invites/${encodeURIComponent(token)}`);
+	const response = await fetch("/api/invites/preview", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ token }),
+	});
 	if (!response.ok) {
 		return { invite: null as InvitePreview | null, token };
 	}
@@ -24,13 +28,13 @@ export const actions: Actions = {
 			return fail(400, { inviteError: "invalid" as const });
 		}
 
-		const payload: Record<string, string> = {};
+		const payload: Record<string, string> = { token };
 		for (const key of ["name", "displayName", "password", "street", "zip", "city", "lat", "lng"]) {
 			const value = String(data.get(key) ?? "").trim();
 			if (value) payload[key] = value;
 		}
 
-		const response = await fetch(`/api/invites/${encodeURIComponent(token)}/acceptance`, {
+		const response = await fetch("/api/invites/acceptance", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify(payload),

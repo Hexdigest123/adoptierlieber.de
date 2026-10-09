@@ -9,11 +9,16 @@
 	import Textarea from "$lib/components/ui/Textarea.svelte";
 	import Checkbox from "$lib/components/ui/Checkbox.svelte";
 	import FormStatus from "$lib/components/ui/FormStatus.svelte";
+	import Turnstile from "$lib/components/ui/Turnstile.svelte";
+	import { turnstileSiteKey } from "$lib/turnstile";
 
 	let { form }: { form: ActionData } = $props();
 
 	let dismissed = $state(false);
 	let timer: ReturnType<typeof setTimeout> | undefined;
+	let captcha: ReturnType<typeof Turnstile> | undefined = $state();
+	let captchaToken = $state("");
+	const captchaPending = $derived(Boolean(turnstileSiteKey()) && !captchaToken);
 
 	const showSuccess = $derived(Boolean(form?.contactSuccess) && !dismissed);
 
@@ -46,7 +51,9 @@
 				<FormStatus type="success">{m.contact_success()}</FormStatus>
 			{:else}
 				{#if form?.contactError}
-					<FormStatus type="error" class="mb-6">{m.contact_error()}</FormStatus>
+					<FormStatus type="error" class="mb-6">
+						{form.contactError === "captcha" ? m.turnstile_failed() : m.contact_error()}
+					</FormStatus>
 				{/if}
 				<form
 					method="POST"
@@ -56,6 +63,8 @@
 						return async ({ result, update }) => {
 							dismissed = false;
 							await update({ reset: result.type === "success" });
+							// Tokens are single-use; a retry needs a fresh one.
+							if (result.type === "failure" || result.type === "error") captcha?.reset();
 						};
 					}}
 				>
@@ -105,7 +114,16 @@
 						>.
 					</Checkbox>
 
-					<Button type="submit" fullWidth>{m.contact_submit()}</Button>
+					<Turnstile action="contact" bind:this={captcha} bind:token={captchaToken} />
+
+					<Button
+						type="submit"
+						fullWidth
+						disabled={captchaPending}
+						class="disabled:cursor-not-allowed disabled:opacity-60"
+					>
+						{m.contact_submit()}
+					</Button>
 				</form>
 			{/if}
 		</Card>

@@ -7,7 +7,9 @@
 	import Input from "$lib/components/ui/Input.svelte";
 	import Spinner from "$lib/components/ui/Spinner.svelte";
 	import AnimalCard from "$lib/components/app/AnimalCard.svelte";
+	import ChoiceChips from "$lib/components/app/ChoiceChips.svelte";
 	import { selectedSpecies, setSelectedSpecies, speciesQuery } from "$lib/app/filters.svelte";
+	import { sexOptions, sizeOptions } from "$lib/app/format";
 	import type { AnimalSex, AnimalSize, ListEnvelope, PublicAnimal } from "$lib/types/catalog";
 	import { listItems } from "$lib/types/catalog";
 	import { RANGE_STOPS } from "$lib/types/catalog";
@@ -132,48 +134,32 @@
 	<h1 class="text-2xl font-black tracking-tight text-sand-950">{m.app_catalog_title()}</h1>
 
 	<form
-		class="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4"
+		class="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_auto] xl:items-end"
 		onsubmit={(event) => {
 			event.preventDefault();
 			void load(true);
 		}}
 	>
-		<Input id="catalog-q" label={m.app_search_query()} bind:value={q} />
-		<label class="flex flex-col gap-1.5 text-sm font-semibold text-sand-900">
-			{m.app_search_sex()}
-			<select
-				value={sex ?? ""}
-				class="h-11 rounded-xl border border-sand-300 bg-white px-3 text-base font-normal focus-ring"
-				onchange={(event) => {
-					const value = event.currentTarget.value;
-					sex = value === "female" || value === "male" || value === "unknown" ? value : null;
-				}}
-			>
-				<option value="">{m.app_search_all()}</option>
-				<option value="female">{m.app_sex_female()}</option>
-				<option value="male">{m.app_sex_male()}</option>
-				<option value="unknown">{m.app_sex_unknown()}</option>
-			</select>
-		</label>
-		<label class="flex flex-col gap-1.5 text-sm font-semibold text-sand-900">
-			{m.app_search_size()}
-			<select
-				value={size ?? ""}
-				class="h-11 rounded-xl border border-sand-300 bg-white px-3 text-base font-normal focus-ring"
-				onchange={(event) => {
-					const value = event.currentTarget.value;
-					size = value === "s" || value === "m" || value === "l" || value === "xl" ? value : null;
-				}}
-			>
-				<option value="">{m.app_search_all()}</option>
-				<option value="s">{m.app_size_s()}</option>
-				<option value="m">{m.app_size_m()}</option>
-				<option value="l">{m.app_size_l()}</option>
-				<option value="xl">{m.app_size_xl()}</option>
-			</select>
-		</label>
+		<Input
+			id="catalog-q"
+			label={m.app_search_query()}
+			bind:value={q}
+			class="md:col-span-2 xl:col-span-1"
+		/>
+		<ChoiceChips
+			legend={m.app_search_sex()}
+			allLabel={m.app_search_all()}
+			options={sexOptions()}
+			bind:value={sex}
+		/>
+		<ChoiceChips
+			legend={m.app_search_size()}
+			allLabel={m.app_search_all()}
+			options={sizeOptions()}
+			bind:value={size}
+		/>
 		<div
-			class="flex min-h-11 flex-wrap items-center gap-1 sm:col-span-2 lg:col-span-4"
+			class="flex min-h-11 flex-wrap items-center gap-1 md:col-span-2 xl:col-span-3"
 			role="group"
 			aria-label={m.app_search_sort()}
 		>

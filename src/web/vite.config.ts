@@ -5,7 +5,7 @@ import { playwright } from "@vitest/browser-playwright";
 import adapter from "@sveltejs/adapter-cloudflare";
 import { sveltekit } from "@sveltejs/kit/vite";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
 	plugins: [
 		tailwindcss(),
 		sveltekit({
@@ -15,6 +15,32 @@ export default defineConfig({
 					filename.split(/[/\\]/).includes("node_modules") ? undefined : true,
 			},
 			adapter: adapter(),
+			// `vite dev` reads the repo-root .env (shared with the API). Builds keep the default,
+			// so a local .env never reaches a deploy; Workers get PUBLIC_API_URL from wrangler vars.
+			env: { dir: command === "serve" ? "../.." : "." },
+			// Nonces on SSR pages, hashes on prerendered ones. hooks.server.ts adds
+			// frame-ancestors only to responses that do not already carry this policy.
+			csp: {
+				mode: "auto",
+				directives: {
+					"default-src": ["self"],
+					// Cloudflare Turnstile (register, contact, forgot-password) loads its script
+					// and challenge iframe from challenges.cloudflare.com.
+					"script-src": ["self", "https://challenges.cloudflare.com"],
+					"frame-src": ["https://challenges.cloudflare.com"],
+					// Svelte transitions and Leaflet write inline styles.
+					"style-src": ["self", "unsafe-inline"],
+					// data:/blob: for upload previews and the TOTP QR; OSM tiles for ShelterMap.
+					"img-src": ["self", "data:", "blob:", "https://tile.openstreetmap.org"],
+					// Fonts are self-hosted (fontsource); the chat socket is same-origin.
+					"font-src": ["self"],
+					"connect-src": ["self"],
+					"object-src": ["none"],
+					"base-uri": ["none"],
+					"form-action": ["self"],
+					"frame-ancestors": ["none"],
+				},
+			},
 		}),
 
 		paraglideVitePlugin({
@@ -51,4 +77,4 @@ export default defineConfig({
 			},
 		],
 	},
-});
+}));

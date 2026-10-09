@@ -391,9 +391,22 @@ export function createCatalogService(env: Env) {
       if (!row || row.animal.status !== "live") {
         throw new HTTPException(404, { message: "animal not found" });
       }
-      void userId;
+      // Count each (user, animal, UTC day) once. KV is eventually consistent,
+      // so this is best effort, which is plenty for a display counter.
+      const now = new Date();
+      const day = now.toISOString().slice(0, 10);
+      const key = `imp:${day}:${userId}:${animalId}`;
+      const endOfDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+      try {
+        if (await env.RATE_LIMIT_KV.get(key)) return;
+        await env.RATE_LIMIT_KV.put(key, "1", {
+          expirationTtl: Math.max(60, Math.ceil((endOfDay - now.getTime()) / 1000)),
+        });
+      } catch (error) {
+        console.error("impression dedupe failed, not counting", error);
+        return;
+      }
       await animals.incrementImpressions(animalId);
-      const day = new Date().toISOString().slice(0, 10);
       await catalog.incrementDailyImpression(animalId, day);
     },
 

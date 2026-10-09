@@ -4,9 +4,9 @@ import type { PublicAnimal } from "$lib/types/catalog";
 
 export const load: PageServerLoad = async ({ fetch, params, locals }) => {
 	if (locals.user) {
-		redirect(303, `/app/animals/${params.id}`);
+		redirect(303, `/app/animals/${encodeURIComponent(params.id)}`);
 	}
-	const response = await fetch(`/api/animals/${params.id}`);
+	const response = await fetch(`/api/animals/${encodeURIComponent(params.id)}`);
 	if (response.status === 404) {
 		error(404, "animal not found");
 	}

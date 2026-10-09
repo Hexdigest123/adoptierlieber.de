@@ -23,7 +23,11 @@
 {#if data.verifySuccess}
 	<AuthCard title={m.auth_verify_success_title()}>
 		<FormStatus type="success">{m.auth_verify_success_text()}</FormStatus>
-		<Button href={resolve("/login")} fullWidth class="mt-6">{m.auth_login_submit()}</Button>
+		<Button
+			href="{resolve('/login')}{data.next ? `?next=${encodeURIComponent(data.next)}` : ''}"
+			fullWidth
+			class="mt-6">{m.auth_login_submit()}</Button
+		>
 	</AuthCard>
 {:else if autoVerify}
 	<AuthCard title={m.auth_verify_title()} subtitle={m.auth_verify_working()}>

@@ -11,6 +11,7 @@
 		inRange = null,
 		placeLabel = "",
 		showRange = true,
+		rangeHint = "",
 		showLocation = false,
 		onchange,
 		onapply,
@@ -21,6 +22,8 @@
 		inRange?: number | null;
 		placeLabel?: string;
 		showRange?: boolean;
+		/** Set while there are no coordinates: replaces the range control, nothing to measure from. */
+		rangeHint?: string;
 		showLocation?: boolean;
 		onchange?: () => void;
 		onapply?: (next: number | null) => void;
@@ -28,6 +31,7 @@
 	} = $props();
 
 	let draft = $state<number | null>(null);
+	const rangeActive = $derived(showRange && !rangeHint);
 
 	$effect(() => {
 		if (open) draft = rangeKm;
@@ -75,7 +79,12 @@
 				</div>
 			{/if}
 
-			{#if showRange}
+			{#if showRange && rangeHint}
+				<div class="mt-5">
+					<p class="text-sm font-semibold text-sand-900">{m.app_range_title()}</p>
+					<p class="mt-1 text-sm text-sand-700">{rangeHint}</p>
+				</div>
+			{:else if rangeActive}
 				<div class="mt-5">
 					<p class="text-sm font-semibold text-sand-900">{m.app_range_title()}</p>
 					<p class="mt-1 text-2xl font-black text-coral-700">{label(draft)}</p>
@@ -117,7 +126,7 @@
 			</div>
 
 			<div class="mt-6">
-				{#if showRange}
+				{#if rangeActive}
 					<Button fullWidth onclick={apply}>{m.app_range_apply()}</Button>
 				{:else}
 					<Button fullWidth onclick={() => (open = false)}>{m.dialog_close()}</Button>

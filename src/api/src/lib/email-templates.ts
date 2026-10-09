@@ -158,6 +158,8 @@ export type EmailTemplateInput = {
 export type VerifyEmailInput = EmailTemplateInput & {
 	token: string;
 	expiresInHours?: number;
+	/** Re-sent because someone registered again with a still unverified address. */
+	repeated?: boolean;
 };
 
 /** Verification link for new user and shelter owner accounts (24h default). */
@@ -165,11 +167,15 @@ export function verifyEmailTemplate({
 	to,
 	token,
 	expiresInHours = 24,
+	repeated = false,
 }: VerifyEmailInput): MailOptions {
 	const expiry = expiryLabel(expiresInHours);
 	const recipient = Array.isArray(to) ? to[0] : to;
 	const href = actionUrl("/verify", { email: recipient, token });
 	const subject = "Bestätige deine E-Mail-Adresse";
+	const repeatNote = repeated
+		? `Mit dieser Adresse wurde schon früher ein Konto angelegt. Es gilt das Passwort von damals. Hast du es vergessen, setze es nach der Bestätigung zurück: ${actionUrl("/forgot-password", {})}`
+		: "";
 	return {
 		to,
 		subject,
@@ -182,7 +188,7 @@ ${href}
 Oder gib auf der Bestätigungsseite diesen Code ein:
 
 ${token}
-
+${repeatNote ? `\n${repeatNote}\n` : ""}
 Der Link ist ${expiry} gültig. Solltest du keine Registrierung vorgenommen haben, kannst du diese E-Mail einfach ignorieren.`,
 		html: layout({
 			preview: "Fast geschafft – bestätige deine E-Mail-Adresse, um dein Konto zu aktivieren.",
@@ -194,6 +200,7 @@ Der Link ist ${expiry} gültig. Solltest du keine Registrierung vorgenommen habe
 				ctaButton(href, "E-Mail bestätigen"),
 				note("Falls der Button nicht funktioniert, nutze diesen Code auf der Bestätigungsseite:"),
 				tokenBox(token),
+				repeatNote ? note(repeatNote) : "",
 				note(
 					`Der Link ist ${expiry} gültig. Solltest du keine Registrierung vorgenommen haben, kannst du diese E-Mail einfach ignorieren.`,
 				),
@@ -416,6 +423,39 @@ Der Link ist ${expiry} gültig. Falls du das Zurücksetzen nicht angefordert has
 	};
 }
 
+/** Someone tried to register with an address that already has an account. */
+export function registrationAttemptTemplate({ to }: EmailTemplateInput): MailOptions {
+	const loginHref = actionUrl("/login", {});
+	const resetHref = actionUrl("/forgot-password", {});
+	const subject = "Registrierung mit deiner E-Mail-Adresse";
+	return {
+		to,
+		subject,
+		text: `Registrierung mit deiner E-Mail-Adresse
+
+Gerade hat jemand versucht, mit dieser E-Mail-Adresse ein neues Konto bei Adoptier Lieber anzulegen. Du hast hier aber schon ein Konto.
+
+Melde dich einfach an: ${loginHref}
+Passwort vergessen? ${resetHref}
+
+Warst du das nicht, kannst du diese E-Mail ignorieren. An deinem Konto hat sich nichts geändert.`,
+		html: layout({
+			preview: "Mit deiner Adresse besteht schon ein Konto.",
+			body: [
+				heading("Registrierung mit deiner E-Mail-Adresse"),
+				paragraph(
+					"Gerade hat jemand versucht, mit dieser E-Mail-Adresse ein neues Konto bei Adoptier Lieber anzulegen. Du hast hier aber schon ein Konto.",
+				),
+				ctaButton(loginHref, "Anmelden"),
+				note(`Passwort vergessen? Du kannst es hier zurücksetzen: ${resetHref}`),
+				note(
+					"Warst du das nicht, kannst du diese E-Mail ignorieren. An deinem Konto hat sich nichts geändert.",
+				),
+			].join(""),
+		}),
+	};
+}
+
 export type ShelterDecisionInput = EmailTemplateInput & {
 	orgName: string;
 	reason?: string;
@@ -501,6 +541,7 @@ export type ShelterStaffInviteInput = EmailTemplateInput & {
 	orgName: string;
 	token: string;
 	existingUser: boolean;
+	expiresInDays?: number;
 };
 
 export function shelterStaffInviteTemplate({
@@ -508,25 +549,35 @@ export function shelterStaffInviteTemplate({
 	orgName,
 	token,
 	existingUser,
+	expiresInDays = 14,
 }: ShelterStaffInviteInput): MailOptions {
-	const href = existingUser
-		? actionUrl("/login", { next: "/shelter" })
-		: actionUrl("/register", { invite: token });
+	// Joining is always an explicit step on this page, logged in as the invited address.
+	const href = actionUrl("/shelter/invite", { token });
+	const registerHref = actionUrl("/register", {});
+	const steps = existingUser
+		? "Melde dich mit dieser E-Mail-Adresse an und nimm die Einladung an."
+		: "Du hast noch kein Konto? Registriere dich zuerst mit dieser E-Mail-Adresse und bestätige sie. Öffne danach den Einladungslink und nimm die Einladung an.";
+	const footer = `Der Link ist ${expiresInDays} Tage gültig. Du trittst erst bei, wenn du die Einladung annimmst. Wenn du sie nicht erwartet hast, ignoriere diese E-Mail einfach.`;
 	const subject = `Einladung zu ${orgName}`;
 	return {
 		to,
 		subject,
 		text: `Einladung zu ${orgName}
 
-Du wurdest zum Team von ${orgName} eingeladen.
+Du wurdest zum Team von ${orgName} eingeladen. ${steps}
 
-${href}`,
+${href}
+${existingUser ? "" : `\nKonto erstellen: ${registerHref}\n`}
+${footer}`,
 		html: layout({
 			preview: `Einladung zum Team von ${orgName}.`,
 			body: [
 				heading("Team-Einladung"),
 				paragraph(`Du wurdest zum Team von ${orgName} eingeladen.`),
-				ctaButton(href, existingUser ? "Anmelden und beitreten" : "Konto erstellen"),
+				paragraph(steps),
+				existingUser ? "" : ctaButton(registerHref, "Konto erstellen"),
+				ctaButton(href, "Einladung ansehen"),
+				note(footer),
 			].join(""),
 		}),
 	};

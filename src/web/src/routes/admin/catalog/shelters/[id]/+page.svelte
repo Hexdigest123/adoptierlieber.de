@@ -8,9 +8,11 @@
 	import AdminAnimalCardView from "$lib/components/admin/AdminAnimalCard.svelte";
 	import StatusPill from "$lib/components/admin/StatusPill.svelte";
 	import { formatDate } from "$lib/admin/format";
+	import { safeHttpUrl } from "$lib/safe-url";
 
 	let { data }: PageProps = $props();
 	const shelter = $derived(data.shelter);
+	const websiteHref = $derived(safeHttpUrl(shelter.website));
 	const owner = $derived(shelter.members.find((member) => member.role === 1) ?? shelter.members[0]);
 	let actionError = $state(false);
 </script>
@@ -39,15 +41,19 @@
 				<div class="min-w-0">
 					<p class="text-xl font-bold text-sand-950">{shelter.org_name}</p>
 					<p class="text-sm text-sand-700">{shelter.street}, {shelter.zip} {shelter.city}</p>
-					{#if shelter.website}
+					{#if websiteHref}
+						<!-- eslint-disable svelte/no-navigation-without-resolve -- external, http(s)-only -->
 						<a
-							href={shelter.website}
+							href={websiteHref}
 							class="text-sm font-semibold text-coral-700 underline underline-offset-2"
 							target="_blank"
 							rel="noopener noreferrer"
 						>
 							{shelter.website}
 						</a>
+						<!-- eslint-enable svelte/no-navigation-without-resolve -->
+					{:else if shelter.website}
+						<p class="text-sm break-all text-sand-700">{shelter.website}</p>
 					{/if}
 				</div>
 			</div>

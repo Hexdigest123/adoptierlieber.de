@@ -4,6 +4,7 @@
 	import Card from "$lib/components/ui/Card.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import { photoUrl } from "$lib/types/shelter";
+	import { formatDateTime } from "$lib/datetime";
 
 	let { data }: PageProps = $props();
 
@@ -27,10 +28,6 @@
 		if (kind === "unanswered") return m.shelter_attention_unanswered();
 		if (kind === "pending") return m.shelter_attention_pending();
 		return kind;
-	}
-
-	function timeLabel(iso: string): string {
-		return new Date(iso).toLocaleString();
 	}
 </script>
 
@@ -119,7 +116,7 @@
 								{thread.adopter_name}
 								<span class="font-normal text-sand-600"> {thread.animal_name}</span>
 							</p>
-							<p class="text-xs text-sand-500">{timeLabel(thread.last_message_at)}</p>
+							<p class="text-xs text-sand-500">{formatDateTime(thread.last_message_at)}</p>
 						</div>
 						{#if thread.unread}
 							<span class="size-2.5 shrink-0 rounded-full bg-coral-600" aria-hidden="true"></span>

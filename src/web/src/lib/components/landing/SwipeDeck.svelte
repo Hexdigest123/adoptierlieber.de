@@ -5,6 +5,7 @@
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
+	import { metaLine } from "$lib/app/format";
 	import type { ShowcaseCard } from "$lib/data/excerpts";
 
 	const SWIPE_THRESHOLD = 100;
@@ -172,8 +173,7 @@
 							{animal.name}<span class="text-xl font-medium text-sand-600">, {animal.age}</span>
 						</p>
 						<p class="text-base font-semibold text-coral-700">
-							{animal.species}
-							{animal.location}
+							{metaLine(animal.species, animal.location)}
 						</p>
 						{#if animal.bonded}
 							<p class="text-sm font-semibold text-sand-800">

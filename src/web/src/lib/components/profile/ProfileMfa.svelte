@@ -34,12 +34,27 @@
 	const lastFactor = $derived(user.mfa_required && user.totp_enabled && passkeys.length === 0);
 	let passkeyBusy = $state(false);
 	let newPasskeyName = $state("Passkey");
+	let passkeyPassword = $state("");
+	let passkeyCode = $state("");
+	let passkeyReauthError = $state(false);
 
 	async function addPasskey() {
 		passkeyBusy = true;
+		passkeyReauthError = false;
 		try {
-			const optionsRes = await fetch("/api/passkeys/registrations/options", { method: "POST" });
-			if (!optionsRes.ok) return;
+			// A new factor needs the password (and a TOTP code while TOTP is on).
+			const code = passkeyCode.trim();
+			const optionsRes = await fetch("/api/passkeys/registrations/options", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ current_password: passkeyPassword, ...(code ? { code } : {}) }),
+			});
+			passkeyPassword = "";
+			passkeyCode = "";
+			if (!optionsRes.ok) {
+				passkeyReauthError = optionsRes.status === 401;
+				return;
+			}
 			const optionsJSON = (await optionsRes.json()) as never;
 			const attestation = await startRegistration({ optionsJSON });
 			const formEl = document.getElementById("profile-passkey-add") as HTMLFormElement | null;
@@ -53,7 +68,10 @@
 	}
 </script>
 
-<section class="flex flex-col gap-5 border-t border-sand-200 pt-8" aria-labelledby="profile-mfa-title">
+<section
+	class="flex flex-col gap-5 border-t border-sand-200 pt-8"
+	aria-labelledby="profile-mfa-title"
+>
 	<div>
 		<h2 id="profile-mfa-title" class="text-lg font-bold text-sand-950">{m.profile_mfa_title()}</h2>
 		<p class="mt-1 text-sm text-sand-700">{m.profile_mfa_subtitle()}</p>
@@ -70,6 +88,8 @@
 		<FormStatus type="success">{m.profile_mfa_passkey_added()}</FormStatus>
 	{:else if form?.totpError === "last" || form?.passkeyError === "last"}
 		<FormStatus type="error">{m.profile_mfa_last_factor()}</FormStatus>
+	{:else if form?.totpError === "reauth"}
+		<FormStatus type="error">{m.profile_mfa_reauth_error()}</FormStatus>
 	{:else if form?.totpError === "code" || form?.totpError === "auth" || form?.passkeyError === "auth"}
 		<FormStatus type="error">{m.auth_totp_error()}</FormStatus>
 	{:else if form?.totpError || form?.passkeyError}
@@ -82,7 +102,7 @@
 
 	{#if totpUri && totpSecret}
 		<div class="mx-auto w-40 [&_svg]:h-full [&_svg]:w-full">{@html qr}</div>
-		<p class="break-all font-mono text-xs text-sand-800">{totpSecret}</p>
+		<p class="font-mono text-xs break-all text-sand-800">{totpSecret}</p>
 		<form method="POST" action="?/confirmTotp" class="flex flex-col gap-3" use:enhance>
 			<input type="hidden" name="totpUri" value={totpUri} />
 			<input type="hidden" name="totpSecret" value={totpSecret} />
@@ -99,7 +119,16 @@
 			<Button type="submit" variant="secondary" fullWidth>{m.auth_totp_submit()}</Button>
 		</form>
 	{:else if !user.totp_enabled}
-		<form method="POST" action="?/startTotp" use:enhance>
+		<form method="POST" action="?/startTotp" class="flex flex-col gap-3" use:enhance>
+			<Input
+				id="profile-totp-start-password"
+				name="currentPassword"
+				type="password"
+				label={m.profile_password_current()}
+				hint={m.profile_mfa_reauth_hint()}
+				required
+				autocomplete="current-password"
+			/>
 			<Button type="submit" variant="secondary" fullWidth>{m.profile_mfa_totp_enable()}</Button>
 		</form>
 	{:else if !lastFactor}
@@ -169,6 +198,30 @@
 		label={m.auth_mfa_setup_passkey_name()}
 		bind:value={newPasskeyName}
 	/>
+	<Input
+		id="profile-passkey-password"
+		name="currentPassword"
+		type="password"
+		label={m.profile_password_current()}
+		hint={user.totp_enabled ? m.profile_mfa_reauth_hint_totp() : m.profile_mfa_reauth_hint()}
+		autocomplete="current-password"
+		bind:value={passkeyPassword}
+	/>
+	{#if user.totp_enabled}
+		<Input
+			id="profile-passkey-code"
+			name="code"
+			inputmode="numeric"
+			autocomplete="one-time-code"
+			label={m.profile_mfa_code()}
+			minlength={6}
+			maxlength={6}
+			bind:value={passkeyCode}
+		/>
+	{/if}
+	{#if passkeyReauthError}
+		<FormStatus type="error">{m.profile_mfa_reauth_error()}</FormStatus>
+	{/if}
 	<form
 		id="profile-passkey-add"
 		method="POST"
@@ -184,7 +237,13 @@
 		<input type="hidden" name="name" value={newPasskeyName} />
 		<input type="hidden" name="attestation" value="" />
 	</form>
-	<Button type="button" variant="secondary" fullWidth disabled={passkeyBusy} onclick={() => void addPasskey()}>
+	<Button
+		type="button"
+		variant="secondary"
+		fullWidth
+		disabled={passkeyBusy}
+		onclick={() => void addPasskey()}
+	>
 		{m.profile_mfa_passkey_add()}
 	</Button>
 </section>

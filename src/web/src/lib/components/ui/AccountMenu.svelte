@@ -4,6 +4,7 @@
 	import { m } from "$lib/paraglide/messages";
 	import { getLocale, setLocale, locales } from "$lib/paraglide/runtime";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
+	import { openWidget } from "$lib/components/ui/widgets.svelte";
 	import type { SessionUser } from "$lib/types/session";
 
 	let { user, onNavigate }: { user: SessionUser; onNavigate?: () => void } = $props();
@@ -128,7 +129,33 @@
 					</a>
 				</li>
 			{/if}
+			<li role="none" class="mt-1 border-t border-sand-200 pt-1">
+				<button
+					type="button"
+					role="menuitem"
+					class="min-h-11 w-full cursor-pointer truncate px-3 py-2.5 text-left text-sm font-semibold text-sand-800 hover:bg-peach-50"
+					onclick={() => {
+						go();
+						openWidget("review");
+					}}
+				>
+					{m.reviews_open()}
+				</button>
+			</li>
 			<li role="none">
+				<button
+					type="button"
+					role="menuitem"
+					class="min-h-11 w-full cursor-pointer truncate px-3 py-2.5 text-left text-sm font-semibold text-sand-800 hover:bg-peach-50"
+					onclick={() => {
+						go();
+						openWidget("support");
+					}}
+				>
+					{m.support_open()}
+				</button>
+			</li>
+			<li role="none" class="mt-1 border-t border-sand-200 pt-1">
 				<form method="POST" action={resolve("/logout")}>
 					<button
 						type="submit"

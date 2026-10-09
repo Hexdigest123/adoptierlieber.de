@@ -16,6 +16,9 @@ function text(max: number) {
   return z.string().trim().min(1).max(max);
 }
 
+// Shelter links end up as plain hrefs: only http(s), never javascript:/data:.
+const webUrl = z.url({ protocol: /^https?$/ }).max(500);
+
 const optionalLat = z.coerce.number().gte(-90).lte(90).optional();
 const optionalLng = z.coerce.number().gte(-180).lte(180).optional();
 
@@ -155,6 +158,12 @@ export const disablePasskeySchema = z.object({
   current_password: z.string().min(8).max(128),
 });
 
+/** Re-auth before adding or replacing a factor (see assertStepUp in lib/mfa.ts). */
+export const mfaStepUpSchema = z.object({
+  current_password: z.string().max(128).optional(),
+  code: totpCodeSchema.optional(),
+});
+
 export const assertPasskeySchema = z.object({
   challenge_id: z.string().min(1).max(200),
   response: z.record(z.string(), z.unknown()),
@@ -171,7 +180,7 @@ export const createShelterSchema = z.object({
   city: text(80),
   lat: optionalLat,
   lng: optionalLng,
-  website: z.url().max(500).optional(),
+  website: webUrl.optional(),
   registrationNumber: text(80).optional(),
   description: text(4000).optional(),
 });
@@ -239,8 +248,8 @@ export const updateShelterSchema = z
     street: text(120).optional(),
     zip: text(16).optional(),
     city: text(80).optional(),
-    website: z.union([z.url().max(500), z.literal("")]).nullable().optional(),
-    donation_url: z.union([z.url().max(500), z.literal("")]).nullable().optional(),
+    website: z.union([webUrl, z.literal("")]).nullable().optional(),
+    donation_url: z.union([webUrl, z.literal("")]).nullable().optional(),
     donation_description: z.string().trim().max(500).nullable().optional(),
     registration_number: text(80).nullable().optional(),
     description: text(4000).nullable().optional(),
@@ -348,6 +357,9 @@ export const acceptShelterInviteSchema = z.object({
   token: z.string().min(1).max(200),
 });
 
+// Invite tokens travel in POST bodies, never in URL paths (those get logged).
+export const inviteTokenSchema = acceptShelterInviteSchema;
+
 export const createThreadSchema = z.object({
   animal_id: z.string().min(1).max(64),
   grant_email: z.literal(true),
@@ -417,6 +429,8 @@ export const AUDIT_ACTIONS = [
   "archive_shelter",
   "approve_review",
   "delete_review",
+  "accept_admin_invite",
+  "grant_super_admin",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

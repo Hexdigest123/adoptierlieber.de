@@ -12,6 +12,7 @@ import { HTTPException } from "hono/http-exception";
 import type { Env } from "../config/env";
 import { verifyPassword } from "../lib/hashing";
 import {
+  assertStepUp,
   isMfaRequired,
   dropWebauthnAuthChallenge,
   peekWebauthnAuthChallenge,
@@ -46,6 +47,11 @@ function asAuthenticationResponse(value: Record<string, unknown>): Authenticatio
   return value as unknown as AuthenticationResponseJSON;
 }
 
+/** The library throws on mismatches (e.g. missing user verification): a 401, not a 500. */
+function rejectChallenge(): never {
+  throw new HTTPException(401, { message: "invalid challenge" });
+}
+
 export function createPasskeyService(env: Env) {
   const users = createUserRepo(env);
   const creds = createWebauthnRepo(env);
@@ -60,7 +66,8 @@ export function createPasskeyService(env: Env) {
   }
 
   return {
-    async registrationOptions(userId: string) {
+    async registrationOptions(userId: string, sessionKind: "full" | "setup", input: unknown) {
+      await assertStepUp(env, userId, sessionKind, input);
       const user = await users.findById(userId);
       if (!user) throw new HTTPException(404, { message: "user not found" });
       const existing = await creds.listByUserId(userId);
@@ -78,7 +85,8 @@ export function createPasskeyService(env: Env) {
         })),
         authenticatorSelection: {
           residentKey: "required",
-          userVerification: "preferred",
+          // Admins log in with the passkey alone, so it must check PIN/biometrics.
+          userVerification: isMfaRequired(user, env) ? "required" : "preferred",
         },
       });
       await putWebauthnRegChallenge(env, userId, options.challenge);
@@ -96,8 +104,8 @@ export function createPasskeyService(env: Env) {
         expectedChallenge,
         expectedOrigin: rp.expectedOrigins,
         expectedRPID: rp.rpID,
-        requireUserVerification: false,
-      });
+        requireUserVerification: isMfaRequired(user, env),
+      }).catch(rejectChallenge);
       if (!verification.verified || !verification.registrationInfo) {
         throw new HTTPException(401, { message: "invalid challenge" });
       }
@@ -192,8 +200,8 @@ export function createPasskeyService(env: Env) {
           counter: stored.counter,
           transports: asTransports(stored.transports) as AuthenticatorTransportFuture[] | undefined,
         },
-        requireUserVerification: false,
-      });
+        requireUserVerification: isMfaRequired(user, env),
+      }).catch(rejectChallenge);
       if (!verification.verified) {
         throw new HTTPException(401, { message: "invalid challenge" });
       }
