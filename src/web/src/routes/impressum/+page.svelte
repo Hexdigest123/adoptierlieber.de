@@ -19,7 +19,24 @@
 		<a class="inline-flex min-h-11 items-center" href="mailto:{m.legal_email()}"
 			>{m.legal_email()}</a
 		><br />
-		{m.legal_vat_label()}: {m.legal_vat()}<br />
-		{m.legal_content_responsible_label()}: {m.legal_content_responsible()}
+		{m.legal_vat_label()}: {m.legal_vat()}
 	</p>
+
+	<h2>{m.legal_content_responsible_label()}</h2>
+	<p>{m.legal_content_responsible()}</p>
+
+	<h2>{m.legal_impressum_dispute_heading()}</h2>
+	<p>{m.legal_impressum_dispute_text()}</p>
+
+	<h2>{m.legal_impressum_liability_content_heading()}</h2>
+	<p>{m.legal_impressum_liability_content_text()}</p>
+
+	<h2>{m.legal_impressum_liability_links_heading()}</h2>
+	<p>{m.legal_impressum_liability_links_text()}</p>
+
+	<h2>{m.legal_impressum_ugc_heading()}</h2>
+	<p>{m.legal_impressum_ugc_text()}</p>
+
+	<h2>{m.legal_impressum_copyright_heading()}</h2>
+	<p>{m.legal_impressum_copyright_text()}</p>
 </article>

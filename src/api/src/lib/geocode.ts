@@ -20,7 +20,10 @@ const MIN_CONFIDENCE = 0.8;
 const PLACE_MATCH_KM = 2;
 const FETCH_TIMEOUT_MS = 4000;
 const PAUSE_MS = 5 * 60 * 1000;
-const GEOAPIFY_URL = "https://api.geoapify.com/v1/geocode/";
+// EU endpoint: geocoding stays in EU data centres (Hetzner, Germany/Finland),
+// so no third-country transfer occurs. The dev-only GEOAPIFY_BASE_URL override
+// below never applies to deployed builds.
+const GEOAPIFY_URL = "https://api-eu.geoapify.com/v1/geocode/";
 
 /**
  * Edge cache (Workers Cache API) under synthetic keys; nothing is ever fetched
