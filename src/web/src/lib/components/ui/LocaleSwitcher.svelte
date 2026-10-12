@@ -1,6 +1,13 @@
 <script lang="ts">
+	import deFlag from "$lib/assets/flags/de.svg";
+	import euFlag from "$lib/assets/flags/eu.svg";
 	import { m } from "$lib/paraglide/messages";
-	import { getLocale, setLocale, locales } from "$lib/paraglide/runtime";
+	import { getLocale, setLocale, locales, type Locale } from "$lib/paraglide/runtime";
+
+	const languages: Record<Locale, { flag: string; name: string }> = {
+		de: { flag: deFlag, name: "Deutsch" },
+		en: { flag: euFlag, name: "English" },
+	};
 
 	let {
 		variant = "segmented",
@@ -28,14 +35,24 @@
 			role={itemRole}
 			onclick={() => setLocale(locale)}
 			aria-pressed={getLocale() === locale}
-			class="min-h-11 cursor-pointer rounded-full font-semibold uppercase focus-ring {variant ===
+			aria-label={languages[locale].name}
+			title={languages[locale].name}
+			lang={locale}
+			class="grid min-h-11 cursor-pointer place-items-center rounded-full focus-ring {variant ===
 			'segmented'
-				? 'min-w-11 px-2 text-xs'
-				: 'px-4 py-2 text-sm'} {getLocale() === locale
-				? 'bg-coral-600 text-white'
-				: 'text-sand-600 hover:text-coral-700'}"
+				? 'min-w-11 px-2'
+				: 'px-4 py-2'} {getLocale() === locale ? 'bg-coral-600' : 'hover:bg-sand-100'}"
 		>
-			{locale}
+			<img
+				src={languages[locale].flag}
+				alt=""
+				aria-hidden="true"
+				width="24"
+				height="16"
+				class="rounded-sm object-cover ring-1 ring-black/10 {variant === 'segmented'
+					? 'h-4 w-6'
+					: 'h-5 w-7.5'}"
+			/>
 		</button>
 	{/each}
 </div>
