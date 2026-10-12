@@ -29,7 +29,9 @@
 	];
 </script>
 
-<footer class="border-t border-sand-200 bg-sand-50 px-4 py-10 sm:px-6">
+<!-- Bottom padding keeps the last lines clear of the floating review/support buttons
+     (not needed from 2xl, where the content column ends before them). -->
+<footer class="border-t border-sand-200 bg-sand-50 px-4 pt-10 pb-32 sm:px-6 sm:pb-40 2xl:pb-10">
 	<div
 		class="mx-auto flex max-w-6xl flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left"
 	>
@@ -43,13 +45,13 @@
 			<nav aria-label={m.brand_name()} class="flex items-center gap-6">
 				<a
 					href={resolve("/impressum")}
-					class="py-2 text-sm font-semibold text-sand-700 underline-offset-2 focus-ring hover:text-coral-700 hover:underline"
+					class="py-2 text-sm font-medium text-sand-700 underline-offset-2 focus-ring hover:text-coral-700 hover:underline"
 				>
 					{m.footer_impressum()}
 				</a>
 				<a
 					href={resolve("/datenschutz")}
-					class="py-2 text-sm font-semibold text-sand-700 underline-offset-2 focus-ring hover:text-coral-700 hover:underline"
+					class="py-2 text-sm font-medium text-sand-700 underline-offset-2 focus-ring hover:text-coral-700 hover:underline"
 				>
 					{m.footer_datenschutz()}
 				</a>

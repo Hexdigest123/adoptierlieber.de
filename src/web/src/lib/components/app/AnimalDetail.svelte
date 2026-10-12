@@ -10,8 +10,9 @@
 	import AnimalPhoto from "$lib/components/app/AnimalPhoto.svelte";
 	import {
 		ageLabel,
-		distanceLabel,
+		metaLine,
 		neuteredLabel,
+		placeLabel,
 		practicalLabel,
 		sexLabel,
 		sizeLabel,
@@ -129,6 +130,8 @@
 	});
 
 	const looks = $derived([sizeLabel(animal.size), ...animal.colors].filter(Boolean));
+	/** In-app full page: photos left, info right on large screens. */
+	const wide = $derived(!compact && !preview && !publicView);
 	const traits = $derived(animal.traits.filter(Boolean));
 	const loginNext = $derived(`/login?next=${encodeURIComponent(`/app/animals/${animal.id}`)}`);
 	const origin = $derived(page.url.searchParams.get("from"));
@@ -140,11 +143,15 @@
 	}
 </script>
 
-<article class="flex w-full flex-col {compact ? '' : 'mx-auto max-w-2xl pb-40 md:pb-24'}">
+<article
+	class="flex w-full flex-col {compact ? '' : 'mx-auto max-w-2xl pb-40 md:pb-24'} {wide
+		? 'lg:max-w-none'
+		: ''}"
+>
 	{#if showBack}
 		<a
 			href={backHref}
-			class="mb-3 inline-flex w-fit items-center gap-1 text-sm font-semibold text-sand-700 focus-ring hover:text-coral-700"
+			class="mb-3 inline-flex w-fit items-center gap-1 text-sm font-medium text-sand-700 focus-ring hover:text-coral-700"
 		>
 			<ArrowLeft class="size-4" aria-hidden="true" />
 			{m.app_detail_back()}
@@ -153,186 +160,189 @@
 
 	{#if animal.status === "found_home"}
 		<p
-			class="mb-3 rounded-2xl border border-sand-300 bg-sand-100 px-4 py-3 text-sm font-semibold text-sand-800"
+			class="mb-3 rounded-2xl border border-sand-300 bg-sand-100 px-4 py-3 text-sm font-medium text-sand-800"
 		>
 			{m.app_detail_unavailable()}
 		</p>
 	{/if}
 
-	<div
-		class="relative min-w-0 overflow-hidden rounded-3xl border border-sand-200 bg-peach-100 {compact
-			? 'aspect-4/3'
-			: 'aspect-4/5'}"
-	>
+	<div class={wide ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-10" : ""}>
 		<div
-			bind:this={gallery}
-			class="absolute inset-0 flex snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden"
-			style="touch-action: pan-x"
-			onscroll={onGalleryScroll}
-			onclick={onGalleryClick}
+			class="relative min-w-0 overflow-hidden rounded-3xl border border-sand-200 bg-peach-100 {compact
+				? 'aspect-4/3'
+				: 'aspect-4/5'} {wide ? 'lg:sticky lg:top-20' : ''}"
 		>
-			{#each slides as src, i (src ?? i)}
-				<div class="h-full w-full shrink-0 basis-full snap-center">
-					<AnimalPhoto {src} alt={i === 0 ? animal.name : ""} />
-				</div>
-			{/each}
-		</div>
-		{#if animal.photos.length > 1}
-			<button
-				type="button"
-				class="absolute top-1/2 left-2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-sand-900 shadow-sm focus-ring hover:bg-white"
-				aria-label={m.app_photo_prev()}
-				onclick={() => goToPhoto(photo - 1)}
+			<div
+				bind:this={gallery}
+				class="absolute inset-0 flex snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden"
+				style="touch-action: pan-x"
+				onscroll={onGalleryScroll}
+				onclick={onGalleryClick}
 			>
-				<ChevronLeft class="size-5" aria-hidden="true" />
-			</button>
-			<button
-				type="button"
-				class="absolute top-1/2 right-2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-sand-900 shadow-sm focus-ring hover:bg-white"
-				aria-label={m.app_photo_next()}
-				onclick={() => goToPhoto(photo + 1)}
-			>
-				<ChevronRight class="size-5" aria-hidden="true" />
-			</button>
-			<div class="absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
-				{#each animal.photos as _, i (i)}
-					<button
-						type="button"
-						class="flex min-h-11 min-w-11 items-center justify-center rounded-full focus-ring"
-						aria-label={m.app_photo_of({ current: i + 1, total: animal.photos.length })}
-						onclick={() => goToPhoto(i)}
-					>
-						<span
-							class="h-2 w-6 rounded-full {i === photo ? 'bg-white' : 'bg-white/40'}"
-							aria-hidden="true"
-						></span>
-					</button>
+				{#each slides as src, i (src ?? i)}
+					<div class="h-full w-full shrink-0 basis-full snap-center">
+						<AnimalPhoto {src} alt={i === 0 ? animal.name : ""} />
+					</div>
 				{/each}
 			</div>
-		{/if}
-	</div>
-
-	<div class="mt-5 flex flex-col gap-2">
-		<h1 class="text-3xl font-black text-sand-950">
-			{animal.name}
-			<span class="text-lg font-medium text-sand-600">
-				{ageLabel(animal.age_months, animal.age_unknown)}</span
-			>
-		</h1>
-		<p class="text-base font-semibold text-coral-700">
-			{speciesLabel(animal.species)}
-			{sexLabel(animal.sex)}
-			{#if animal.breed}{animal.breed}{/if}
-		</p>
-		<p class="text-sm text-sand-700">
-			{distanceLabel(animal.distance_km, animal.shelter.city)}
-			{animal.shelter.city}
-		</p>
-		{#if animal.bonded_partners?.length}
-			<p class="text-sm font-semibold text-sand-800">
-				{m.app_detail_bonded_lead()}
-				{#each animal.bonded_partners as partner, index (partner.id)}
-					{index > 0 ? ", " : " "}
-					{#if preview}
-						{partner.name}
-					{:else}
-						<a
-							class="underline decoration-sand-400 underline-offset-2"
-							href={partnerHref(partner.id)}>{partner.name}</a
+			{#if animal.photos.length > 1}
+				<button
+					type="button"
+					class="absolute top-1/2 left-2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-sand-900 shadow-sm focus-ring hover:bg-white"
+					aria-label={m.app_photo_prev()}
+					onclick={() => goToPhoto(photo - 1)}
+				>
+					<ChevronLeft class="size-5" aria-hidden="true" />
+				</button>
+				<button
+					type="button"
+					class="absolute top-1/2 right-2 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-sand-900 shadow-sm focus-ring hover:bg-white"
+					aria-label={m.app_photo_next()}
+					onclick={() => goToPhoto(photo + 1)}
+				>
+					<ChevronRight class="size-5" aria-hidden="true" />
+				</button>
+				<div class="absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
+					{#each animal.photos as _, i (i)}
+						<button
+							type="button"
+							class="flex min-h-11 min-w-11 items-center justify-center rounded-full focus-ring"
+							aria-label={m.app_photo_of({ current: i + 1, total: animal.photos.length })}
+							onclick={() => goToPhoto(i)}
 						>
-					{/if}
-				{/each}
-			</p>
-		{:else if animal.bonded_partner}
-			<p class="text-sm font-semibold text-sand-800">
-				{m.app_detail_bonded({ name: animal.bonded_partner })}
-			</p>
-		{/if}
-	</div>
-
-	{#if looks.length || traits.length}
-		<div class="mt-5 flex flex-col gap-4">
-			{#if looks.length}
-				<div>
-					<p class="text-xs font-bold tracking-wide text-sand-500 uppercase">
-						{m.app_detail_looks()}
-					</p>
-					<ul class="mt-2 flex flex-wrap gap-2">
-						{#each looks as item (item)}
-							<li class="rounded-xl bg-sand-100 px-3.5 py-1.5 text-sm font-semibold text-sand-800">
-								{item}
-							</li>
-						{/each}
-					</ul>
-				</div>
-			{/if}
-			{#if traits.length}
-				<div>
-					<p class="text-xs font-bold tracking-wide text-sand-500 uppercase">
-						{m.app_detail_traits()}
-					</p>
-					<ul class="mt-2 flex flex-wrap gap-2">
-						{#each traits as item (item)}
-							<li
-								class="rounded-xl bg-peach-100 px-3.5 py-1.5 text-sm font-semibold text-coral-900"
-							>
-								{item}
-							</li>
-						{/each}
-					</ul>
+							<span
+								class="h-2 w-6 rounded-full {i === photo ? 'bg-white' : 'bg-white/40'}"
+								aria-hidden="true"
+							></span>
+						</button>
+					{/each}
 				</div>
 			{/if}
 		</div>
-	{/if}
 
-	{#if animal.description}
-		<section class="mt-6">
-			<h2 class="text-sm font-bold text-sand-900">{m.app_detail_story()}</h2>
-			<p class="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-sand-800">
-				{animal.description}
-			</p>
-		</section>
-	{/if}
+		<div class={wide ? "lg:min-w-0" : ""}>
+			<div class="mt-5 flex flex-col gap-2 {wide ? 'lg:mt-0' : ''}">
+				<h1 class="text-3xl font-black text-sand-950">
+					{animal.name}
+					<span class="text-lg font-medium text-sand-600">
+						{ageLabel(animal.age_months, animal.age_unknown)}</span
+					>
+				</h1>
+				<p class="text-base font-medium text-coral-700">
+					{metaLine(speciesLabel(animal.species), sexLabel(animal.sex), animal.breed)}
+				</p>
+				<p class="text-sm text-sand-700">
+					{placeLabel(animal.distance_km, animal.shelter.city)}
+				</p>
+				{#if animal.bonded_partners?.length}
+					<p class="text-sm font-medium text-sand-800">
+						{m.app_detail_bonded_lead()}
+						{#each animal.bonded_partners as partner, index (partner.id)}
+							{index > 0 ? ", " : " "}
+							{#if preview}
+								{partner.name}
+							{:else}
+								<a
+									class="underline decoration-sand-400 underline-offset-2"
+									href={partnerHref(partner.id)}>{partner.name}</a
+								>
+							{/if}
+						{/each}
+					</p>
+				{:else if animal.bonded_partner}
+					<p class="text-sm font-medium text-sand-800">
+						{m.app_detail_bonded({ name: animal.bonded_partner })}
+					</p>
+				{/if}
+			</div>
 
-	<section class="mt-6">
-		<h2 class="text-sm font-bold text-sand-900">{m.app_detail_practical()}</h2>
-		<dl class="mt-2 grid grid-cols-2 gap-2 text-sm">
-			<div class="rounded-xl bg-white px-3 py-2">
-				<dt class="text-sand-600">{m.app_detail_vaccinated()}</dt>
-				<dd class="font-semibold text-sand-950">{practicalLabel(animal.vaccinated)}</dd>
-			</div>
-			<div class="rounded-xl bg-white px-3 py-2">
-				<dt class="text-sand-600">{neuteredLabel(animal.sex)}</dt>
-				<dd class="font-semibold text-sand-950">{practicalLabel(animal.neutered)}</dd>
-			</div>
-			<div class="rounded-xl bg-white px-3 py-2">
-				<dt class="text-sand-600">{m.app_detail_chipped()}</dt>
-				<dd class="font-semibold text-sand-950">{practicalLabel(animal.chipped)}</dd>
-			</div>
-			<div class="rounded-xl bg-white px-3 py-2">
-				<dt class="text-sand-600">{m.app_detail_house_trained()}</dt>
-				<dd class="font-semibold text-sand-950">{practicalLabel(animal.house_trained)}</dd>
-			</div>
-		</dl>
-	</section>
+			{#if looks.length || traits.length}
+				<div class="mt-5 flex flex-col gap-4">
+					{#if looks.length}
+						<div>
+							<p class="text-sm font-medium text-sand-600">
+								{m.app_detail_looks()}
+							</p>
+							<ul class="mt-2 flex flex-wrap gap-2">
+								{#each looks as item (item)}
+									<li
+										class="rounded-xl bg-sand-100 px-3.5 py-1.5 text-sm font-semibold text-sand-800"
+									>
+										{item}
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+					{#if traits.length}
+						<div>
+							<p class="text-sm font-medium text-sand-600">
+								{m.app_detail_traits()}
+							</p>
+							<ul class="mt-2 flex flex-wrap gap-2">
+								{#each traits as item (item)}
+									<li
+										class="rounded-xl bg-peach-100 px-3.5 py-1.5 text-sm font-semibold text-coral-900"
+									>
+										{item}
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</div>
+			{/if}
 
-	<section class="mt-6">
-		<h2 class="text-sm font-bold text-sand-900">{m.app_detail_where()}</h2>
-		<p class="mt-1 text-sm text-sand-800">
-			{animal.shelter.city}
-			{m.app_detail_at_shelter({ shelter: animal.shelter.org_name })}
-		</p>
-		{#if routeHref}
-			<a
-				href={routeHref}
-				target="_blank"
-				rel="noopener noreferrer"
-				class="mt-2 inline-flex text-sm font-semibold text-coral-700 focus-ring"
-			>
-				{m.app_detail_route()}
-			</a>
-		{/if}
-	</section>
+			{#if animal.description}
+				<section class="mt-6">
+					<h2 class="text-sm font-bold text-sand-900">{m.app_detail_story()}</h2>
+					<p class="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-sand-800">
+						{animal.description}
+					</p>
+				</section>
+			{/if}
+
+			<section class="mt-6">
+				<h2 class="text-sm font-bold text-sand-900">{m.app_detail_practical()}</h2>
+				<dl class="mt-2 grid grid-cols-2 gap-x-6 text-sm">
+					<div class="border-t border-sand-200 py-2">
+						<dt class="text-sand-600">{m.app_detail_vaccinated()}</dt>
+						<dd class="font-medium text-sand-950">{practicalLabel(animal.vaccinated)}</dd>
+					</div>
+					<div class="border-t border-sand-200 py-2">
+						<dt class="text-sand-600">{neuteredLabel(animal.sex)}</dt>
+						<dd class="font-medium text-sand-950">{practicalLabel(animal.neutered)}</dd>
+					</div>
+					<div class="border-t border-sand-200 py-2">
+						<dt class="text-sand-600">{m.app_detail_chipped()}</dt>
+						<dd class="font-medium text-sand-950">{practicalLabel(animal.chipped)}</dd>
+					</div>
+					<div class="border-t border-sand-200 py-2">
+						<dt class="text-sand-600">{m.app_detail_house_trained()}</dt>
+						<dd class="font-medium text-sand-950">{practicalLabel(animal.house_trained)}</dd>
+					</div>
+				</dl>
+			</section>
+
+			<section class="mt-6">
+				<h2 class="text-sm font-bold text-sand-900">{m.app_detail_where()}</h2>
+				<p class="mt-1 text-sm text-sand-800">
+					{animal.shelter.city}
+					{m.app_detail_at_shelter({ shelter: animal.shelter.org_name })}
+				</p>
+				{#if routeHref}
+					<a
+						href={routeHref}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="mt-2 inline-flex text-sm font-semibold text-coral-700 focus-ring"
+					>
+						{m.app_detail_route()}
+					</a>
+				{/if}
+			</section>
+		</div>
+	</div>
 
 	{#if interest && interestOpen}
 		<InterestSheet bind:open={interestOpen} context={interest} />
@@ -346,11 +356,12 @@
 		<footer
 			class={compact || preview
 				? "mt-6"
-				: "fixed inset-x-0 bottom-14 z-30 border-t border-sand-200 bg-white/95 px-4 py-3 backdrop-blur md:bottom-0"}
+				: "fixed inset-x-0 bottom-14 z-30 border-t border-sand-200 bg-white px-4 py-3 md:bottom-0"}
 		>
 			<div class="mx-auto flex max-w-2xl gap-2">
+				<!-- Content-sized and compact on phones so both labels stay on one line. -->
 				<Button
-					fullWidth
+					class="flex-auto whitespace-nowrap max-sm:gap-1.5 max-sm:px-3 max-sm:text-sm"
 					variant={animal.liked ? "secondary" : "outline"}
 					disabled={animal.status !== "live" || liking}
 					onclick={() => void toggleLike()}
@@ -362,7 +373,7 @@
 				</Button>
 				{#if !user?.suspended_at}
 					<Button
-						fullWidth
+						class="flex-auto whitespace-nowrap max-sm:px-3 max-sm:text-sm"
 						disabled={animal.status !== "live" || interestLoading}
 						onclick={() => void openInterest()}
 					>

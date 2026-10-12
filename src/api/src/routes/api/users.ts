@@ -2,28 +2,51 @@ import { Hono } from "hono";
 import { createUserService } from "../../services/user.service";
 import type { AppEnv } from "../../types";
 import { sessionValidation } from "../../middlewares/session";
-import { rateLimitByIp } from "../../middlewares/rate-limit";
+import { rateLimitByIp, rateLimitByUser } from "../../middlewares/rate-limit";
 import { sendMail } from "../../lib/mail";
-import { verifyEmailTemplate } from "../../lib/email-templates";
+import {
+  userRegistrationNotificationTemplate,
+  verifyEmailTemplate,
+} from "../../lib/email-templates";
 import { readCreateBody } from "../../lib/avatar";
+import { notifyRegistrationAttempt } from "../../lib/create-account";
+import { notifyInBackground } from "../../lib/notify";
+import { requireTurnstile } from "../../lib/turnstile";
 
 export const users = new Hono<AppEnv>();
 
+function asString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 /** Register as a new user. */
-users.post("/", rateLimitByIp("create-user", 5), async (c) => {
+users.post("/", rateLimitByIp("create-user", 5, { failClosed: true }), async (c) => {
   const { fields, avatar } = await readCreateBody(c.req.raw);
+  await requireTurnstile(c, fields.turnstileToken, "register");
   const result = await createUserService(c.env).create(fields, avatar);
+  const email = typeof fields.email === "string" ? fields.email : "";
   if (result && "verificationToken" in result) {
-    const email = typeof fields.email === "string" ? fields.email : "";
     c.executionCtx.waitUntil(
       sendMail(verifyEmailTemplate({ to: email, token: result.verificationToken })),
     );
+    notifyInBackground(c, (to) =>
+      userRegistrationNotificationTemplate({
+        to,
+        name: asString(fields.name),
+        email: email.trim().toLowerCase(),
+        zip: asString(fields.zip),
+        city: asString(fields.city),
+        registeredAt: new Date(),
+      }),
+    );
+  } else if (result && "existingAccount" in result) {
+    c.executionCtx.waitUntil(notifyRegistrationAttempt(c.env, email));
   }
   return c.json({}, 201);
 });
 
 /** Verify the email of a user. */
-users.post("/verify", rateLimitByIp("verify-email", 10), async (c) => {
+users.post("/verify", rateLimitByIp("verify-email", 10, { failClosed: true }), async (c) => {
   const input = await c.req.json();
   const verified = await createUserService(c.env).verifyEmail(input);
   if (!verified) {
@@ -40,11 +63,16 @@ users.patch("/me", sessionValidation, async (c) => {
 });
 
 /** Change the authenticated user's password. */
-users.patch("/me/password", sessionValidation, rateLimitByIp("change-password", 5), async (c) => {
-  const input = await c.req.json();
-  await createUserService(c.env).changePassword(c.get("userId"), c.get("sessionToken"), input);
-  return c.json({}, 200);
-});
+users.patch(
+  "/me/password",
+  sessionValidation,
+  rateLimitByIp("change-password", 5, { failClosed: true }),
+  async (c) => {
+    const input = await c.req.json();
+    await createUserService(c.env).changePassword(c.get("userId"), c.get("sessionToken"), input);
+    return c.json({}, 200);
+  },
+);
 
 function avatarResponse(object: {
   body: ReadableStream | null;
@@ -79,9 +107,9 @@ users.get("/:id/avatar", sessionValidation, async (c) => {
 });
 
 /** Replace the authenticated user's avatar. */
-users.put("/me/avatar", sessionValidation, async (c) => {
-  const form = await c.req.formData();
-  const file = form.get("avatar");
+users.put("/me/avatar", sessionValidation, rateLimitByUser("avatar-upload", 20), async (c) => {
+  const form = await c.req.formData().catch(() => null);
+  const file = form?.get("avatar");
   if (!(file instanceof File) || file.size === 0) {
     return c.json({ error: "missing avatar" }, 400);
   }
@@ -96,16 +124,25 @@ users.delete("/me/avatar", sessionValidation, async (c) => {
 });
 
 /** Delete an authenticated user. */
-users.delete("/delete", sessionValidation, rateLimitByIp("delete-user", 5), async (c) => {
-  const input = await c.req.json();
-  await createUserService(c.env).delete(input, c.get("sessionToken"));
-  return c.json("", 200);
-});
+users.delete(
+  "/delete",
+  sessionValidation,
+  rateLimitByIp("delete-user", 5, { failClosed: true }),
+  async (c) => {
+    const input = await c.req.json();
+    await createUserService(c.env).delete(input, c.get("sessionToken"));
+    return c.json("", 200);
+  },
+);
 
 /** Reset the users password. */
-users.post("/reset", rateLimitByIp("reset-password", 5), async (c) => {
+users.post("/reset", rateLimitByIp("reset-password", 5, { failClosed: true }), async (c) => {
   const input = await c.req.json();
-  await createUserService(c.env).reset(input);
+  // Only requesting a reset sends mail; completing one needs the mailed token.
+  if (!(input?.resetToken && input?.newPassword)) {
+    await requireTurnstile(c, input?.turnstileToken, "reset");
+  }
+  await createUserService(c.env).reset(input, (task) => c.executionCtx.waitUntil(task));
 
   return c.json("", 200);
 });
@@ -123,7 +160,7 @@ users.post("/logout-all", sessionValidation, async (c) => {
 });
 
 /** Authenticate with email and password*/
-users.post("/auth", rateLimitByIp("authenticate", 10), async (c) => {
+users.post("/auth", rateLimitByIp("authenticate", 10, { failClosed: true }), async (c) => {
   const input = await c.req.json();
   const userAgent = c.req.header("User-Agent") ?? null;
   const session = await createUserService(c.env).authenticate(input, userAgent);

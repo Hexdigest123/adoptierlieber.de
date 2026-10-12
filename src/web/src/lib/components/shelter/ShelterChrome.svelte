@@ -2,7 +2,6 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
-	import { getLocale, setLocale, locales } from "$lib/paraglide/runtime";
 	import Logo from "$lib/components/ui/Logo.svelte";
 	import AccountMenu from "$lib/components/ui/AccountMenu.svelte";
 	import LayoutGrid from "lucide-svelte/icons/layout-grid";
@@ -12,6 +11,7 @@
 	import ChevronDown from "lucide-svelte/icons/chevron-down";
 	import type { ShelterMembershipSummary } from "$lib/types/session";
 	import type { StaffShelter } from "$lib/types/shelter";
+	import LocaleSwitcher from "$lib/components/ui/LocaleSwitcher.svelte";
 
 	type Props = {
 		user: App.Locals["user"];
@@ -71,7 +71,7 @@
 	{m.skip_to_content()}
 </a>
 
-<header class="sticky top-0 z-40 border-b border-sand-200 bg-white/90 backdrop-blur">
+<header class="sticky top-0 z-40 border-b border-sand-200 bg-white">
 	<div class="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
 		<div class="flex min-w-0 items-center gap-3">
 			<a href={resolve("/shelter")} class="rounded-full focus-ring" aria-label={m.brand_name()}>
@@ -97,7 +97,7 @@
 									<li>
 										<a
 											href="/shelter?shelter={row.shelter_id}"
-											class="block truncate px-3 py-2 text-sm font-semibold text-sand-800 hover:bg-peach-50 {row.shelter_id ===
+											class="block truncate px-3 py-2 text-sm font-medium text-sand-800 hover:bg-peach-50 {row.shelter_id ===
 											current.shelter_id
 												? 'bg-peach-50 text-coral-700'
 												: ''}"
@@ -121,7 +121,7 @@
 				{@const Icon = tab.icon}
 				<a
 					href={tab.href}
-					class="relative flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold focus-ring {active(
+					class="relative flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium focus-ring {active(
 						tab.href,
 						tab.match,
 					)
@@ -133,7 +133,7 @@
 					{tab.label}
 					{#if tab.badge}
 						<span
-							class="absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-coral-600 px-1 text-center text-[10px] font-bold text-white"
+							class="absolute -top-1 -right-1 min-w-5 rounded-full bg-coral-600 px-1 text-center text-xs leading-5 font-bold text-white"
 						>
 							{tab.badge > 99 ? "99+" : tab.badge}
 						</span>
@@ -143,25 +143,7 @@
 		</nav>
 
 		<div class="flex items-center gap-2">
-			<div
-				class="hidden items-center rounded-full border border-sand-200 p-0.5 sm:flex"
-				role="group"
-				aria-label={m.header_locale_label()}
-			>
-				{#each locales as locale (locale)}
-					<button
-						type="button"
-						onclick={() => setLocale(locale)}
-						aria-pressed={getLocale() === locale}
-						class="min-h-11 min-w-11 cursor-pointer rounded-full px-2 text-xs font-bold uppercase focus-ring {getLocale() ===
-						locale
-							? 'bg-coral-600 text-white'
-							: 'text-sand-600 hover:text-coral-700'}"
-					>
-						{locale}
-					</button>
-				{/each}
-			</div>
+			<div class="hidden sm:block"><LocaleSwitcher /></div>
 			{#if user}
 				<AccountMenu {user} />
 			{/if}
@@ -183,7 +165,7 @@
 {/if}
 
 <nav
-	class="fixed inset-x-0 bottom-0 z-40 border-t border-sand-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+	class="fixed inset-x-0 bottom-0 z-40 border-t border-sand-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
 	aria-label={m.shelter_nav()}
 >
 	<div class="grid grid-cols-4">
@@ -192,7 +174,7 @@
 			<a
 				href={tab.href}
 				aria-label={tab.label}
-				class="relative flex min-h-11 flex-col items-center gap-0.5 py-2 text-xs font-semibold focus-ring {active(
+				class="relative flex min-h-11 flex-col items-center gap-0.5 py-2 text-xs font-medium focus-ring {active(
 					tab.href,
 					tab.match,
 				)
@@ -204,7 +186,7 @@
 				{tab.label}
 				{#if tab.badge}
 					<span
-						class="absolute top-1 right-[calc(50%-18px)] min-w-4 rounded-full bg-coral-600 px-1 text-center text-[10px] font-bold text-white"
+						class="absolute top-0.5 right-[calc(50%-20px)] min-w-5 rounded-full bg-coral-600 px-1 text-center text-xs leading-5 font-bold text-white"
 					>
 						{tab.badge > 99 ? "99+" : tab.badge}
 					</span>

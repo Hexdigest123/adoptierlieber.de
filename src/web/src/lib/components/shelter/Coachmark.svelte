@@ -28,7 +28,9 @@
 
 	function done(list: ShelterChecklist, id: StepId): boolean {
 		if (id === "go_live")
-			return shelter.verification_status === "verified" && (Boolean(list.first_animal) || hasAnimals);
+			return (
+				shelter.verification_status === "verified" && (Boolean(list.first_animal) || hasAnimals)
+			);
 		if (id === "first_animal") return Boolean(list.first_animal) || hasAnimals;
 		return Boolean(list[id]);
 	}
@@ -92,7 +94,7 @@
 		class="fixed right-4 bottom-24 z-30 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-sand-200 bg-white p-4 shadow-lg md:bottom-6"
 		aria-label={m.shelter_coach_title()}
 	>
-		<p class="text-xs font-semibold tracking-wide text-sand-500 uppercase">
+		<p class="text-sm font-medium text-sand-600">
 			{m.shelter_coach_step({ current: String(index), total: String(steps.length) })}
 		</p>
 		<p class="mt-1 text-sm leading-relaxed text-sand-800">{label(open.id)}</p>
@@ -104,7 +106,7 @@
 		</div>
 		<button
 			type="button"
-			class="mt-2 cursor-pointer text-xs font-semibold text-sand-500 underline focus-ring"
+			class="mt-2 cursor-pointer text-xs font-medium text-sand-600 underline focus-ring"
 			disabled={saving}
 			onclick={dismissAll}
 		>

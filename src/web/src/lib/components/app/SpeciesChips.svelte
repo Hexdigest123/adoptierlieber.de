@@ -16,7 +16,7 @@
 		<button
 			type="button"
 			aria-pressed={chipActive(chip.id)}
-			class="shrink-0 cursor-pointer rounded-full border px-3 py-1.5 text-sm font-semibold focus-ring {chipActive(
+			class="min-h-11 shrink-0 cursor-pointer rounded-full border px-3 py-1.5 text-sm font-semibold focus-ring {chipActive(
 				chip.id,
 			)
 				? 'border-coral-600 bg-coral-600 text-white'

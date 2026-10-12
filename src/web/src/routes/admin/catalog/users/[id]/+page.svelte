@@ -35,7 +35,7 @@
 <div class="mb-5">
 	<a
 		href="{resolve('/admin/catalog')}?type=users"
-		class="text-sm font-semibold text-coral-700 focus-ring hover:text-coral-800"
+		class="text-sm font-medium text-coral-700 focus-ring hover:text-coral-800"
 	>
 		{m.admin_catalog_users()}
 	</a>
@@ -74,11 +74,11 @@
 		</div>
 		<dl class="mt-6 grid gap-3 text-sm sm:grid-cols-2">
 			<div>
-				<dt class="font-semibold text-sand-700">{m.admin_user_created()}</dt>
+				<dt class="font-medium text-sand-700">{m.admin_user_created()}</dt>
 				<dd class="text-sand-900 tabular-nums">{formatDate(target.created_at)}</dd>
 			</div>
 			<div>
-				<dt class="font-semibold text-sand-700">{m.admin_user_verified_at()}</dt>
+				<dt class="font-medium text-sand-700">{m.admin_user_verified_at()}</dt>
 				<dd class="text-sand-900 tabular-nums">
 					{target.email_verified_at
 						? formatDate(target.email_verified_at)
@@ -86,13 +86,13 @@
 				</dd>
 			</div>
 			<div>
-				<dt class="font-semibold text-sand-700">{m.admin_user_last_used()}</dt>
+				<dt class="font-medium text-sand-700">{m.admin_user_last_used()}</dt>
 				<dd class="text-sand-900 tabular-nums">
 					{target.last_used_at ? formatDate(target.last_used_at) : m.admin_user_never()}
 				</dd>
 			</div>
 			<div>
-				<dt class="font-semibold text-sand-700">{m.admin_user_address()}</dt>
+				<dt class="font-medium text-sand-700">{m.admin_user_address()}</dt>
 				<dd class="text-sand-900">
 					{address || "—"}
 					{#if mapHref}
@@ -100,7 +100,7 @@
 							href={mapHref}
 							target="_blank"
 							rel="noopener noreferrer"
-							class="ml-2 font-semibold text-coral-700 underline underline-offset-2"
+							class="ml-2 font-medium text-coral-700 underline underline-offset-2"
 						>
 							{m.admin_filter_city()}
 						</a>

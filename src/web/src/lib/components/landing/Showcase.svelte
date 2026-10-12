@@ -24,7 +24,7 @@
 >
 	<div class="mx-auto max-w-6xl">
 		<div class="mx-auto max-w-2xl text-center">
-			<h2 id="showcase-title" class="text-3xl font-black tracking-tight text-sand-950 sm:text-4xl">
+			<h2 id="showcase-title" class="text-3xl font-bold tracking-tight text-sand-950 sm:text-4xl">
 				{m.showcase_title()}
 			</h2>
 			{#if emptyCatalog}
@@ -41,7 +41,7 @@
 				type="button"
 				onclick={() => (mode = "catalog")}
 				aria-pressed={mode === "catalog"}
-				class="cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold focus-ring {mode ===
+				class="cursor-pointer rounded-full px-4 py-1.5 text-sm font-semibold focus-ring {mode ===
 				'catalog'
 					? 'bg-coral-600 text-white'
 					: 'text-sand-600 hover:text-coral-700'}"
@@ -52,7 +52,7 @@
 				type="button"
 				onclick={() => (mode = "swipe")}
 				aria-pressed={mode === "swipe"}
-				class="cursor-pointer rounded-full px-4 py-1.5 text-sm font-bold focus-ring {mode ===
+				class="cursor-pointer rounded-full px-4 py-1.5 text-sm font-semibold focus-ring {mode ===
 				'swipe'
 					? 'bg-coral-600 text-white'
 					: 'text-sand-600 hover:text-coral-700'}"

@@ -46,7 +46,7 @@
 >
 	<div class="mx-auto max-w-6xl">
 		<div class="mx-auto max-w-2xl text-center">
-			<h2 id="reviews-title" class="text-3xl font-black tracking-tight text-sand-950 sm:text-4xl">
+			<h2 id="reviews-title" class="text-3xl font-bold tracking-tight text-sand-950 sm:text-4xl">
 				{m.reviews_title()}
 			</h2>
 			<p class="mt-4 text-lg text-sand-700">{m.reviews_subtitle()}</p>
@@ -71,7 +71,7 @@
 					{#if hasMany}
 						<button
 							type="button"
-							class="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-sand-900 shadow-sm ring-1 ring-sand-200 focus-ring hover:bg-peach-50"
+							class="flex size-10 shrink-0 items-center justify-center rounded-full border border-sand-200 bg-white text-sand-900 focus-ring hover:bg-peach-50"
 							aria-label={m.reviews_carousel_prev()}
 							onclick={() => goTo(index - 1)}
 						>
@@ -87,7 +87,7 @@
 						<div class="flex">
 							{#each reviews as review (review.id)}
 								<article
-									class="min-w-0 max-w-full shrink-0 basis-full snap-center"
+									class="max-w-full min-w-0 shrink-0 basis-full snap-center"
 									aria-roledescription="slide"
 								>
 									<figure
@@ -105,13 +105,13 @@
 											{/each}
 										</div>
 										<blockquote
-											class="mt-5 min-w-0 flex-1 [overflow-wrap:anywhere] text-lg leading-relaxed whitespace-pre-wrap text-sand-900 sm:text-xl"
+											class="mt-5 min-w-0 flex-1 text-lg leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap text-sand-900 sm:text-xl"
 										>
 											“{review.body}”
 										</blockquote>
 										<figcaption class="mt-6 min-w-0">
 											<div
-												class="inline-flex max-w-full items-center gap-3 rounded-xl border border-sand-200 bg-white px-3 py-2 shadow-sm"
+												class="inline-flex max-w-full items-center gap-3 rounded-xl border border-sand-200 bg-white px-3 py-2"
 											>
 												<Avatar
 													name={review.name}
@@ -131,7 +131,7 @@
 					{#if hasMany}
 						<button
 							type="button"
-							class="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-sand-900 shadow-sm ring-1 ring-sand-200 focus-ring hover:bg-peach-50"
+							class="flex size-10 shrink-0 items-center justify-center rounded-full border border-sand-200 bg-white text-sand-900 focus-ring hover:bg-peach-50"
 							aria-label={m.reviews_carousel_next()}
 							onclick={() => goTo(index + 1)}
 						>

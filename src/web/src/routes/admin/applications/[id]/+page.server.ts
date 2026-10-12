@@ -6,8 +6,14 @@ import type { AdminNote, AdminShelterDetail } from "$lib/admin/types";
 
 export const load: PageServerLoad = async ({ params, fetch }) => {
 	const [application, notes] = await Promise.all([
-		adminFetch<AdminShelterDetail>(fetch, `/api/admin/applications/${params.id}`),
-		adminFetch<{ items: AdminNote[] }>(fetch, `/api/admin/applications/${params.id}/notes`),
+		adminFetch<AdminShelterDetail>(
+			fetch,
+			`/api/admin/applications/${encodeURIComponent(params.id)}`,
+		),
+		adminFetch<{ items: AdminNote[] }>(
+			fetch,
+			`/api/admin/applications/${encodeURIComponent(params.id)}/notes`,
+		),
 	]);
 	return { application, notes: notes.items };
 };
@@ -16,7 +22,7 @@ export const actions: Actions = {
 	approve: async ({ params, fetch }) => {
 		const result = await adminMutate(
 			fetch,
-			`/api/admin/applications/${params.id}/approval`,
+			`/api/admin/applications/${encodeURIComponent(params.id)}/approval`,
 			"POST",
 			{},
 		);
@@ -31,7 +37,7 @@ export const actions: Actions = {
 		}
 		const result = await adminMutate(
 			fetch,
-			`/api/admin/applications/${params.id}/rejection`,
+			`/api/admin/applications/${encodeURIComponent(params.id)}/rejection`,
 			"POST",
 			{ reason },
 		);
@@ -44,9 +50,14 @@ export const actions: Actions = {
 		if (!body) {
 			return fail(400, { adminError: "generic" as const });
 		}
-		const result = await adminMutate(fetch, `/api/admin/applications/${params.id}/notes`, "POST", {
-			body,
-		});
+		const result = await adminMutate(
+			fetch,
+			`/api/admin/applications/${encodeURIComponent(params.id)}/notes`,
+			"POST",
+			{
+				body,
+			},
+		);
 		if (!("ok" in result)) return result;
 		return { noted: true };
 	},

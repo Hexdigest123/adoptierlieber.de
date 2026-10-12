@@ -94,7 +94,7 @@
 		{#if !field.hidden}
 			<li class="rounded-2xl border border-sand-200 bg-white p-4">
 				<div class="flex items-center justify-between gap-2">
-					<p class="text-xs font-semibold text-sand-500">{index + 1}</p>
+					<p class="text-xs font-medium text-sand-600">{index + 1}</p>
 					{#if !locked}
 						<button
 							type="button"

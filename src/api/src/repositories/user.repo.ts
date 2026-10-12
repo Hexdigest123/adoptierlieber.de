@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/d1";
 import { usersTable } from "../schema";
 import { getDb, type Env } from "../config/env";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { PLATFORM_ROLE } from "../lib/roles";
 
 export type CreateUserInput = {
@@ -11,6 +11,8 @@ export type CreateUserInput = {
   password: string;
   emailVerificationToken?: string | null;
   emailVerificationTokenExpiresAt?: Date | null;
+  emailVerifiedAt?: Date | null;
+  passwordChangedAt?: Date;
   avatarKey?: string | null;
   platformRole?: number;
   street?: string | null;
@@ -99,6 +101,11 @@ export function createUserRepo(env: Env) {
         .where(eq(usersTable.id, userId))
         .returning()
         .get();
+    },
+
+    /** Same password, stronger hash. Not a change: passwordChangedAt gates break-glass. */
+    rehashPassword(userId: string, password: string) {
+      return db.update(usersTable).set({ password }).where(eq(usersTable.id, userId)).run();
     },
 
     updateProfile(
@@ -221,14 +228,25 @@ export function createUserRepo(env: Env) {
         .get();
     },
 
+    /** Fresh link for an account that is still unverified; a no-op once it is verified. */
+    renewVerificationToken(
+      userId: string,
+      emailVerificationToken: string,
+      emailVerificationTokenExpiresAt: Date,
+    ) {
+      return db
+        .update(usersTable)
+        .set({ emailVerificationToken, emailVerificationTokenExpiresAt })
+        .where(and(eq(usersTable.id, userId), isNull(usersTable.emailVerifiedAt)))
+        .returning({ id: usersTable.id })
+        .get();
+    },
+
+    /** Keeps the token until it expires so a second click on the link still succeeds. */
     verifyEmail(userId: string) {
       return db
         .update(usersTable)
-        .set({
-          emailVerifiedAt: new Date(),
-          emailVerificationToken: null,
-          emailVerificationTokenExpiresAt: null,
-        })
+        .set({ emailVerifiedAt: new Date() })
         .where(eq(usersTable.id, userId))
         .returning({ id: usersTable.id })
         .get();

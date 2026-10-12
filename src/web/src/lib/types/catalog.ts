@@ -94,6 +94,8 @@ export type ListEnvelope<T> = {
 	per_page: number;
 	total: number;
 	in_range?: number;
+	/** Animals hidden only by the user's radius (so an empty list can offer "widen"). */
+	outside_range?: number;
 };
 
 export type GeocodeHit = {

@@ -10,6 +10,8 @@
 	import AnimalDetail from "$lib/components/app/AnimalDetail.svelte";
 	import PawPrint from "lucide-svelte/icons/paw-print";
 	import Heart from "lucide-svelte/icons/heart";
+	import ChevronLeft from "lucide-svelte/icons/chevron-left";
+	import ChevronRight from "lucide-svelte/icons/chevron-right";
 	import type { PublicAnimal } from "$lib/types/catalog";
 	import {
 		parsePublishMissing,
@@ -979,7 +981,7 @@
 	}}
 >
 	{#if wizard}
-		<p class="text-sm font-semibold text-sand-600">
+		<p class="text-sm font-medium text-sand-600">
 			{m.wizard_step({ current: step + 1, total })}
 		</p>
 		<ol class="flex gap-2" aria-hidden="true">
@@ -1185,7 +1187,7 @@
 							{#each selectedPartnerIds as id (id)}
 								{@const row = partnerChoices.find((entry) => entry.id === id)}
 								<li class="flex items-center justify-between gap-2 rounded-xl bg-sand-50 px-3 py-2">
-									<span class="text-sm font-semibold text-sand-900">
+									<span class="text-sm font-medium text-sand-900">
 										{row ? `${row.name} ${speciesLabel(row.species)}` : id}
 									</span>
 									{#if !readonly}
@@ -1284,7 +1286,7 @@
 			<h2 class="text-lg font-bold text-sand-950">{m.wizard_review_title()}</h2>
 			<p class="text-sm text-sand-700">{m.wizard_review_subtitle()}</p>
 			<div class="rounded-2xl border border-sand-200 bg-white p-5">
-				<p class="text-xs font-semibold tracking-wide text-sand-500 uppercase">
+				<p class="text-sm font-medium text-sand-600">
 					{m.shelter_animal_basics()}
 				</p>
 				<p class="mt-1 font-bold text-sand-950">{primary.name.trim() || "—"}</p>
@@ -1297,7 +1299,7 @@
 					<p class="mt-2 text-sm text-sand-700">{primary.tagline.trim()}</p>
 				{/if}
 				{#if kind === "pair" && partnerName()}
-					<p class="mt-3 text-sm font-semibold text-coral-800">
+					<p class="mt-3 text-sm font-medium text-coral-800">
 						{m.shelter_wizard_review_linked({ name: partnerName() })}
 					</p>
 				{/if}
@@ -1332,24 +1334,28 @@
 							<div class="absolute inset-x-1 bottom-1 flex justify-between gap-1">
 								<button
 									type="button"
-									class="rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-sand-800 disabled:opacity-40"
+									class="inline-flex size-9 cursor-pointer items-center justify-center rounded-full bg-white/90 text-sand-800 focus-ring disabled:cursor-default disabled:opacity-40"
 									disabled={index === 0}
+									aria-label={m.shelter_photo_up()}
+									title={m.shelter_photo_up()}
 									onclick={() => movePhoto(index, -1)}
 								>
-									{m.shelter_photo_up()}
+									<ChevronLeft class="size-5" aria-hidden="true" />
 								</button>
 								<button
 									type="button"
-									class="rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-sand-800 disabled:opacity-40"
+									class="inline-flex size-9 cursor-pointer items-center justify-center rounded-full bg-white/90 text-sand-800 focus-ring disabled:cursor-default disabled:opacity-40"
 									disabled={index === photos.length - 1}
+									aria-label={m.shelter_photo_down()}
+									title={m.shelter_photo_down()}
 									onclick={() => movePhoto(index, 1)}
 								>
-									{m.shelter_photo_down()}
+									<ChevronRight class="size-5" aria-hidden="true" />
 								</button>
 							</div>
 							<button
 								type="button"
-								class="absolute top-1 right-1 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-coral-800"
+								class="absolute top-1 right-1 inline-flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-full bg-white/90 px-3 text-xs font-semibold text-coral-800 focus-ring"
 								onclick={() => removePhoto(key)}
 							>
 								{m.shelter_photo_delete()}
@@ -1455,7 +1461,7 @@
 			aria-label={m.shelter_preview_title()}
 		>
 			<div class="mb-3 flex items-start justify-between gap-3">
-				<p class="text-sm font-semibold text-sand-700">{m.shelter_preview_title()}</p>
+				<p class="text-sm font-medium text-sand-700">{m.shelter_preview_title()}</p>
 				<Button type="button" variant="ghost" size="sm" onclick={() => (previewOpen = false)}>
 					{m.shelter_preview_close()}
 				</Button>

@@ -2,7 +2,7 @@
 	import type { Snippet } from "svelte";
 
 	type Props = {
-		/** Extra hover lift + focus ring; use when the card is interactive. */
+		/** Darker border on hover/focus; use when the card is interactive. */
 		focusable?: boolean;
 		padding?: "none" | "sm" | "md" | "lg";
 		children: Snippet;
@@ -20,8 +20,8 @@
 </script>
 
 <div
-	class="rounded-2xl border border-sand-200 bg-white shadow-sm {paddings[padding]} {focusable
-		? 'transition-shadow focus-within:shadow-md hover:shadow-md'
+	class="rounded-2xl border border-sand-200 bg-white {paddings[padding]} {focusable
+		? 'transition-colors focus-within:border-sand-400 hover:border-sand-400'
 		: ''} {className}"
 >
 	{@render children()}

@@ -1,13 +1,12 @@
 <script lang="ts">
 	import ArrowRight from "lucide-svelte/icons/arrow-right";
 	import ChevronDown from "lucide-svelte/icons/chevron-down";
-	import PawPrint from "lucide-svelte/icons/paw-print";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
-	import { getLocale, setLocale, locales } from "$lib/paraglide/runtime";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Logo from "$lib/components/ui/Logo.svelte";
 	import AccountMenu from "$lib/components/ui/AccountMenu.svelte";
+	import LocaleSwitcher from "$lib/components/ui/LocaleSwitcher.svelte";
 
 	let { user }: { user: App.Locals["user"] } = $props();
 </script>
@@ -19,63 +18,21 @@
 	<div
 		class="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 px-4 py-3 sm:px-6"
 	>
-		<a href={resolve("/")} class="rounded-full focus-ring" aria-label={m.brand_name()}>
-			<Logo />
+		<a href={resolve("/")} class="shrink-0 rounded-full focus-ring" aria-label={m.brand_name()}>
+			<Logo class="size-11" />
 		</a>
 		<div class="flex items-center gap-2">
-			<div
-				class="flex items-center rounded-full border border-sand-200/80 bg-white/70 p-0.5"
-				role="group"
-				aria-label={m.header_locale_label()}
-			>
-				{#each locales as locale (locale)}
-					<button
-						type="button"
-						onclick={() => setLocale(locale)}
-						aria-pressed={getLocale() === locale}
-						class="min-h-11 min-w-11 cursor-pointer rounded-full px-2 text-xs font-bold uppercase focus-ring {getLocale() ===
-						locale
-							? 'bg-coral-600 text-white'
-							: 'text-sand-600 hover:text-coral-700'}"
-					>
-						{locale}
-					</button>
-				{/each}
-			</div>
+			<LocaleSwitcher />
 			{#if user}
 				<AccountMenu {user} />
 			{:else}
 				<Button href={resolve("/login")} variant="ghost" size="sm">{m.header_login()}</Button>
-				<Button href={resolve("/register")} size="sm" class="hidden sm:inline-flex"
+				<!-- max-sm:hidden, because the Button's own inline-flex beats a plain `hidden` -->
+				<Button href={resolve("/register")} size="sm" class="max-sm:hidden"
 					>{m.header_register()}</Button
 				>
 			{/if}
 		</div>
-	</div>
-
-	<div class="pointer-events-none absolute inset-0" aria-hidden="true">
-		<!-- Decorative soft glow -->
-		<div
-			class="absolute -top-32 left-1/2 h-96 w-[42rem] -translate-x-1/2 rounded-full bg-peach-300/40 blur-3xl"
-		></div>
-
-		<!-- Floating paws (decorative) -->
-		<PawPrint
-			class="absolute top-[12%] left-[8%] size-10 rotate-[-18deg] animate-float text-coral-300"
-			style="--float-rotate: -18deg"
-		/>
-		<PawPrint
-			class="absolute top-[22%] right-[10%] size-14 rotate-[14deg] animate-float-slow text-peach-400"
-			style="--float-rotate: 14deg"
-		/>
-		<PawPrint
-			class="absolute bottom-[18%] left-[14%] size-8 rotate-[24deg] animate-float-slow text-peach-500/70"
-			style="--float-rotate: 24deg"
-		/>
-		<PawPrint
-			class="absolute right-[16%] bottom-[26%] size-9 rotate-[-10deg] animate-float text-coral-400/60"
-			style="--float-rotate: -10deg"
-		/>
 	</div>
 
 	<div class="relative mx-auto max-w-4xl text-center">
@@ -100,7 +57,7 @@
 
 	<a
 		href="#showcase"
-		class="absolute inset-x-0 bottom-5 z-10 mx-auto flex w-fit flex-col items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-sand-700 focus-ring hover:text-coral-700"
+		class="absolute inset-x-0 bottom-5 z-10 mx-auto flex w-fit flex-col items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-sand-700 focus-ring hover:text-coral-700"
 	>
 		{m.hero_scroll()}
 		<ChevronDown class="size-5 animate-hero-hint" aria-hidden="true" />

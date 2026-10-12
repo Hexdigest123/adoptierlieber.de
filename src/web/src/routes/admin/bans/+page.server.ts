@@ -39,7 +39,11 @@ export const actions: Actions = {
 		if (!hash || confirm !== hash.slice(0, 8).toLowerCase()) {
 			return fail(400, { adminError: "generic" as const });
 		}
-		const result = await adminMutate(fetch, `/api/admin/bans/${hash}`, "DELETE");
+		const result = await adminMutate(
+			fetch,
+			`/api/admin/bans/${encodeURIComponent(hash)}`,
+			"DELETE",
+		);
 		if (!("ok" in result)) return result;
 		return { dropped: true };
 	},

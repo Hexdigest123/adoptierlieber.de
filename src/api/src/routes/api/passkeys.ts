@@ -6,22 +6,36 @@ import type { AppEnv } from "../../types";
 
 export const passkeys = new Hono<AppEnv>();
 
-passkeys.post("/assertions/options", rateLimitByIp("passkey-assert-options", 20), async (c) => {
-  const options = await createPasskeyService(c.env).authenticationOptions();
-  return c.json(options, 200);
-});
+passkeys.post(
+  "/assertions/options",
+  rateLimitByIp("passkey-assert-options", 20, { failClosed: true }),
+  async (c) => {
+    const options = await createPasskeyService(c.env).authenticationOptions();
+    return c.json(options, 200);
+  },
+);
 
-passkeys.post("/assertions", rateLimitByIp("passkey-assert", 10), async (c) => {
-  const input = await c.req.json();
-  const userAgent = c.req.header("User-Agent") ?? null;
-  const session = await createPasskeyService(c.env).authenticate(input, userAgent);
-  return c.json(session, 200);
-});
+passkeys.post(
+  "/assertions",
+  rateLimitByIp("passkey-assert", 10, { failClosed: true }),
+  async (c) => {
+    const input = await c.req.json();
+    const userAgent = c.req.header("User-Agent") ?? null;
+    const session = await createPasskeyService(c.env).authenticate(input, userAgent);
+    return c.json(session, 200);
+  },
+);
 
 passkeys.use("*", sessionValidation);
 
+/** Body `{ current_password, code? }` unless this is the first factor in a setup session. */
 passkeys.post("/registrations/options", rateLimitByUser("passkey-reg-options", 10), async (c) => {
-  const options = await createPasskeyService(c.env).registrationOptions(c.get("userId"));
+  const input = await c.req.json().catch(() => ({}));
+  const options = await createPasskeyService(c.env).registrationOptions(
+    c.get("userId"),
+    c.get("sessionKind"),
+    input,
+  );
   return c.json(options, 200);
 });
 
@@ -42,8 +56,12 @@ passkeys.patch("/:id", async (c) => {
   return c.json({}, 200);
 });
 
-passkeys.post("/:id/disable", rateLimitByUser("passkey-disable", 5), async (c) => {
-  const input = await c.req.json();
-  await createPasskeyService(c.env).remove(c.get("userId"), c.req.param("id"), input);
-  return c.json({}, 200);
-});
+passkeys.post(
+  "/:id/disable",
+  rateLimitByUser("passkey-disable", 5, { failClosed: true }),
+  async (c) => {
+    const input = await c.req.json();
+    await createPasskeyService(c.env).remove(c.get("userId"), c.req.param("id"), input);
+    return c.json({}, 200);
+  },
+);

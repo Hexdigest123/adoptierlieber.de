@@ -17,7 +17,7 @@
 </svelte:head>
 
 <Hero user={data.user} />
-<div class="relative z-10 rounded-t-3xl bg-peach-50 shadow-[0_-16px_48px_rgb(39_33_29/0.1)]">
+<div class="relative z-10 rounded-t-3xl bg-peach-50">
 	<Showcase cards={data.showcase} loggedIn={Boolean(data.user)} />
 	<Partners shelters={data.shelters} loggedIn={Boolean(data.user)} />
 	<Donations shelters={data.donations} />

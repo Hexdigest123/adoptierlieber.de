@@ -11,7 +11,7 @@
 </script>
 
 <div
-	class="flex w-full max-w-md flex-col overflow-hidden rounded-3xl border border-sand-200 bg-white shadow-lg {className}"
+	class="flex w-full max-w-md flex-col overflow-hidden rounded-3xl border border-sand-200 bg-white {className}"
 >
 	<img src="/animals/empty.svg" alt="" width="400" height="500" class="h-88 w-full object-cover" />
 	<div class="flex flex-col items-center gap-1.5 p-6 text-center">

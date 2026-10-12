@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
 	import { resolve } from "$app/paths";
+	import { enhance } from "$app/forms";
+	import { clearPasswordsOnFailure } from "$lib/enhance";
 	import { startAuthentication } from "@simplewebauthn/browser";
 	import { m } from "$lib/paraglide/messages";
 	import AuthCard from "$lib/components/auth/AuthCard.svelte";
@@ -11,6 +13,9 @@
 	let { data, form }: PageProps = $props();
 	const next = $derived(form?.next || data.next);
 	const mfaRequired = $derived(Boolean(form && "mfaRequired" in form && form.mfaRequired));
+	const passkeyRequired = $derived(
+		Boolean(form && "loginError" in form && form.loginError === "passkey_required"),
+	);
 	let passkeyBusy = $state(false);
 	let passkeyClientError = $state(false);
 
@@ -48,7 +53,7 @@
 	subtitle={mfaRequired ? m.auth_totp_subtitle() : m.auth_login_subtitle()}
 >
 	{#if mfaRequired && form && "mfaToken" in form}
-		<form method="POST" action="?/totp" class="flex flex-col gap-5">
+		<form method="POST" action="?/totp" class="flex flex-col gap-5" use:enhance>
 			<input type="hidden" name="mfaToken" value={form.mfaToken} />
 			<input type="hidden" name="email" value={form.email ?? ""} />
 			{#if next}
@@ -73,13 +78,22 @@
 			<Button type="submit" fullWidth>{m.auth_totp_submit()}</Button>
 		</form>
 	{:else}
-		<form method="POST" action="?/password" class="flex flex-col gap-5">
+		<form
+			method="POST"
+			action="?/password"
+			class="flex flex-col gap-5"
+			use:enhance={clearPasswordsOnFailure}
+		>
 			{#if next}
 				<input type="hidden" name="next" value={next} />
 			{/if}
 			{#if form && "loginError" in form && form.loginError}
 				<FormStatus type="error">
-					{form.loginError === "rate_limited" ? m.error_rate_limited() : m.auth_login_error()}
+					{form.loginError === "rate_limited"
+						? m.error_rate_limited()
+						: form.loginError === "passkey_required"
+							? m.auth_login_passkey_required()
+							: m.auth_login_error()}
 				</FormStatus>
 			{/if}
 			{#if (form && "passkeyError" in form && form.passkeyError) || passkeyClientError}
@@ -106,7 +120,10 @@
 				autocomplete="current-password"
 			/>
 
-			<Button type="submit" fullWidth>{m.auth_login_submit()}</Button>
+			<!-- After "passkey required" the passkey button below becomes the primary action. -->
+			<Button type="submit" fullWidth variant={passkeyRequired ? "secondary" : "primary"}>
+				{m.auth_login_submit()}
+			</Button>
 		</form>
 
 		<div class="mt-5 flex flex-col gap-5">
@@ -120,7 +137,7 @@
 			</form>
 			<Button
 				type="button"
-				variant="secondary"
+				variant={passkeyRequired ? "primary" : "secondary"}
 				fullWidth
 				disabled={passkeyBusy}
 				onclick={() => void signInWithPasskey()}
@@ -137,7 +154,7 @@
 				<p>
 					{m.auth_login_no_account()}
 					<a
-						href={resolve("/register")}
+						href="{resolve('/register')}{next ? `?next=${encodeURIComponent(next)}` : ''}"
 						class="inline-flex min-h-11 items-center font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
 					>
 						{m.auth_login_register_link()}

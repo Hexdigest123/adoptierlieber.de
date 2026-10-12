@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getDb, type Env } from "../config/env";
 import { animalsTable, threadsTable, usersTable } from "../schema";
@@ -104,7 +104,7 @@ export function createThreadRepo(env: Env) {
             eq(threadsTable.shelterId, shelterId),
             eq(threadsTable.unreadForShelter, true),
             eq(threadsTable.archived, false),
-            sql`${threadsTable.lastMessageAt} < ${since.getTime()}`,
+            lt(threadsTable.lastMessageAt, since),
           ),
         )
         .orderBy(threadsTable.lastMessageAt)
@@ -120,7 +120,7 @@ export function createThreadRepo(env: Env) {
             eq(threadsTable.shelterId, shelterId),
             eq(threadsTable.unreadForShelter, true),
             eq(threadsTable.archived, false),
-            sql`${threadsTable.lastMessageAt} < ${since.getTime()}`,
+            lt(threadsTable.lastMessageAt, since),
           ),
         )
         .get();

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { sqliteTable, text, integer, index, uniqueIndex, real } from "drizzle-orm/sqlite-core";
 import { PLATFORM_ROLE, SHELTER_ROLE } from "./lib/roles";
+import { VISIT_SECTIONS } from "./lib/visit-sections";
 
 export const usersTable = sqliteTable(
   "users",
@@ -525,3 +526,40 @@ export const reviewsTable = sqliteTable(
     index("reviews_status_created_idx").on(table.status, table.createdAt),
   ],
 );
+
+export const pageVisitsDailyTable = sqliteTable(
+  "page_visits_daily",
+  {
+    day: text("day").notNull(),
+    section: text("section", { enum: VISIT_SECTIONS }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (table) => [uniqueIndex("page_visits_daily_uq").on(table.day, table.section)],
+);
+
+export const loginsDailyTable = sqliteTable("logins_daily", {
+  day: text("day").primaryKey(),
+  count: integer("count").notNull().default(0),
+});
+
+export const donationClicksDailyTable = sqliteTable(
+  "donation_clicks_daily",
+  {
+    shelterId: text("shelter_id")
+      .references(() => sheltersTable.id, { onDelete: "cascade" })
+      .notNull(),
+    day: text("day").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (table) => [
+    uniqueIndex("donation_clicks_daily_uq").on(table.day, table.shelterId),
+    index("donation_clicks_daily_shelter_idx").on(table.shelterId),
+  ],
+);
+
+export const statsReportsTable = sqliteTable("stats_reports", {
+  day: text("day").primaryKey(),
+  claimedAt: integer("claimed_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});

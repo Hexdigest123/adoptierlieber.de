@@ -2,6 +2,7 @@
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import Card from "$lib/components/ui/Card.svelte";
+	import { metaLine } from "$lib/app/format";
 	import type { ShowcaseCard } from "$lib/data/excerpts";
 
 	let {
@@ -38,12 +39,11 @@
 								{card.name}<span class="font-medium text-sand-600">, {card.age}</span>
 							</p>
 							<p class="truncate text-sm text-sand-600">
-								{card.species}
-								{card.shelterName}
+								{metaLine(card.species, card.shelterName)}
 							</p>
 							<p class="text-sm text-coral-700">{card.location}</p>
 							{#if card.bonded}
-								<p class="truncate text-xs font-semibold text-sand-800">
+								<p class="truncate text-xs font-medium text-sand-800">
 									{m.showcase_card_bonded({ name: card.bonded })}
 								</p>
 							{/if}

@@ -83,7 +83,7 @@
 			use:dialog={close}
 		>
 			{#if sentId}
-				<h2 id="interest-title" class="text-xl font-black text-sand-950">
+				<h2 id="interest-title" class="text-xl font-bold text-sand-950">
 					{m.shelter_interest_sent()}
 				</h2>
 				<p class="mt-2 text-sm text-sand-700">{m.shelter_interest_sent_text()}</p>
@@ -92,7 +92,7 @@
 					<Button variant="ghost" onclick={close}>{m.dialog_close()}</Button>
 				</div>
 			{:else if context.thread_id}
-				<h2 id="interest-title" class="text-xl font-black text-sand-950">
+				<h2 id="interest-title" class="text-xl font-bold text-sand-950">
 					{m.shelter_interest_open()}
 				</h2>
 				<p class="mt-2 text-sm text-sand-700">{m.shelter_interest_existing()}</p>
@@ -103,7 +103,7 @@
 					<Button variant="ghost" onclick={close}>{m.dialog_close()}</Button>
 				</div>
 			{:else}
-				<h2 id="interest-title" class="text-xl font-black text-sand-950">
+				<h2 id="interest-title" class="text-xl font-bold text-sand-950">
 					{m.shelter_interest_title({ animal: context.animal_name })}
 				</h2>
 				<p class="mt-1 text-sm text-sand-700">
@@ -111,8 +111,13 @@
 				</p>
 
 				<form class="mt-5 flex flex-col gap-4" onsubmit={submit}>
+					<p id="grants-hint" class="text-sm text-sand-700">
+						{m.shelter_interest_grants_hint({ org: context.org_name })}
+					</p>
 					<Checkbox
 						id="grant-email"
+						required
+						aria-describedby="grants-hint"
 						checked={grantEmail}
 						onchange={(event) => (grantEmail = event.currentTarget.checked)}
 					>
@@ -120,6 +125,8 @@
 					</Checkbox>
 					<Checkbox
 						id="grant-profile"
+						required
+						aria-describedby="grants-hint"
 						checked={grantProfile}
 						onchange={(event) => (grantProfile = event.currentTarget.checked)}
 					>

@@ -7,6 +7,8 @@ export const load: PageServerLoad = async ({ parent }) => {
 	return {
 		isOwner: current?.role === 1,
 		readonly: shelter?.verification_status === "rejected",
+		// the verified badge vouches for name + registration number; changes go through support
+		identityLocked: shelter?.verification_status === "verified",
 	};
 };
 
@@ -17,23 +19,31 @@ export const actions: Actions = {
 			return fail(403, { error: true });
 		}
 		const data = await request.formData();
-		const body = {
-			org_name: String(data.get("org_name") ?? "").trim(),
+		const body: Record<string, string | null> = {
 			street: String(data.get("street") ?? "").trim(),
 			zip: String(data.get("zip") ?? "").trim(),
 			city: String(data.get("city") ?? "").trim(),
 			website: String(data.get("website") ?? "").trim() || null,
 			donation_url: String(data.get("donation_url") ?? "").trim() || null,
 			donation_description: String(data.get("donation_description") ?? "").trim() || null,
-			registration_number: String(data.get("registration_number") ?? "").trim() || null,
 			description: String(data.get("description") ?? "").trim() || null,
 			notify_email: String(data.get("notify_email") ?? "").trim(),
 		};
+		// locked (disabled) fields are not submitted, so only send what the form has
+		if (data.has("org_name")) {
+			body.org_name = String(data.get("org_name") ?? "").trim();
+		}
+		if (data.has("registration_number")) {
+			body.registration_number = String(data.get("registration_number") ?? "").trim() || null;
+		}
 		const response = await fetch(`/api/shelters/${current.shelter_id}`, {
 			method: "PATCH",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify(body),
 		});
+		if (response.status === 409) {
+			return fail(409, { identityLocked: true });
+		}
 		if (!response.ok) {
 			return fail(response.status === 400 ? 400 : 502, { error: true });
 		}

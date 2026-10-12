@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
+	import Select from "$lib/components/ui/Select.svelte";
 	import SpeciesChips from "$lib/components/app/SpeciesChips.svelte";
 	import { RANGE_STOPS } from "$lib/types/catalog";
 	import { dialog } from "$lib/dialog";
@@ -11,6 +12,7 @@
 		inRange = null,
 		placeLabel = "",
 		showRange = true,
+		rangeHint = "",
 		showLocation = false,
 		onchange,
 		onapply,
@@ -21,6 +23,8 @@
 		inRange?: number | null;
 		placeLabel?: string;
 		showRange?: boolean;
+		/** Set while there are no coordinates: replaces the range control, nothing to measure from. */
+		rangeHint?: string;
 		showLocation?: boolean;
 		onchange?: () => void;
 		onapply?: (next: number | null) => void;
@@ -28,6 +32,7 @@
 	} = $props();
 
 	let draft = $state<number | null>(null);
+	const rangeActive = $derived(showRange && !rangeHint);
 
 	$effect(() => {
 		if (open) draft = rangeKm;
@@ -36,6 +41,17 @@
 
 	function label(value: number | null): string {
 		return value == null ? m.app_range_unlimited() : m.app_range_km({ count: value });
+	}
+
+	function rangeOptions() {
+		// A saved range between the stops stays selectable instead of rendering an empty select.
+		const stops: number[] = [...RANGE_STOPS];
+		if (draft != null && !stops.includes(draft)) stops.push(draft);
+		stops.sort((a, b) => a - b);
+		return [
+			...stops.map((stop) => ({ value: String(stop), label: m.app_range_km({ count: stop }) })),
+			{ value: "", label: m.app_range_unlimited() },
+		];
 	}
 
 	function apply() {
@@ -75,39 +91,33 @@
 				</div>
 			{/if}
 
-			{#if showRange}
+			{#if showRange && rangeHint}
 				<div class="mt-5">
 					<p class="text-sm font-semibold text-sand-900">{m.app_range_title()}</p>
-					<p class="mt-1 text-2xl font-black text-coral-700">{label(draft)}</p>
+					<p class="mt-1 text-sm text-sand-700">{rangeHint}</p>
+				</div>
+			{:else if rangeActive}
+				<div class="mt-5">
+					<p class="text-sm font-semibold text-sand-900">{m.app_range_title()}</p>
+					<p class="mt-1 text-2xl font-bold text-coral-700">{label(draft)}</p>
 					{#if inRange != null}
-						<p class="mt-1 text-sm text-sand-700">{m.app_range_in_circle({ count: inRange })}</p>
+						<p class="mt-1 text-sm text-sand-700">
+							{inRange === 1
+								? m.app_range_in_circle_one({ count: inRange })
+								: m.app_range_in_circle({ count: inRange })}
+						</p>
 					{/if}
-					<div class="mt-3 flex flex-wrap gap-2">
-						{#each RANGE_STOPS as stop (stop)}
-							<button
-								type="button"
-								aria-pressed={draft === stop}
-								class="min-h-11 cursor-pointer rounded-full border px-3 py-1.5 text-sm font-semibold focus-ring {draft ===
-								stop
-									? 'border-coral-600 bg-coral-600 text-white'
-									: 'border-sand-200 text-sand-800 hover:border-coral-300'}"
-								onclick={() => (draft = stop)}
-							>
-								{m.app_range_km({ count: stop })}
-							</button>
-						{/each}
-						<button
-							type="button"
-							aria-pressed={draft === null}
-							class="min-h-11 cursor-pointer rounded-full border px-3 py-1.5 text-sm font-semibold focus-ring {draft ===
-							null
-								? 'border-coral-600 bg-coral-600 text-white'
-								: 'border-sand-200 text-sand-800 hover:border-coral-300'}"
-							onclick={() => (draft = null)}
-						>
-							{m.app_range_unlimited()}
-						</button>
-					</div>
+					<Select
+						id="filters-range"
+						class="mt-3"
+						label={m.app_range_title()}
+						hideLabel
+						options={rangeOptions()}
+						bind:value={
+							() => (draft === null ? "" : String(draft)),
+							(next) => (draft = next === "" ? null : Number(next))
+						}
+					/>
 				</div>
 			{/if}
 
@@ -117,7 +127,7 @@
 			</div>
 
 			<div class="mt-6">
-				{#if showRange}
+				{#if rangeActive}
 					<Button fullWidth onclick={apply}>{m.app_range_apply()}</Button>
 				{:else}
 					<Button fullWidth onclick={() => (open = false)}>{m.dialog_close()}</Button>

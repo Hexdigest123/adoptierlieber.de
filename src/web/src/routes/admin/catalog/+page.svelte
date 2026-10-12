@@ -6,6 +6,7 @@
 	import { m } from "$lib/paraglide/messages";
 	import Card from "$lib/components/ui/Card.svelte";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
+	import TabNav from "$lib/components/ui/TabNav.svelte";
 	import AdminAnimalCardView from "$lib/components/admin/AdminAnimalCard.svelte";
 	import AdminShelterCardView from "$lib/components/admin/AdminShelterCard.svelte";
 	import CatalogGrid from "$lib/components/admin/CatalogGrid.svelte";
@@ -58,6 +59,14 @@
 		return `/admin/catalog?${params.toString()}`;
 	}
 
+	const facetItems = $derived(
+		facets.map((facet) => ({
+			href: hrefFor({ type: facet.type }),
+			label: facet.label(),
+			active: data.type === facet.type,
+		})),
+	);
+
 	async function loadMore() {
 		if (loading || !hasMore) return;
 		loading = true;
@@ -108,19 +117,7 @@
 
 <h1 class="mb-4 text-2xl font-black tracking-tight text-sand-950">{m.admin_catalog_title()}</h1>
 
-<div class="mb-4 flex flex-wrap gap-2">
-	{#each facets as facet (facet.type)}
-		<a
-			href={hrefFor({ type: facet.type })}
-			class="rounded-full px-4 py-2 text-sm font-semibold focus-ring {data.type === facet.type
-				? 'bg-coral-600 text-white'
-				: 'bg-white text-sand-800 ring-1 ring-sand-200 hover:bg-peach-50'}"
-			aria-current={data.type === facet.type ? "page" : undefined}
-		>
-			{facet.label()}
-		</a>
-	{/each}
-</div>
+<TabNav label={m.admin_catalog_title()} items={facetItems} class="mb-4" />
 
 <form class="mb-5 grid gap-3 sm:grid-cols-3" onchange={onFilter}>
 	<label class="flex flex-col gap-1 text-sm font-semibold text-sand-900">

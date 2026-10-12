@@ -3,7 +3,7 @@ import type { PageServerLoad } from "./$types";
 import type { PublicAnimal } from "$lib/types/catalog";
 
 export const load: PageServerLoad = async ({ fetch, params }) => {
-	const response = await fetch(`/api/animals/${params.id}`);
+	const response = await fetch(`/api/animals/${encodeURIComponent(params.id)}`);
 	if (response.status === 404) {
 		error(404, "animal not found");
 	}

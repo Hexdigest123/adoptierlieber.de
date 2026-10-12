@@ -121,7 +121,7 @@
 			aria-labelledby="prefs-title"
 			use:dialog={() => void persist(true)}
 		>
-			<h2 id="prefs-title" class="text-xl font-black text-sand-950">{m.app_prefs_title()}</h2>
+			<h2 id="prefs-title" class="text-xl font-bold text-sand-950">{m.app_prefs_title()}</h2>
 			<p class="mt-2 text-sm text-sand-700">{m.app_prefs_text()}</p>
 			<p class="mt-4 text-sm font-bold text-coral-700">{questions[step].title()}</p>
 			<div class="mt-3 flex flex-wrap gap-2">

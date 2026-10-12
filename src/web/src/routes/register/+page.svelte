@@ -4,6 +4,7 @@
 	import { page } from "$app/state";
 	import { enhance } from "$app/forms";
 	import { browser } from "$app/environment";
+	import { tick } from "svelte";
 	import { m } from "$lib/paraglide/messages";
 	import AuthCard from "$lib/components/auth/AuthCard.svelte";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
@@ -11,10 +12,14 @@
 	import Input from "$lib/components/ui/Input.svelte";
 	import Textarea from "$lib/components/ui/Textarea.svelte";
 	import FormStatus from "$lib/components/ui/FormStatus.svelte";
+	import Turnstile from "$lib/components/ui/Turnstile.svelte";
+	import { turnstileSiteKey } from "$lib/turnstile";
 	import PawPrint from "lucide-svelte/icons/paw-print";
 	import House from "lucide-svelte/icons/house";
 
-	let { form }: PageProps = $props();
+	let { data, form }: PageProps = $props();
+
+	const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 	// preselect shelter form via ?type=shelter
 	function initialType(): "adopter" | "shelter" {
@@ -45,6 +50,9 @@
 	let previewUrl = $state<string | null>(null);
 	let stepError = $state(false);
 	let avatarInput: HTMLInputElement | undefined = $state();
+	let captcha: ReturnType<typeof Turnstile> | undefined = $state();
+	let captchaToken = $state("");
+	const captchaPending = $derived(Boolean(turnstileSiteKey()) && !captchaToken);
 
 	$effect(() => {
 		const url = previewUrl;
@@ -56,12 +64,12 @@
 	let lat = $state(seed()?.lat ?? "");
 	let lng = $state(seed()?.lng ?? "");
 	let geoBusy = $state(false);
-	let geoHint = $state<"ok" | "fail" | null>(null);
+	let geoHint = $state<"ok" | "coords" | "fail" | null>(null);
 
 	const steps = $derived(
 		accountType === "shelter"
-			? (["type", "account", "shelter", "review", "picture"] as const)
-			: (["type", "account", "address", "review", "picture"] as const),
+			? (["type", "account", "shelter", "picture", "review"] as const)
+			: (["type", "account", "address", "picture", "review"] as const),
 	);
 	const total = $derived(steps.length);
 	const current = $derived(steps[step] ?? "type");
@@ -80,22 +88,47 @@
 		);
 	}
 
-	function validAccount() {
-		return (
-			name.trim().length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && passwordOk()
-		);
+	const fieldErrors = $derived({
+		name: name.trim() ? undefined : m.auth_name_required(),
+		email: EMAIL_RE.test(email.trim()) ? undefined : m.auth_email_invalid(),
+		password: passwordOk() ? undefined : m.auth_password_error(),
+		orgName: orgName.trim() ? undefined : m.auth_field_required(),
+		street: street.trim() ? undefined : m.auth_field_required(),
+		zip: zip.trim() ? undefined : m.auth_field_required(),
+		city: city.trim() ? undefined : m.auth_field_required(),
+	});
+	type Field = keyof typeof fieldErrors;
+	type Step = (typeof steps)[number];
+
+	// Field -> input id, per step (address inputs exist once per account type).
+	const stepFields: Partial<Record<Step, [Field, string][]>> = {
+		account: [
+			["name", "register-name"],
+			["email", "register-email"],
+			["password", "register-password"],
+		],
+		address: [
+			["street", "register-adopter-street"],
+			["zip", "register-adopter-zip"],
+			["city", "register-adopter-city"],
+		],
+		shelter: [
+			["orgName", "register-org-name"],
+			["street", "register-street"],
+			["zip", "register-zip"],
+			["city", "register-city"],
+		],
+	};
+
+	function invalidFields(id: Step): [Field, string][] {
+		return (stepFields[id] ?? []).filter(([field]) => fieldErrors[field]);
 	}
 
-	const passwordPolicyError = $derived(
-		form?.registerError === "password" || (stepError && current === "account" && !passwordOk()),
-	);
+	/** Field errors show once the user tried to leave the step. */
+	const shownErrors = $derived(stepError ? invalidFields(current).map(([field]) => field) : []);
 
-	function validAddress() {
-		return street.trim().length > 0 && zip.trim().length > 0 && city.trim().length > 0;
-	}
-
-	function validShelter() {
-		return orgName.trim().length > 0 && validAddress();
+	function fieldError(field: Field, id: Step): string | undefined {
+		return current === id && shownErrors.includes(field) ? fieldErrors[field] : undefined;
 	}
 
 	async function useLocation() {
@@ -115,6 +148,7 @@
 			});
 			lat = String(pos.coords.latitude);
 			lng = String(pos.coords.longitude);
+			let filled = false;
 			try {
 				const res = await fetch("/api/geo/reverse", {
 					method: "POST",
@@ -129,11 +163,13 @@
 					if (a?.street) street = a.street;
 					if (a?.zip) zip = a.zip;
 					if (a?.city) city = a.city;
+					filled = Boolean(a?.street || a?.zip || a?.city);
 				}
 			} catch {
 				// Reverse geocode optional. Lat/lng still saved.
 			}
-			geoHint = "ok";
+			// Lookup down or empty: coordinates are kept, the address must be typed.
+			geoHint = filled ? "ok" : "coords";
 		} catch {
 			geoHint = "fail";
 		} finally {
@@ -141,17 +177,12 @@
 		}
 	}
 
-	function next() {
-		if (current === "account" && !validAccount()) {
+	async function next() {
+		const invalid = invalidFields(current);
+		if (invalid.length > 0) {
 			stepError = true;
-			return;
-		}
-		if (current === "address" && !validAddress()) {
-			stepError = true;
-			return;
-		}
-		if (current === "shelter" && !validShelter()) {
-			stepError = true;
+			await tick();
+			document.getElementById(invalid[0][1])?.focus();
 			return;
 		}
 		stepError = false;
@@ -176,9 +207,10 @@
 			URL.revokeObjectURL(previewUrl);
 			previewUrl = null;
 		}
+		void next();
 	}
 
-	function show(id: (typeof steps)[number]) {
+	function show(id: Step) {
 		return !wizard || current === id;
 	}
 
@@ -188,6 +220,7 @@
 		rate_limited: () => m.error_rate_limited(),
 		invalid: () => m.error_invalid_input(),
 		password: () => m.auth_password_error(),
+		captcha: () => m.turnstile_failed(),
 		generic: () => m.error_generic(),
 	};
 </script>
@@ -201,7 +234,9 @@
 			{/if}
 		</FormStatus>
 		<Button
-			href="{resolve('/verify')}?email={encodeURIComponent(form.email ?? '')}"
+			href="{resolve('/verify')}?email={encodeURIComponent(form.email ?? '')}{data.next
+				? `&next=${encodeURIComponent(data.next)}`
+				: ''}"
 			fullWidth
 			class="mt-6"
 		>
@@ -211,7 +246,7 @@
 {:else}
 	<AuthCard title={m.auth_register_title()} subtitle={m.auth_register_subtitle()} wide>
 		{#if wizard}
-			<p class="mb-4 text-sm font-semibold text-sand-600">
+			<p class="mb-4 text-sm font-medium text-sand-600">
 				{m.wizard_step({ current: step + 1, total })}
 			</p>
 			<ol class="mb-6 flex gap-2" aria-hidden="true">
@@ -223,13 +258,24 @@
 			</ol>
 		{/if}
 
-		<form method="POST" enctype="multipart/form-data" class="flex flex-col gap-5" use:enhance>
+		<form
+			method="POST"
+			enctype="multipart/form-data"
+			class="flex flex-col gap-5"
+			use:enhance={() => {
+				return async ({ result, update }) => {
+					await update();
+					// The token was spent (or rejected); the next attempt needs a new one.
+					if (result.type === "failure" || result.type === "error") captcha?.reset();
+				};
+			}}
+		>
 			{#if form?.registerError}
 				<FormStatus type="error">{errorMessages[form.registerError]()}</FormStatus>
-			{:else if passwordPolicyError}
+			{:else if shownErrors.length === 1 && shownErrors[0] === "password"}
 				<FormStatus type="error">{m.auth_password_error()}</FormStatus>
-			{:else if stepError}
-				<FormStatus type="error">{m.error_invalid_input()}</FormStatus>
+			{:else if shownErrors.length > 0}
+				<FormStatus type="error">{m.wizard_fields_invalid()}</FormStatus>
 			{/if}
 
 			<fieldset class="wizard-step" class:hidden={!show("type")}>
@@ -275,13 +321,14 @@
 			</fieldset>
 
 			<div class="wizard-step flex flex-col gap-5" class:hidden={!show("account")}>
-				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+				<h2 class="text-base font-bold text-sand-950">
 					{m.auth_register_account_section()}
 				</h2>
 				<Input
 					id="register-name"
 					name="name"
 					label={m.auth_name()}
+					error={fieldError("name", "account")}
 					required={!wizard || current === "account"}
 					autocomplete="name"
 					bind:value={name}
@@ -299,6 +346,7 @@
 					name="email"
 					type="email"
 					label={m.auth_email()}
+					error={fieldError("email", "account")}
 					required={!wizard || current === "account"}
 					autocomplete="email"
 					bind:value={email}
@@ -309,7 +357,8 @@
 					type="password"
 					label={m.auth_password()}
 					hint={m.auth_password_hint()}
-					error={passwordPolicyError ? m.auth_password_error() : undefined}
+					error={fieldError("password", "account") ??
+						(form?.registerError === "password" ? m.auth_password_error() : undefined)}
 					required={!wizard || current === "account"}
 					minlength={8}
 					maxlength={128}
@@ -319,13 +368,14 @@
 			</div>
 
 			<div class="wizard-step flex flex-col gap-5" class:hidden={!show("shelter")}>
-				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+				<h2 class="text-base font-bold text-sand-950">
 					{m.auth_register_shelter_section()}
 				</h2>
 				<Input
 					id="register-org-name"
 					name="orgName"
 					label={m.auth_org_name()}
+					error={fieldError("orgName", "shelter")}
 					required={accountType === "shelter" && (!wizard || current === "shelter")}
 					autocomplete="organization"
 					bind:value={orgName}
@@ -334,6 +384,7 @@
 					id="register-street"
 					name="street"
 					label={m.auth_street()}
+					error={fieldError("street", "shelter")}
 					required={accountType === "shelter" && (!wizard || current === "shelter")}
 					autocomplete="street-address"
 					bind:value={street}
@@ -343,6 +394,7 @@
 						id="register-zip"
 						name="zip"
 						label={m.auth_zip()}
+						error={fieldError("zip", "shelter")}
 						required={accountType === "shelter" && (!wizard || current === "shelter")}
 						autocomplete="postal-code"
 						bind:value={zip}
@@ -351,6 +403,7 @@
 						id="register-city"
 						name="city"
 						label={m.auth_city()}
+						error={fieldError("city", "shelter")}
 						required={accountType === "shelter" && (!wizard || current === "shelter")}
 						autocomplete="address-level2"
 						bind:value={city}
@@ -385,6 +438,8 @@
 				</Button>
 				{#if geoHint === "ok"}
 					<p class="text-sm text-sand-600">{m.auth_use_location_ok()}</p>
+				{:else if geoHint === "coords"}
+					<p class="text-sm text-sand-600">{m.auth_use_location_coords()}</p>
 				{:else if geoHint === "fail"}
 					<p class="text-sm text-sand-600">{m.auth_use_location_fail()}</p>
 				{/if}
@@ -394,7 +449,7 @@
 				class="wizard-step flex flex-col gap-5"
 				class:hidden={accountType !== "adopter" || !show("address")}
 			>
-				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+				<h2 class="text-base font-bold text-sand-950">
 					{m.auth_register_address_section()}
 				</h2>
 				<p class="text-sm text-sand-700">{m.auth_register_address_hint()}</p>
@@ -402,6 +457,7 @@
 					id="register-adopter-street"
 					name="street"
 					label={m.auth_street()}
+					error={fieldError("street", "address")}
 					required={accountType === "adopter" && (!wizard || current === "address")}
 					autocomplete="street-address"
 					bind:value={street}
@@ -411,6 +467,7 @@
 						id="register-adopter-zip"
 						name="zip"
 						label={m.auth_zip()}
+						error={fieldError("zip", "address")}
 						required={accountType === "adopter" && (!wizard || current === "address")}
 						autocomplete="postal-code"
 						bind:value={zip}
@@ -419,6 +476,7 @@
 						id="register-adopter-city"
 						name="city"
 						label={m.auth_city()}
+						error={fieldError("city", "address")}
 						required={accountType === "adopter" && (!wizard || current === "address")}
 						autocomplete="address-level2"
 						bind:value={city}
@@ -431,46 +489,15 @@
 				</Button>
 				{#if geoHint === "ok"}
 					<p class="text-sm text-sand-600">{m.auth_use_location_ok()}</p>
+				{:else if geoHint === "coords"}
+					<p class="text-sm text-sand-600">{m.auth_use_location_coords()}</p>
 				{:else if geoHint === "fail"}
 					<p class="text-sm text-sand-600">{m.auth_use_location_fail()}</p>
 				{/if}
 			</div>
 
-			<div class="wizard-step flex flex-col gap-4" class:hidden={!show("review")}>
-				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
-					{m.wizard_review_title()}
-				</h2>
-				<p class="text-sm text-sand-700">{m.wizard_review_subtitle()}</p>
-				<dl class="divide-y divide-sand-200 rounded-xl border border-sand-200 bg-sand-50">
-					<div class="px-4 py-3">
-						<dt class="text-xs font-bold tracking-wide text-sand-600 uppercase">
-							{m.wizard_review_account()}
-						</dt>
-						<dd class="mt-1 text-sm text-sand-900">
-							{name}{displayName ? ` (${displayName})` : ""}
-							<br />
-							{email}
-						</dd>
-					</div>
-					<div class="px-4 py-3">
-						<dt class="text-xs font-bold tracking-wide text-sand-600 uppercase">
-							{accountType === "shelter"
-								? m.auth_register_shelter_section()
-								: m.auth_register_address_section()}
-						</dt>
-						<dd class="mt-1 text-sm text-sand-900">
-							{#if accountType === "shelter"}{orgName}<br />{/if}
-							{street}<br />
-							{zip}
-							{city}
-							{#if accountType === "shelter" && website}<br />{website}{/if}
-						</dd>
-					</div>
-				</dl>
-			</div>
-
 			<div class="wizard-step flex flex-col items-center gap-4" class:hidden={!show("picture")}>
-				<h2 class="text-sm font-bold tracking-wide text-sand-700 uppercase">
+				<h2 class="text-base font-bold text-sand-950">
 					{m.wizard_picture_title()}
 				</h2>
 				<p class="text-center text-sm text-sand-700">{m.wizard_picture_subtitle()}</p>
@@ -496,15 +523,73 @@
 				<p class="text-sm text-sand-600">{m.wizard_picture_hint()}</p>
 			</div>
 
+			<div class="wizard-step flex flex-col gap-4" class:hidden={!show("review")}>
+				<h2 class="text-base font-bold text-sand-950">
+					{m.wizard_review_title()}
+				</h2>
+				<p class="text-sm text-sand-700">{m.wizard_review_subtitle()}</p>
+				<dl class="divide-y divide-sand-200 rounded-xl border border-sand-200 bg-sand-50">
+					<div class="px-4 py-3">
+						<dt class="text-sm text-sand-600">
+							{m.wizard_review_account()}
+						</dt>
+						<dd class="mt-1 text-sm text-sand-900">
+							{name}{displayName ? ` (${displayName})` : ""}
+							<br />
+							{email}
+						</dd>
+					</div>
+					<div class="px-4 py-3">
+						<dt class="text-sm text-sand-600">
+							{accountType === "shelter"
+								? m.auth_register_shelter_section()
+								: m.auth_register_address_section()}
+						</dt>
+						<dd class="mt-1 text-sm text-sand-900">
+							{#if accountType === "shelter"}{orgName}<br />{/if}
+							{street}<br />
+							{zip}
+							{city}
+							{#if accountType === "shelter" && website}<br />{website}{/if}
+						</dd>
+					</div>
+					<div class="px-4 py-3">
+						<dt class="text-sm text-sand-600">
+							{m.wizard_picture_title()}
+						</dt>
+						<dd class="mt-1 text-sm text-sand-900">
+							{#if previewUrl}
+								<Avatar name={displayName || name} src={previewUrl} size="md" />
+							{:else}
+								{m.wizard_review_no_picture()}
+							{/if}
+						</dd>
+					</div>
+				</dl>
+				<!-- Last step only: tokens expire after ~5 minutes. -->
+				{#if current === "review"}
+					<Turnstile action="register" bind:this={captcha} bind:token={captchaToken} />
+				{/if}
+			</div>
+
 			{#if wizard}
 				<div class="wizard-nav flex flex-col gap-3">
-					{#if current === "picture"}
-						<Button type="submit" fullWidth>{m.auth_register_submit()}</Button>
-						<Button type="submit" variant="ghost" fullWidth onclick={skipPicture}
-							>{m.wizard_skip()}</Button
+					{#if current === "review"}
+						<Button
+							type="submit"
+							fullWidth
+							disabled={captchaPending}
+							class="disabled:cursor-not-allowed disabled:opacity-60"
 						>
+							{m.auth_register_submit()}
+						</Button>
 					{:else}
-						<Button type="button" fullWidth onclick={next}>{m.wizard_next()}</Button>
+						<Button type="button" fullWidth onclick={() => void next()}>{m.wizard_next()}</Button>
+						{#if current === "picture"}
+							<Button type="button" variant="ghost" fullWidth onclick={skipPicture}
+								>{m.wizard_skip()}</Button
+							>
+						{/if}
 					{/if}
 					{#if step > 0}
 						<Button type="button" variant="ghost" fullWidth onclick={back}>{m.wizard_back()}</Button
@@ -518,7 +603,7 @@
 			<p class="text-center text-sm text-sand-700">
 				{m.auth_register_have_account()}
 				<a
-					href={resolve("/login")}
+					href="{resolve('/login')}{data.next ? `?next=${encodeURIComponent(data.next)}` : ''}"
 					class="inline-flex min-h-11 items-center font-semibold text-coral-700 underline underline-offset-2 focus-ring hover:text-coral-800"
 				>
 					{m.auth_register_login_link()}

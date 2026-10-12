@@ -8,9 +8,11 @@
 	import AdminAnimalCardView from "$lib/components/admin/AdminAnimalCard.svelte";
 	import StatusPill from "$lib/components/admin/StatusPill.svelte";
 	import { formatDate } from "$lib/admin/format";
+	import { safeHttpUrl } from "$lib/safe-url";
 
 	let { data }: PageProps = $props();
 	const shelter = $derived(data.shelter);
+	const websiteHref = $derived(safeHttpUrl(shelter.website));
 	const owner = $derived(shelter.members.find((member) => member.role === 1) ?? shelter.members[0]);
 	let actionError = $state(false);
 </script>
@@ -18,7 +20,7 @@
 <div class="mb-5">
 	<a
 		href="{resolve('/admin/catalog')}?type=shelters"
-		class="text-sm font-semibold text-coral-700 focus-ring hover:text-coral-800"
+		class="text-sm font-medium text-coral-700 focus-ring hover:text-coral-800"
 	>
 		{m.admin_catalog_shelters()}
 	</a>
@@ -39,15 +41,19 @@
 				<div class="min-w-0">
 					<p class="text-xl font-bold text-sand-950">{shelter.org_name}</p>
 					<p class="text-sm text-sand-700">{shelter.street}, {shelter.zip} {shelter.city}</p>
-					{#if shelter.website}
+					{#if websiteHref}
+						<!-- eslint-disable svelte/no-navigation-without-resolve -- external, http(s)-only -->
 						<a
-							href={shelter.website}
-							class="text-sm font-semibold text-coral-700 underline underline-offset-2"
+							href={websiteHref}
+							class="text-sm font-medium text-coral-700 underline underline-offset-2"
 							target="_blank"
 							rel="noopener noreferrer"
 						>
 							{shelter.website}
 						</a>
+						<!-- eslint-enable svelte/no-navigation-without-resolve -->
+					{:else if shelter.website}
+						<p class="text-sm break-all text-sand-700">{shelter.website}</p>
 					{/if}
 				</div>
 			</div>
@@ -58,22 +64,22 @@
 		{/if}
 		<dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
 			<div>
-				<dt class="font-semibold text-sand-700">{m.admin_application_registration()}</dt>
+				<dt class="font-medium text-sand-700">{m.admin_application_registration()}</dt>
 				<dd>{shelter.registration_number ?? "—"}</dd>
 			</div>
 			<div>
-				<dt class="font-semibold text-sand-700">{m.admin_application_submitted()}</dt>
+				<dt class="font-medium text-sand-700">{m.admin_application_submitted()}</dt>
 				<dd class="tabular-nums">{formatDate(shelter.created_at)}</dd>
 			</div>
 			{#if shelter.verification_decided_at}
 				<div>
-					<dt class="font-semibold text-sand-700">{m.admin_shelter_decided()}</dt>
+					<dt class="font-medium text-sand-700">{m.admin_shelter_decided()}</dt>
 					<dd class="tabular-nums">{formatDate(shelter.verification_decided_at)}</dd>
 				</div>
 			{/if}
 		</dl>
 		{#if shelter.archived_at}
-			<p class="mt-4 text-sm font-semibold text-sand-700">{m.admin_shelter_archived()}</p>
+			<p class="mt-4 text-sm font-medium text-sand-700">{m.admin_shelter_archived()}</p>
 		{/if}
 		{#if shelter.verification_status === "pending"}
 			<div class="mt-5">
@@ -90,9 +96,7 @@
 			class="block rounded-2xl focus-ring"
 		>
 			<Card focusable>
-				<p class="text-xs font-semibold tracking-wide text-sand-600 uppercase">
-					{m.admin_shelter_owner()}
-				</p>
+				<p class="text-sm font-medium text-sand-600">{m.admin_shelter_owner()}</p>
 				<div class="mt-3 flex items-center gap-3">
 					<Avatar
 						name={owner.name}
@@ -108,7 +112,7 @@
 		</a>
 	{:else}
 		<Card>
-			<p class="text-sm font-semibold text-coral-800">{m.admin_shelter_orphaned()}</p>
+			<p class="text-sm font-medium text-coral-800">{m.admin_shelter_orphaned()}</p>
 		</Card>
 	{/if}
 </div>

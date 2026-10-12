@@ -103,7 +103,7 @@
 	}
 </script>
 
-<div class="flex min-h-dvh bg-sand-50 font-sans text-sand-900">
+<div class="flex min-h-dvh bg-sand-50 text-sand-900">
 	<aside class="hidden w-60 shrink-0 flex-col border-r border-sand-200 bg-white lg:flex">
 		<a
 			href={resolve("/admin")}
@@ -118,7 +118,7 @@
 				{@const active = item.match(page.url.pathname)}
 				<a
 					href={resolve(item.href)}
-					class="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold focus-ring {navClass(
+					class="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium focus-ring {navClass(
 						active,
 					)}"
 					aria-current={active ? "page" : undefined}
@@ -127,7 +127,7 @@
 					<span class="flex-1">{item.label()}</span>
 					{#if item.badge && item.badge > 0}
 						<span
-							class="min-w-6 rounded-full bg-coral-600 px-1.5 text-center text-xs text-white tabular-nums"
+							class="min-w-6 rounded-full bg-coral-600 px-1.5 text-center text-xs font-semibold text-white tabular-nums"
 						>
 							{item.badge}
 						</span>
@@ -139,7 +139,7 @@
 
 	<div class="flex min-w-0 flex-1 flex-col">
 		<header
-			class="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-sand-200 bg-white/90 px-3 backdrop-blur sm:px-5"
+			class="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-sand-200 bg-white px-3 sm:px-5"
 		>
 			<a
 				href={resolve("/admin")}
@@ -184,7 +184,7 @@
 				<a
 					href={resolve(item.href)}
 					aria-label={item.label()}
-					class="relative flex min-h-11 flex-col items-center gap-1 px-2 py-2 text-xs font-semibold focus-ring {active
+					class="relative flex min-h-11 flex-col items-center gap-1 px-2 py-2 text-xs font-medium focus-ring {active
 						? 'text-coral-700'
 						: 'text-sand-600'}"
 					aria-current={active ? "page" : undefined}
@@ -193,7 +193,7 @@
 					{item.label()}
 					{#if item.badge && item.badge > 0}
 						<span
-							class="absolute top-1 right-4 min-w-4 rounded-full bg-coral-600 px-1 text-center text-[10px] text-white"
+							class="absolute top-0.5 right-3.5 min-w-5 rounded-full bg-coral-600 px-1 text-center text-xs font-semibold text-white tabular-nums"
 						>
 							{item.badge}
 						</span>
@@ -202,7 +202,7 @@
 			{/each}
 			<button
 				type="button"
-				class="flex min-h-11 flex-col items-center gap-1 px-2 py-2 text-xs font-semibold focus-ring {moreOpen ||
+				class="flex min-h-11 flex-col items-center gap-1 px-2 py-2 text-xs font-medium focus-ring {moreOpen ||
 				mobileMore.some((item) => item.match(page.url.pathname))
 					? 'text-coral-700'
 					: 'text-sand-600'}"
@@ -236,7 +236,7 @@
 						<a
 							href={resolve(item.href)}
 							onclick={() => (moreOpen = false)}
-							class="flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold text-sand-800 focus-ring hover:bg-peach-50"
+							class="flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium text-sand-800 focus-ring hover:bg-peach-50"
 						>
 							<item.icon class="size-5" aria-hidden="true" />
 							{item.label()}

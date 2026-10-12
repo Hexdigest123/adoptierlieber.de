@@ -1,6 +1,20 @@
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  notLike,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getDb, type Env } from "../config/env";
+import { likePattern } from "../lib/like";
 import { PLATFORM_ROLE, SHELTER_ROLE } from "../lib/roles";
 import {
   adminAuditTable,
@@ -29,10 +43,6 @@ export type AdminListParams = {
 };
 
 const AUDIT_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
-
-function likePattern(q: string): string {
-  return `%${q.toLowerCase().replace(/[%_]/g, "\\$&")}%`;
-}
 
 function auditCutoff(): Date {
   return new Date(Date.now() - AUDIT_RETENTION_MS);
@@ -145,6 +155,7 @@ export function createAdminRepo(env: Env) {
             platformRole: usersTable.platformRole,
             suspendedAt: usersTable.suspendedAt,
             emailVerifiedAt: usersTable.emailVerifiedAt,
+            passwordChangedAt: usersTable.passwordChangedAt,
             createdAt: usersTable.createdAt,
           })
           .from(usersTable)
@@ -322,7 +333,8 @@ export function createAdminRepo(env: Env) {
     },
 
     async listBans(params: AdminListParams) {
-      const filters = [];
+      // Email rows (`e:...`, see lib/ban.ts) ride along with their fingerprint row.
+      const filters: SQL[] = [notLike(banFingerprintsTable.hash, "e:%")];
       if (params.q) {
         const p = likePattern(params.q);
         filters.push(sql`lower(${banFingerprintsTable.reason}) like ${p} escape '\\'`);
@@ -403,6 +415,7 @@ export function createAdminRepo(env: Env) {
           email: usersTable.email,
           platformRole: usersTable.platformRole,
           emailVerifiedAt: usersTable.emailVerifiedAt,
+          passwordChangedAt: usersTable.passwordChangedAt,
           createdAt: usersTable.createdAt,
           avatarKey: usersTable.avatarKey,
         })

@@ -26,6 +26,8 @@
 	let leaflet = $state<LeafletApi | undefined>(undefined);
 	let markers = $state<LayerGroup | undefined>(undefined);
 	let zoomControl = $state<Control.Zoom | undefined>(undefined);
+	/** Last marker set the view was fitted to, so a locale switch does not reset the view. */
+	let fittedKey = "";
 	const locale = $derived(getLocale());
 	const interactive = $derived(shelters.length > 0);
 
@@ -69,7 +71,7 @@
 			<div class="shelter-map-popup-body">
 				<p class="shelter-map-popup-title">${escapeHtml(shelter.org_name)}</p>
 				<p class="shelter-map-popup-meta">${escapeHtml(shelter.city)}</p>
-				<p class="shelter-map-popup-text">${escapeHtml(m.showcase_map_animal_count({ count: shelter.live_count }))}</p>
+				<p class="shelter-map-popup-text">${escapeHtml(shelter.live_count === 1 ? m.showcase_map_animal_count_one({ count: shelter.live_count }) : m.showcase_map_animal_count({ count: shelter.live_count }))}</p>
 				${websiteLink}
 				<a class="shelter-map-popup-cta" href="${escapeHtml(ctaHref)}">${escapeHtml(ctaLabel)}</a>
 			</div>
@@ -105,14 +107,25 @@
 		}
 	}
 
+	/** Zoom to the markers (capped so one shelter still shows its region); none keeps the default. */
+	function fitToMarkers(points: [number, number][]) {
+		if (!map || !leaflet || points.length === 0) return;
+		const key = points.map((point) => point.join(",")).join(";");
+		if (key === fittedKey) return;
+		fittedKey = key;
+		map.fitBounds(leaflet.latLngBounds(points), { padding: [48, 48], maxZoom: 10 });
+	}
+
 	function placeMarkers() {
 		if (!map || !leaflet || !markers) return;
 		const L = leaflet;
+		const points: [number, number][] = [];
 
 		markers.clearLayers();
 
 		for (const shelter of shelters) {
 			if (shelter.lat == null || shelter.lng == null) continue;
+			points.push([shelter.lat, shelter.lng]);
 			const logo = shelter.has_logo
 				? `<img src="${escapeHtml(`/api/shelters/${shelter.id}/logo`)}" alt="" width="44" height="44" />`
 				: `<span>${escapeHtml(pinInitial(shelter.org_name))}</span>`;
@@ -136,6 +149,7 @@
 				.bindPopup(popupHtml(shelter), { maxWidth: 240 })
 				.addTo(markers);
 		}
+		fitToMarkers(points);
 	}
 
 	onMount(() => {
@@ -211,7 +225,7 @@
 	.shelter-map :global(.leaflet-control-attribution) {
 		background: rgb(255 255 255 / 0.86);
 		color: var(--color-sand-600);
-		font-size: 0.65rem;
+		font-size: 0.75rem;
 	}
 
 	.shelter-map :global(.leaflet-popup-content-wrapper) {
@@ -281,7 +295,7 @@
 		border-radius: 9999px;
 		background: var(--color-coral-600);
 		color: white;
-		font-size: 0.65rem;
+		font-size: 0.75rem;
 		font-weight: 700;
 		line-height: 1.25rem;
 		text-align: center;

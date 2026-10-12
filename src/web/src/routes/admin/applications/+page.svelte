@@ -2,6 +2,7 @@
 	import type { PageProps } from "./$types";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
+	import TabNav from "$lib/components/ui/TabNav.svelte";
 	import AdminShelterCardView from "$lib/components/admin/AdminShelterCard.svelte";
 	import CatalogGrid from "$lib/components/admin/CatalogGrid.svelte";
 	import EmptyState from "$lib/components/admin/EmptyState.svelte";
@@ -30,6 +31,19 @@
 		return `/admin/applications?${params}`;
 	}
 
+	const statusItems = $derived(
+		["pending", "verified", "rejected"].map((status) => ({
+			href: hrefFor(status),
+			label:
+				status === "pending"
+					? m.admin_filter_pending()
+					: status === "verified"
+						? m.admin_filter_verified()
+						: m.admin_filter_rejected(),
+			active: data.status === status,
+		})),
+	);
+
 	async function loadMore() {
 		if (loading || !hasMore) return;
 		loading = true;
@@ -56,22 +70,7 @@
 	{m.admin_applications_title()}
 </h1>
 
-<div class="mb-5 flex flex-wrap gap-2">
-	{#each ["pending", "verified", "rejected"] as status (status)}
-		<a
-			href={hrefFor(status)}
-			class="rounded-full px-4 py-2 text-sm font-semibold focus-ring {data.status === status
-				? 'bg-coral-600 text-white'
-				: 'bg-white text-sand-800 ring-1 ring-sand-200 hover:bg-peach-50'}"
-		>
-			{status === "pending"
-				? m.admin_filter_pending()
-				: status === "verified"
-					? m.admin_filter_verified()
-					: m.admin_filter_rejected()}
-		</a>
-	{/each}
-</div>
+<TabNav label={m.admin_filter_status()} items={statusItems} class="mb-5" />
 
 {#if items.length === 0}
 	<EmptyState clearHref="/admin/applications" />

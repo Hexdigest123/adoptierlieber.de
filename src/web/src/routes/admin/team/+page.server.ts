@@ -26,7 +26,11 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const id = String(data.get("id") ?? "");
 		if (!id) return fail(400, { adminError: "generic" as const });
-		const result = await adminMutate(fetch, `/api/admin/invites/${id}`, "DELETE");
+		const result = await adminMutate(
+			fetch,
+			`/api/admin/invites/${encodeURIComponent(id)}`,
+			"DELETE",
+		);
 		if (!("ok" in result)) return result;
 		return { revoked: true };
 	},
@@ -34,7 +38,11 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const id = String(data.get("id") ?? "");
 		if (!id) return fail(400, { adminError: "generic" as const });
-		const result = await adminMutate(fetch, `/api/admin/admins/${id}`, "DELETE");
+		const result = await adminMutate(
+			fetch,
+			`/api/admin/admins/${encodeURIComponent(id)}`,
+			"DELETE",
+		);
 		if (!("ok" in result)) return result;
 		return { removed: true };
 	},

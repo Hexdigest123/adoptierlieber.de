@@ -1,7 +1,11 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import type { PageProps } from "./$types";
+	import { enhance } from "$app/forms";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
+	import { stashLinkToken, takeLinkToken } from "$lib/link-token";
+	import type { InvitePreview } from "$lib/admin/types";
 	import AuthCard from "$lib/components/auth/AuthCard.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import FormStatus from "$lib/components/ui/FormStatus.svelte";
@@ -9,8 +13,10 @@
 
 	let { data, form }: PageProps = $props();
 
-	const invite = $derived(data.invite);
-	const token = $derived(data.token);
+	const STASH_KEY = "invite";
+	let token = $state("");
+	let invite = $state<InvitePreview | null>(null);
+	let loading = $state(true);
 	const user = $derived(data.user);
 	const matching = $derived(
 		Boolean(user && invite && user.email.toLowerCase() === invite.email.toLowerCase()),
@@ -18,9 +24,37 @@
 	const wrongEmail = $derived(
 		Boolean(user && invite && user.email.toLowerCase() !== invite.email.toLowerCase()),
 	);
+
+	// Previewed from the browser: the token never reaches a page URL the server sees.
+	async function preview(linkToken: string): Promise<InvitePreview | null> {
+		try {
+			const response = await fetch("/api/invites/preview", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ token: linkToken }),
+			});
+			return response.ok ? ((await response.json()) as InvitePreview) : null;
+		} catch {
+			return null;
+		}
+	}
+
+	onMount(async () => {
+		token = takeLinkToken(STASH_KEY);
+		invite = token ? await preview(token) : null;
+		// Kept for after login; read back (and cleared) when the visitor returns.
+		if (invite?.existing_user && !user) stashLinkToken(STASH_KEY, token);
+		loading = false;
+	});
 </script>
 
-{#if !invite}
+{#if loading}
+	<AuthCard title={m.invite_title()} subtitle={m.invite_loading()}>
+		<noscript>
+			<FormStatus type="error">{m.link_token_noscript()}</FormStatus>
+		</noscript>
+	</AuthCard>
+{:else if !invite || form?.inviteError === "invalid"}
 	<AuthCard title={m.invite_invalid_title()} subtitle={m.invite_invalid_text()}>
 		<span></span>
 	</AuthCard>
@@ -32,10 +66,7 @@
 	</AuthCard>
 {:else if invite.existing_user && !user}
 	<AuthCard title={m.invite_title()} subtitle={m.invite_login_to_accept()}>
-		<Button
-			href="{resolve('/login')}?next={encodeURIComponent(`/invite?token=${token}`)}"
-			fullWidth
-		>
+		<Button href="{resolve('/login')}?next={encodeURIComponent(resolve('/invite'))}" fullWidth>
 			{m.invite_login()}
 		</Button>
 	</AuthCard>
@@ -44,7 +75,7 @@
 		{#if form?.inviteError === "generic"}
 			<FormStatus type="error" class="mb-4">{m.admin_error_generic()}</FormStatus>
 		{/if}
-		<form method="POST" action="?/accept" class="flex flex-col gap-4">
+		<form method="POST" action="?/accept" class="flex flex-col gap-4" use:enhance>
 			<input type="hidden" name="token" value={token} />
 			<p class="text-sm text-sand-700">{invite.email}</p>
 			<Button type="submit" fullWidth>{m.invite_accept()}</Button>
@@ -55,7 +86,7 @@
 		{#if form?.inviteError === "generic"}
 			<FormStatus type="error" class="mb-4">{m.admin_error_generic()}</FormStatus>
 		{/if}
-		<form method="POST" action="?/accept" class="flex flex-col gap-4">
+		<form method="POST" action="?/accept" class="flex flex-col gap-4" use:enhance>
 			<input type="hidden" name="token" value={token} />
 			<Input id="invite-email" label={m.invite_email()} value={invite.email} disabled />
 			<Input id="invite-name" name="name" label={m.auth_name()} required autocomplete="name" />

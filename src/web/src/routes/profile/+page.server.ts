@@ -10,6 +10,13 @@ type PasskeyItem = {
 	last_used_at: string | null;
 };
 
+/** 400 means the place is unknown (search worked again by now); anything else is generic. */
+function homeSaveFailed(status: number, homeQuery: string) {
+	return status === 400
+		? fail(400, { homeError: "none" as const, homeQuery })
+		: fail(502, { homeError: "generic" as const, homeQuery });
+}
+
 export const load: PageServerLoad = async ({ locals, fetch }) => {
 	if (!locals.user) {
 		redirect(303, "/login");
@@ -96,18 +103,22 @@ export const actions: Actions = {
 		if (!locals.user) redirect(303, "/login");
 		const data = await request.formData();
 		const q = String(data.get("home_query") ?? "").trim();
-		if (!q) return fail(400, { homeError: true });
+		if (!q) return fail(400, { homeError: "none" as const });
 		const geo = await fetch("/api/geo/search", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ q }),
 		});
-		if (!geo.ok) return fail(502, { homeError: true });
+		// 503: geocoding down or out of budget; 429: our own limit. Offer the typed place instead.
+		if (geo.status === 503 || geo.status === 429) {
+			return fail(503, { homeUnavailable: true, homeQuery: q });
+		}
+		if (!geo.ok) return fail(502, { homeError: "generic" as const, homeQuery: q });
 		const body = (await geo.json()) as {
 			items: { lat: number; lng: number; label: string; country: string | null }[];
 		};
 		const hit = body.items[0];
-		if (!hit) return fail(400, { homeError: true });
+		if (!hit) return fail(400, { homeError: "none" as const, homeQuery: q });
 		const response = await fetch("/api/users/me", {
 			method: "PATCH",
 			headers: { "content-type": "application/json" },
@@ -120,7 +131,29 @@ export const actions: Actions = {
 				location_precision: "place",
 			}),
 		});
-		if (!response.ok) return fail(502, { homeError: true });
+		if (!response.ok) return homeSaveFailed(response.status, q);
+		return { homeSuccess: true };
+	},
+
+	/** Search unavailable: the API keeps the text as label; coordinates follow when it can. */
+	homeTyped: async ({ request, fetch, locals }) => {
+		if (!locals.user) redirect(303, "/login");
+		const data = await request.formData();
+		const q = String(data.get("home_query") ?? "").trim();
+		if (!q) return fail(400, { homeError: "none" as const });
+		const response = await fetch("/api/users/me", {
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				home_query: q,
+				home_label: q,
+				home_country: null,
+				home_lat: null,
+				home_lng: null,
+				location_precision: "place",
+			}),
+		});
+		if (!response.ok) return homeSaveFailed(response.status, q);
 		return { homeSuccess: true };
 	},
 
@@ -138,7 +171,7 @@ export const actions: Actions = {
 				location_precision: null,
 			}),
 		});
-		if (!response.ok) return fail(502, { homeError: true });
+		if (!response.ok) return fail(502, { homeError: "generic" as const });
 		return { homeSuccess: true };
 	},
 
@@ -222,6 +255,9 @@ export const actions: Actions = {
 			if (response.status === 429) {
 				return fail(429, { passwordError: "rate_limited" as const });
 			}
+			if (response.status === 403) {
+				return fail(403, { passwordError: "reset" as const });
+			}
 			return fail(response.status === 400 ? 400 : 502, { passwordError: "invalid" as const });
 		}
 
@@ -252,9 +288,15 @@ export const actions: Actions = {
 		return { deletionRequested: true };
 	},
 
-	startTotp: async ({ fetch, locals }) => {
+	startTotp: async ({ request, fetch, locals }) => {
 		if (!locals.user) redirect(303, "/login");
-		const response = await fetch("/api/totp", { method: "POST" });
+		const data = await request.formData();
+		const response = await fetch("/api/totp", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ current_password: String(data.get("currentPassword") ?? "") }),
+		});
+		if (response.status === 401) return fail(401, { totpError: "reauth" as const });
 		if (!response.ok) {
 			return fail(response.status === 429 ? 429 : 502, { totpError: "generic" as const });
 		}

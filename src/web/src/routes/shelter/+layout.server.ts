@@ -5,11 +5,23 @@ import { setLastHomeCookie } from "$lib/server/session-cookie";
 import type { ShelterDashboard, StaffShelter } from "$lib/types/shelter";
 
 export const load: LayoutServerLoad = async ({ locals, cookies, url, fetch }) => {
+	const invitePath = url.pathname === "/shelter/invite";
 	if (!locals.user) {
+		// The invite token is in the URL fragment, which a redirect cannot carry
+		// through login. The invite page keeps it and sends the visitor to login.
+		if (invitePath) {
+			return {
+				user: null,
+				memberships: [],
+				current: null,
+				shelter: null,
+				unread: 0,
+				hasAnimals: false,
+			};
+		}
 		redirect(303, `/login?next=${encodeURIComponent(url.pathname + url.search)}`);
 	}
 
-	const invitePath = url.pathname === "/shelter/invite";
 	const memberships = locals.user.memberships ?? [];
 	if (!invitePath && memberships.length === 0) {
 		redirect(303, "/app");

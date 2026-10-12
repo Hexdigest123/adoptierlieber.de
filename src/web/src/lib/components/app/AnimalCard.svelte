@@ -9,6 +9,7 @@
 		bondedNames,
 		coverPhoto,
 		distanceLabel,
+		metaLine,
 		needTraits,
 		speciesLabel,
 	} from "$lib/app/format";
@@ -26,21 +27,16 @@
 
 	const href = $derived(withFrom(resolve(`/app/animals/${animal.id}`), from));
 	const meta = $derived(
-		`${speciesLabel(animal.species)} ${distanceLabel(animal.distance_km, animal.shelter.city)}`,
+		metaLine(speciesLabel(animal.species), distanceLabel(animal.distance_km, animal.shelter.city)),
 	);
 	const bond = $derived(bondedNames(animal.bonded_partners, animal.bonded_partner));
 	const needs = $derived(needTraits(animal.traits, animal.age_months, animal.age_unknown));
 </script>
 
-<article
-	class="relative h-full overflow-hidden rounded-3xl border border-sand-200 bg-white shadow-sm"
->
+<article class="relative h-full overflow-hidden rounded-3xl border border-sand-200 bg-white">
 	<a {href} class="flex h-full flex-col focus-ring">
 		<div class="relative aspect-4/5 bg-peach-100">
 			<AnimalPhoto src={coverPhoto(animal.photos)} alt="" />
-			<div
-				class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-sand-950/70 to-transparent"
-			></div>
 			{#if animal.photos.length > 1}
 				<div class="absolute inset-x-0 top-3 flex justify-center gap-1">
 					{#each animal.photos as _, i (i)}
@@ -58,9 +54,9 @@
 					, {ageLabel(animal.age_months, animal.age_unknown)}</span
 				>
 			</p>
-			<p class="text-sm font-semibold text-coral-700">{meta}</p>
+			<p class="text-sm font-medium text-coral-700">{meta}</p>
 			{#if bond}
-				<p class="text-xs font-semibold text-sand-800">
+				<p class="text-xs font-medium text-sand-800">
 					{m.showcase_card_bonded({ name: bond })}
 				</p>
 			{/if}
@@ -77,7 +73,7 @@
 				<p class="line-clamp-2 text-sm text-sand-700">{animal.tagline}</p>
 			{/if}
 			{#if animal.status === "found_home"}
-				<p class="text-xs font-semibold text-sand-600">{m.app_detail_unavailable()}</p>
+				<p class="text-xs font-medium text-sand-600">{m.app_detail_unavailable()}</p>
 			{/if}
 		</div>
 	</a>

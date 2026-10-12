@@ -1,19 +1,22 @@
 import { Hono } from "hono";
-import { getCookie } from "hono/cookie";
 import type { AppEnv } from "../../types";
 import { rateLimitByIp } from "../../middlewares/rate-limit";
 import { createAdminService } from "../../services/admin.service";
 import { createSessionService } from "../../services/session.service";
+import { readSessionCookie } from "../../middlewares/session";
+import { inviteTokenSchema } from "../../lib/zod";
 
 export const invites = new Hono<AppEnv>();
 
-invites.get("/:token", rateLimitByIp("invite-lookup", 20), async (c) => {
-  return c.json(await createAdminService(c.env).getInvite(c.req.param("token")));
+// Tokens are read from the JSON body: request paths end up in logs.
+invites.post("/preview", rateLimitByIp("invite-lookup", 20, { failClosed: true }), async (c) => {
+  const { token } = inviteTokenSchema.parse(await c.req.json());
+  return c.json(await createAdminService(c.env).getInvite(token));
 });
 
-invites.post("/:token/acceptance", rateLimitByIp("invite-accept", 10), async (c) => {
+invites.post("/acceptance", rateLimitByIp("invite-accept", 10, { failClosed: true }), async (c) => {
   let sessionUserId: string | null = null;
-  const sessionToken = getCookie(c, "sessionToken");
+  const sessionToken = readSessionCookie(c);
   if (sessionToken) {
     try {
       const session = await createSessionService(c.env).validate(sessionToken);
@@ -22,16 +25,11 @@ invites.post("/:token/acceptance", rateLimitByIp("invite-accept", 10), async (c)
       sessionUserId = null;
     }
   }
-  let input: unknown = {};
-  const contentType = c.req.header("content-type") ?? "";
-  if (contentType.includes("application/json")) {
-    input = await c.req.json();
-  }
-  const result = await createAdminService(c.env).acceptInvite(
-    c.req.param("token"),
-    input,
-    sessionUserId,
-  );
+  const body = (await c.req.json()) as Record<string, unknown>;
+  const { token } = inviteTokenSchema.parse(body);
+  const input = { ...body };
+  delete input.token;
+  const result = await createAdminService(c.env).acceptInvite(token, input, sessionUserId);
   if (result.sessionToken) {
     return c.json(
       {

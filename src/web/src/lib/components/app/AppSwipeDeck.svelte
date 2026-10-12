@@ -13,6 +13,7 @@
 		bondedNames,
 		coverPhoto,
 		distanceLabel,
+		metaLine,
 		needTraits,
 		speciesLabel,
 	} from "$lib/app/format";
@@ -263,11 +264,21 @@
 	});
 
 	const showUndo = $derived(undoUntil > Date.now());
+
+	const emptyTitle = $derived(
+		emptyKind === "filters"
+			? m.app_empty_filters_title()
+			: emptyKind === "caught_up"
+				? m.app_empty_caught_up_title()
+				: emptyKind === "error"
+					? m.app_empty_error_title()
+					: m.app_empty_catalog_title(),
+	);
 </script>
 
 <div class="flex w-full flex-1 flex-col items-center justify-center gap-5">
 	<p aria-live="polite" class="sr-only">
-		{announcement || (current ? describe(current) : m.app_empty_catalog_title())}
+		{announcement || (current ? describe(current) : emptyTitle)}
 	</p>
 
 	<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
@@ -300,12 +311,9 @@
 			>
 				<div class="relative h-72 w-full sm:h-88">
 					<AnimalPhoto src={coverPhoto(animal.photos)} alt="" />
-					<div
-						class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-sand-950/70 to-transparent"
-					></div>
 					{#if animal.photos.length > 1}
 						<div class="absolute inset-x-0 top-3 flex justify-center gap-1">
-							{#each animal.photos as _, i (i)}
+							{#each animal.photos as photo, i (photo)}
 								<span
 									class="h-1 w-6 rounded-full {i === 0 ? 'bg-white' : 'bg-white/40'}"
 									aria-hidden="true"
@@ -320,12 +328,14 @@
 							>, {ageLabel(animal.age_months, animal.age_unknown)}</span
 						>
 					</p>
-					<p class="text-base font-semibold text-coral-700">
-						{speciesLabel(animal.species)}
-						{distanceLabel(animal.distance_km, animal.shelter.city)}
+					<p class="text-base font-medium text-coral-700">
+						{metaLine(
+							speciesLabel(animal.species),
+							distanceLabel(animal.distance_km, animal.shelter.city),
+						)}
 					</p>
 					{#if bond}
-						<p class="text-sm font-semibold text-sand-800">
+						<p class="text-sm font-medium text-sand-800">
 							{m.showcase_card_bonded({ name: bond })}
 						</p>
 					{/if}
@@ -408,7 +418,7 @@
 	<div class="flex items-center gap-4">
 		<button
 			type="button"
-			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-coral-600 bg-white text-coral-700 shadow-sm focus-ring transition-colors hover:bg-coral-50 disabled:cursor-not-allowed disabled:opacity-40"
+			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-coral-600 bg-white text-coral-700 focus-ring transition-colors hover:bg-coral-50 disabled:cursor-not-allowed disabled:opacity-40"
 			aria-label={m.app_skip()}
 			disabled={!current || !!fling}
 			onclick={() => completeSwipe("left")}
@@ -417,7 +427,7 @@
 		</button>
 		<button
 			type="button"
-			class="flex size-12 cursor-pointer items-center justify-center rounded-full border border-sand-300 bg-white text-sand-700 shadow-sm focus-ring hover:bg-peach-50 disabled:opacity-40"
+			class="flex size-12 cursor-pointer items-center justify-center rounded-full border border-sand-300 bg-white text-sand-700 focus-ring hover:bg-peach-50 disabled:opacity-40"
 			aria-label={m.app_undo()}
 			disabled={!showUndo && !current}
 			onclick={() => void undo()}
@@ -426,7 +436,7 @@
 		</button>
 		<button
 			type="button"
-			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-emerald-700 bg-white text-emerald-700 shadow-sm focus-ring transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
+			class="flex size-14 cursor-pointer items-center justify-center rounded-full border-2 border-emerald-700 bg-white text-emerald-700 focus-ring transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
 			aria-label={m.app_open_profile()}
 			disabled={!current || !!fling}
 			onclick={() => current && openProfile(current)}
@@ -437,12 +447,12 @@
 
 	{#if askReason}
 		<div class="flex flex-col items-center gap-2">
-			<p class="text-sm font-semibold text-sand-800">{m.app_skip_why()}</p>
+			<p class="text-sm font-medium text-sand-800">{m.app_skip_why()}</p>
 			<div class="flex flex-wrap justify-center gap-2">
 				{#each skipReasons as reason (reason.id)}
 					<button
 						type="button"
-						class="rounded-full border border-sand-200 px-3 py-1.5 text-sm font-semibold text-sand-800 focus-ring hover:border-coral-300"
+						class="min-h-11 cursor-pointer rounded-full border border-sand-200 px-3 py-1.5 text-sm font-semibold text-sand-800 focus-ring hover:border-coral-300"
 						onclick={() => void sendReason(reason.id)}
 					>
 						{reason.label()}
@@ -450,7 +460,7 @@
 				{/each}
 				<button
 					type="button"
-					class="rounded-full px-3 py-1.5 text-sm font-semibold text-sand-600 focus-ring"
+					class="min-h-11 cursor-pointer rounded-full px-3 py-1.5 text-sm font-semibold text-sand-600 focus-ring"
 					onclick={() => void sendReason()}
 				>
 					{m.app_skip_no_reason()}

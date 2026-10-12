@@ -26,6 +26,7 @@ export function partnersOf(
       ? [byId.get(animal.bondedAnimalId)].filter((row): row is Animal => Boolean(row))
       : [];
   return rows
+    .filter((row) => row.shelterId === animal.shelterId)
     .filter((row) => !listedOnly || row.status !== "draft")
     .map((row) => ({ id: row.id, name: row.name }));
 }

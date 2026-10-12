@@ -4,8 +4,11 @@
 	import { getLocale } from "$lib/paraglide/runtime";
 	import { jsonLd, OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH, seoForRoute } from "$lib/seo";
 
-	const ownSeo = $derived(page.url.pathname.startsWith("/animals/"));
-	const seo = $derived(seoForRoute(page.route.id, page.url.pathname, page.status));
+	// The public animal page sets its own tags, but not when it fails and renders +error.svelte.
+	const ownSeo = $derived(page.url.pathname.startsWith("/animals/") && !page.error);
+	const seo = $derived(
+		seoForRoute(page.route.id, page.url.pathname, page.error ? page.status : null, page.data),
+	);
 	const locale = $derived(getLocale());
 	const ogLocale = $derived(locale === "de" ? "de_DE" : "en_US");
 	const ogLocaleAlt = $derived(locale === "de" ? "en_US" : "de_DE");

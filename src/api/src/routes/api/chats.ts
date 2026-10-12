@@ -3,8 +3,31 @@ import type { AppEnv } from "../../types";
 import { sessionValidation } from "../../middlewares/session";
 import { rateLimitByUser } from "../../middlewares/rate-limit";
 import { createChatService } from "../../services/chat.service";
+import { siteUrl } from "../../lib/email-templates";
 
 export const chats = new Hono<AppEnv>();
+
+/**
+ * Browsers always send Origin on a WebSocket handshake; only our site (and
+ * its www alias) may open one with the user's cookies. localhost origins are
+ * accepted only when the site itself runs on localhost (dev). No Origin means
+ * a non-browser client, which can't ride on a victim's cookies anyway.
+ */
+function socketOriginAllowed(origin: string | undefined): boolean {
+  if (!origin) return true;
+  let site: URL;
+  let from: URL;
+  try {
+    site = new URL(siteUrl());
+    from = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (from.origin === site.origin) return true;
+  if (from.protocol === site.protocol && from.host === `www.${site.host}`) return true;
+  const local = (host: string) => host === "localhost" || host === "127.0.0.1";
+  return local(site.hostname) && local(from.hostname) && from.protocol === "http:";
+}
 
 chats.use("*", sessionValidation);
 
@@ -81,6 +104,9 @@ chats.get("/:id/application", async (c) => {
 chats.get("/:id/socket", async (c) => {
   if (c.req.header("upgrade") !== "websocket") {
     return c.text("expected websocket", 426);
+  }
+  if (!socketOriginAllowed(c.req.header("origin"))) {
+    return c.json({ error: "origin not allowed" }, 403);
   }
   await createChatService(c.env).get(c.get("userId"), c.req.param("id"));
   const stub = c.env.CHAT_ROOM.getByName(c.req.param("id"));

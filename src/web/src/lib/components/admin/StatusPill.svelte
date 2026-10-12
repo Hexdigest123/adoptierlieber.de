@@ -38,9 +38,8 @@
 </script>
 
 <span
-	class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums {styles[
-		status
-	] ?? 'bg-sand-100 text-sand-700'} {className}"
+	class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold {styles[status] ??
+		'bg-sand-100 text-sand-700'} {className}"
 >
 	{labels[status] ? labels[status]() : status}
 </span>

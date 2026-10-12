@@ -2,42 +2,46 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
+	import { untrack } from "svelte";
 	import { dialog } from "$lib/dialog";
+	import { widgetRequest } from "$lib/components/ui/widgets.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
 	import Textarea from "$lib/components/ui/Textarea.svelte";
 	import Checkbox from "$lib/components/ui/Checkbox.svelte";
 	import FormStatus from "$lib/components/ui/FormStatus.svelte";
+	import Turnstile from "$lib/components/ui/Turnstile.svelte";
+	import { isTurnstileRejection, turnstileSiteKey } from "$lib/turnstile";
 	import LifeBuoy from "lucide-svelte/icons/life-buoy";
 	import type { SessionUser } from "$lib/types/session";
 
-	let { user }: { user: SessionUser | null } = $props();
+	let { user, fab = true }: { user: SessionUser | null; fab?: boolean } = $props();
 
 	let open = $state(false);
 	let name = $state("");
 	let email = $state("");
 	let message = $state("");
 	let website = $state("");
-	let error = $state(false);
+	let error = $state<"generic" | "captcha" | null>(null);
 	let success = $state(false);
 	let sending = $state(false);
+	let captcha: ReturnType<typeof Turnstile> | undefined = $state();
+	let captchaToken = $state("");
+	const captchaPending = $derived(Boolean(turnstileSiteKey()) && !captchaToken);
 
 	const path = $derived(page.url.pathname);
-	const fabOffset = $derived(
+	// Public pages get a smaller button on phones; the footer reserves space below it.
+	const fabClass = $derived(
 		path.startsWith("/admin")
-			? "bottom-20 lg:bottom-4"
-			: path.startsWith("/app/animals/")
-				? "bottom-36 md:bottom-24"
-				: path.startsWith("/app") ||
-					  path.startsWith("/shelter") ||
-					  (path.startsWith("/profile") && page.data.chrome === "app")
-					? "bottom-20 md:bottom-4"
-					: "bottom-4",
+			? "bottom-20 size-14 lg:bottom-4"
+			: path.startsWith("/shelter")
+				? "bottom-20 size-14 md:bottom-4"
+				: "bottom-4 size-11 sm:size-14",
 	);
 
 	function openModal() {
 		success = false;
-		error = false;
+		error = null;
 		if (user) {
 			if (!name.trim()) name = user.displayName ?? user.name;
 			if (!email.trim()) email = user.email;
@@ -49,18 +53,24 @@
 		open = false;
 	}
 
+	$effect(() => {
+		if (widgetRequest.kind !== "support") return;
+		widgetRequest.kind = null;
+		untrack(openModal);
+	});
+
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		const trimmedName = name.trim();
 		const trimmedEmail = email.trim();
 		const trimmedMessage = message.trim();
 		if (!trimmedName || !trimmedMessage) {
-			error = true;
+			error = "generic";
 			return;
 		}
 
 		sending = true;
-		error = false;
+		error = null;
 		try {
 			const response = await fetch("/api/contact", {
 				method: "POST",
@@ -70,32 +80,35 @@
 					email: trimmedEmail,
 					message: trimmedMessage,
 					website,
+					turnstileToken: captchaToken,
 				}),
 			});
 			if (!response.ok) {
-				error = true;
+				error = (await isTurnstileRejection(response)) ? "captcha" : "generic";
 				return;
 			}
 			success = true;
 			message = "";
 			website = "";
 		} catch {
-			error = true;
+			error = "generic";
 		} finally {
 			sending = false;
+			// Tokens are single-use; after a failure the retry needs a fresh one.
+			if (!success) captcha?.reset();
 		}
 	}
 </script>
 
-{#if !open}
+{#if fab && !open}
 	<button
 		type="button"
-		class="fixed right-4 {fabOffset} z-40 flex size-14 cursor-pointer items-center justify-center rounded-full bg-coral-600 text-white shadow-lg focus-ring hover:bg-coral-700 active:bg-coral-800"
+		class="fixed right-4 {fabClass} z-40 flex cursor-pointer items-center justify-center rounded-full bg-coral-600 text-white shadow-lg focus-ring hover:bg-coral-700 active:bg-coral-800"
 		aria-label={m.support_open()}
 		aria-expanded="false"
 		onclick={openModal}
 	>
-		<LifeBuoy class="size-6" aria-hidden="true" />
+		<LifeBuoy class="size-5 sm:size-6" aria-hidden="true" />
 	</button>
 {/if}
 
@@ -108,7 +121,7 @@
 			onclick={close}
 		></button>
 		<div
-			class="relative z-10 w-full max-w-sm rounded-2xl border border-sand-200 bg-white p-5 shadow-lg sm:mb-4"
+			class="relative z-10 max-h-full w-full max-w-sm overflow-y-auto rounded-2xl border border-sand-200 bg-white p-5 shadow-lg sm:mb-4"
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="support-title"
@@ -124,7 +137,9 @@
 				</div>
 			{:else}
 				{#if error}
-					<FormStatus type="error" class="mt-4">{m.contact_error()}</FormStatus>
+					<FormStatus type="error" class="mt-4">
+						{error === "captcha" ? m.turnstile_failed() : m.contact_error()}
+					</FormStatus>
 				{/if}
 				<form class="mt-4 flex flex-col gap-4" onsubmit={submit}>
 					<Input
@@ -173,11 +188,20 @@
 						>.
 					</Checkbox>
 
+					<Turnstile action="contact" bind:this={captcha} bind:token={captchaToken} />
+
 					<div class="flex gap-2">
 						<Button type="button" variant="ghost" class="flex-1" onclick={close}>
 							{m.dialog_close()}
 						</Button>
-						<Button type="submit" class="flex-1" loading={sending}>{m.support_submit()}</Button>
+						<Button
+							type="submit"
+							class="flex-1 disabled:cursor-not-allowed disabled:opacity-60"
+							loading={sending}
+							disabled={captchaPending}
+						>
+							{m.support_submit()}
+						</Button>
 					</div>
 				</form>
 			{/if}

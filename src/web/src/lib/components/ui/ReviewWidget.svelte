@@ -2,7 +2,9 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
+	import { untrack } from "svelte";
 	import { dialog } from "$lib/dialog";
+	import { widgetRequest } from "$lib/components/ui/widgets.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Textarea from "$lib/components/ui/Textarea.svelte";
 	import Checkbox from "$lib/components/ui/Checkbox.svelte";
@@ -10,7 +12,7 @@
 	import Star from "lucide-svelte/icons/star";
 	import type { SessionUser } from "$lib/types/session";
 
-	let { user }: { user: SessionUser | null } = $props();
+	let { user, fab = true }: { user: SessionUser | null; fab?: boolean } = $props();
 
 	let open = $state(false);
 	let body = $state("");
@@ -22,16 +24,13 @@
 	let sending = $state(false);
 
 	const path = $derived(page.url.pathname);
-	const fabOffset = $derived(
+	// Public pages get a smaller button on phones; the footer reserves space below it.
+	const fabClass = $derived(
 		path.startsWith("/admin")
-			? "bottom-36 lg:bottom-20"
-			: path.startsWith("/app/animals/")
-				? "bottom-52 md:bottom-40"
-				: path.startsWith("/app") ||
-					  path.startsWith("/shelter") ||
-					  (path.startsWith("/profile") && page.data.chrome === "app")
-					? "bottom-36 md:bottom-20"
-					: "bottom-20",
+			? "bottom-36 size-14 lg:bottom-20"
+			: path.startsWith("/shelter")
+				? "bottom-36 size-14 md:bottom-20"
+				: "bottom-17 size-11 sm:bottom-20 sm:size-14",
 	);
 	const loginHref = $derived(`/login?next=${encodeURIComponent(`${path}${page.url.search}`)}`);
 	const shownStars = $derived(hover || stars);
@@ -45,6 +44,12 @@
 	function close() {
 		open = false;
 	}
+
+	$effect(() => {
+		if (widgetRequest.kind !== "review") return;
+		widgetRequest.kind = null;
+		untrack(openModal);
+	});
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
@@ -87,15 +92,15 @@
 	}
 </script>
 
-{#if !open}
+{#if fab && !open}
 	<button
 		type="button"
-		class="fixed right-4 {fabOffset} z-40 flex size-14 cursor-pointer items-center justify-center rounded-full bg-coral-600 text-white shadow-lg focus-ring hover:bg-coral-700 active:bg-coral-800"
+		class="fixed right-4 {fabClass} z-40 flex cursor-pointer items-center justify-center rounded-full bg-coral-600 text-white shadow-lg focus-ring hover:bg-coral-700 active:bg-coral-800"
 		aria-label={m.reviews_open()}
 		aria-expanded="false"
 		onclick={openModal}
 	>
-		<Star class="size-6" aria-hidden="true" />
+		<Star class="size-5 sm:size-6" aria-hidden="true" />
 	</button>
 {/if}
 

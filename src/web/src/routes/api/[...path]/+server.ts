@@ -1,5 +1,28 @@
 import { env } from "$env/dynamic/public";
+import { clientAddress, stampApiHeaders } from "$lib/server/api-proxy";
 import type { RequestHandler } from "./$types";
+
+/**
+ * Request headers the API needs. An allowlist, so client-sent X-Forwarded-For,
+ * CF-Connecting-IP or the proxy secret never reach the API as if we set them.
+ */
+const FORWARD_HEADERS = [
+	"accept",
+	"accept-language",
+	"authorization", // staging basic auth
+	"content-type",
+	"cookie",
+	"if-none-match",
+	"user-agent",
+];
+const WEBSOCKET_HEADERS = [
+	"connection",
+	"upgrade",
+	"sec-websocket-extensions",
+	"sec-websocket-key",
+	"sec-websocket-protocol",
+	"sec-websocket-version",
+];
 
 const HOP_BY_HOP = new Set([
 	"connection",
@@ -10,47 +33,52 @@ const HOP_BY_HOP = new Set([
 	"trailer",
 	"transfer-encoding",
 	"upgrade",
-	"host",
 	"content-length",
-	"accept-encoding",
+	// fetch already decoded the body; forwarding content-encoding breaks the browser.
+	"content-encoding",
 ]);
+
+/**
+ * Cookies are SameSite=Lax, but sibling subdomains count as same-site. State
+ * changes and socket upgrades must come from this origin. Server-side
+ * event.fetch from form actions sends this origin or no Origin at all.
+ */
+function crossOrigin(request: Request, origin: string, upgrade: boolean): boolean {
+	if (!upgrade && (request.method === "GET" || request.method === "HEAD")) return false;
+	const sent = request.headers.get("origin");
+	if (sent && sent !== origin) return true;
+	const site = request.headers.get("sec-fetch-site");
+	return site !== null && site !== "same-origin";
+}
 
 /**
  * Proxy all /api/* requests to the backend so the frontend stays same-origin
  * (no CORS in production) and httpOnly cookies keep working.
  *
- * Forwards the browser IP so the API KV limiter keys on the client, not this
- * worker. Drops inbound X-Forwarded-For so browsers cannot pick their own key.
+ * Forwards the browser IP plus the shared PROXY_SECRET so the API KV limiter
+ * keys on the client, not this worker, and can tell our hop from a spoofed one.
  */
-const proxy: RequestHandler = async ({ params, request, fetch, getClientAddress }) => {
-	const path = params.path ?? "";
-
+const proxy: RequestHandler = async ({ request, fetch, getClientAddress }) => {
 	const base = env.PUBLIC_API_URL;
 	if (!base) {
 		return new Response("PUBLIC_API_URL is not configured", { status: 500 });
 	}
 
 	const url = new URL(request.url);
-	const target = `${base}/api/${path}${url.search}`;
-	const ip = request.headers.get("cf-connecting-ip") ?? getClientAddress();
-
 	const upgrade = request.headers.get("upgrade")?.toLowerCase() === "websocket";
-	const headers = new Headers();
-	for (const [key, value] of request.headers) {
-		const name = key.toLowerCase();
-		if (name === "x-forwarded-for") continue;
-		if (
-			upgrade &&
-			(name === "upgrade" || name === "connection" || name.startsWith("sec-websocket"))
-		) {
-			headers.set(key, value);
-			continue;
-		}
-		if (!HOP_BY_HOP.has(name)) {
-			headers.set(key, value);
-		}
+	if (crossOrigin(request, url.origin, upgrade)) {
+		return new Response("Forbidden", { status: 403 });
 	}
-	headers.set("x-forwarded-for", ip);
+
+	// The raw pathname keeps %2F etc. encoded. params.path is decoded, so
+	// "/api/animals/..%2Fsessions%2Fme" would turn into "/api/sessions/me".
+	const target = `${base}${url.pathname}${url.search}`;
+	const headers = new Headers();
+	for (const name of upgrade ? [...FORWARD_HEADERS, ...WEBSOCKET_HEADERS] : FORWARD_HEADERS) {
+		const value = request.headers.get(name);
+		if (value !== null) headers.set(name, value);
+	}
+	stampApiHeaders(headers, clientAddress(getClientAddress));
 
 	const response = await fetch(target, {
 		method: request.method,
@@ -60,17 +88,22 @@ const proxy: RequestHandler = async ({ params, request, fetch, getClientAddress 
 		duplex: "half",
 	});
 
-	if (upgrade && (response.status === 101 || "webSocket" in response)) {
-		return response;
+	// Workers fetch responses have immutable headers; hooks add security headers
+	// afterwards. Re-wrap the 101 so the socket survives with mutable headers.
+	const webSocket = (response as { webSocket?: WebSocket | null }).webSocket;
+	if (upgrade && webSocket) {
+		return new Response(null, { status: 101, webSocket } as ResponseInit);
 	}
 
 	const responseHeaders = new Headers();
 	for (const [key, value] of response.headers) {
-		const name = key.toLowerCase();
-		// fetch already decoded the body; forwarding content-encoding breaks the browser.
-		if (!HOP_BY_HOP.has(name) && name !== "content-encoding") {
+		if (!HOP_BY_HOP.has(key.toLowerCase())) {
 			responseHeaders.set(key, value);
 		}
+	}
+	// API JSON is per-user; never let a browser or the adapter's edge cache keep it.
+	if (!responseHeaders.has("cache-control")) {
+		responseHeaders.set("cache-control", "private, no-store");
 	}
 
 	// Buffer so SvelteKit can clone the response for the load cache.

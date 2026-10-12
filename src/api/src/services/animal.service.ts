@@ -27,6 +27,11 @@ import {
 import type { AnimalWrite } from "../repositories/animal.repo";
 import type { Animal, Shelter } from "../types";
 
+// Drafts are private and unreviewed, but each one can hold photos in R2.
+// Cap them per shelter so a (possibly unverified) shelter can't grow storage
+// without bound. Equals the largest bond group createGroup accepts.
+const DRAFT_MAX = 100;
+
 function toWrite(data: {
   name?: string;
   species?: Animal["species"];
@@ -119,6 +124,10 @@ export function createAnimalService(env: Env) {
   }
 
   async function relabelGroup(members: Animal[]) {
+    // Never write bond fields across shelters: every caller must pass rows of one shelter.
+    if (new Set(members.map((row) => row.shelterId)).size > 1) {
+      throw new HTTPException(400, { message: "invalid partner" });
+    }
     if (members.length < 2) {
       await Promise.all(
         members.map((row) =>
@@ -181,6 +190,33 @@ export function createAnimalService(env: Env) {
     await relabelGroup(members);
   }
 
+  /**
+   * Check requested partners (and the groups they already sit in) before
+   * anything is written: all must exist and belong to `shelterId`.
+   */
+  async function assertPartners(shelterId: string, partnerIds: string[], adding: number) {
+    const unique = [...new Set(partnerIds.filter(Boolean))];
+    if (!unique.length) return;
+    const direct = await animalRepo.findByIds(unique);
+    if (direct.length !== unique.length) {
+      throw new HTTPException(400, { message: "invalid partner" });
+    }
+    const members = await collectGroup(unique);
+    if (members.some((row) => row.shelterId !== shelterId)) {
+      throw new HTTPException(400, { message: "invalid partner" });
+    }
+    if (members.length + adding > BOND_GROUP_MAX) {
+      throw new HTTPException(400, { message: "bond group too large" });
+    }
+  }
+
+  async function assertDraftRoom(shelterId: string, adding: number) {
+    const drafts = await animalRepo.countByShelter(shelterId, "draft");
+    if (Number(drafts?.n ?? 0) + adding > DRAFT_MAX) {
+      throw new HTTPException(409, { message: "too many drafts" });
+    }
+  }
+
   async function setPartners(shelterId: string, animal: Animal, partnerIds: string[]) {
     const current = await collectGroup([animal.id, animal.bondedAnimalId ?? ""]);
     const incoming = await collectGroup(partnerIds);
@@ -212,8 +248,9 @@ export function createAnimalService(env: Env) {
     if (!animal.bondGroupId && !animal.bondedAnimalId && !animal.bondedPartner) {
       return;
     }
-    const remaining = (await collectGroup([animal.id, animal.bondedAnimalId ?? ""]))
-      .filter((row) => row.id !== animal.id);
+    const remaining = (await collectGroup([animal.id, animal.bondedAnimalId ?? ""])).filter(
+      (row) => row.id !== animal.id && row.shelterId === animal.shelterId,
+    );
     await animalRepo.update(animal.id, {
       bondGroupId: null,
       bondedPartner: null,
@@ -243,6 +280,10 @@ export function createAnimalService(env: Env) {
       assertWritable(shelter);
       const data = createAnimalSchema.parse(input);
       const partnerIds = requestedPartnerIds(data);
+      await assertDraftRoom(shelterId, 1);
+      if (partnerIds?.length) {
+        await assertPartners(shelterId, partnerIds, 1);
+      }
       const row = await animalRepo.create({
         shelterId,
         name: data.name,
@@ -298,6 +339,11 @@ export function createAnimalService(env: Env) {
         throw new HTTPException(409, { message: "animal found a home" });
       }
       const data = updateAnimalSchema.parse(input);
+      const partnerIds = requestedPartnerIds(data);
+      if (partnerIds?.length) {
+        const others = partnerIds.filter((id) => id !== animalId);
+        await assertPartners(shelterId, others, 0);
+      }
       const write = toWrite(data);
       delete write.bondedPartner;
       delete write.bondedAnimalId;
@@ -306,7 +352,6 @@ export function createAnimalService(env: Env) {
       if (!updated) {
         throw new HTTPException(404, { message: "animal not found" });
       }
-      const partnerIds = requestedPartnerIds(data);
       if (partnerIds !== undefined) {
         if (partnerIds.length === 0) {
           await leaveGroup(updated);
@@ -326,7 +371,8 @@ export function createAnimalService(env: Env) {
           bondedAnimalId: null,
         });
       } else if (data.name !== undefined && (updated.bondGroupId || updated.bondedAnimalId)) {
-        await joinGroup(shelterId, [updated.id, updated.bondedAnimalId ?? ""]);
+        const members = await collectGroup([updated.id, updated.bondedAnimalId ?? ""]);
+        await relabelGroup(members.filter((row) => row.shelterId === shelterId));
       }
       const fresh = await animalRepo.findById(animalId);
       return withCounts(fresh ?? updated);
@@ -349,7 +395,7 @@ export function createAnimalService(env: Env) {
         }
       }
       const remaining = (await collectGroup([animal.id, animal.bondedAnimalId ?? ""])).filter(
-        (row) => row.id !== animal.id,
+        (row) => row.id !== animal.id && row.shelterId === shelterId,
       );
       await animalRepo.delete(animalId);
       await relabelGroup(remaining);
@@ -488,6 +534,7 @@ export function createAnimalService(env: Env) {
       if (animal.status !== "found_home") {
         throw new HTTPException(409, { message: "only found_home can be cloned" });
       }
+      await assertDraftRoom(shelterId, 1);
       const copy = await animalRepo.create({
         shelterId,
         name: animal.name,
@@ -531,6 +578,7 @@ export function createAnimalService(env: Env) {
       }
       assertWritable(shelter);
       const data = createGroupSchema.parse(input);
+      await assertDraftRoom(shelterId, data.members.length);
       const created = [];
       for (const member of data.members) {
         created.push(

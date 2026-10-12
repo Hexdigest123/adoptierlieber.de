@@ -6,6 +6,8 @@ import { createSessionRepo } from "../repositories/session.repo";
 import { createUserRepo } from "../repositories/user.repo";
 import type { PublicSession, Session } from "../types";
 
+const LAST_USED_GRANULARITY_MS = 5 * 60 * 1000;
+
 export function createSessionService(env: Env) {
   const repo = createSessionRepo(env);
   const users = createUserRepo(env);
@@ -115,7 +117,10 @@ export function createSessionService(env: Env) {
         throw new HTTPException(401, { message: "invalid session" });
       }
 
-      await repo.updateLastUsedWithToken(session.sessionToken);
+      // The 24h idle check above tolerates this lag; skip a D1 write per request.
+      if (session.lastUsedAt.getTime() < currentDate.getTime() - LAST_USED_GRANULARITY_MS) {
+        await repo.updateLastUsedWithToken(session.sessionToken);
+      }
 
       return session;
     },

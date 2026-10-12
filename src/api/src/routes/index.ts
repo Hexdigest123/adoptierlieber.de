@@ -15,6 +15,7 @@ import { reviews } from "./api/reviews";
 import { auth } from "./api/auth";
 import { totp } from "./api/totp";
 import { passkeys } from "./api/passkeys";
+import { stats } from "./api/stats";
 
 const api = new Hono<AppEnv>();
 api.route("/users", users);
@@ -32,6 +33,7 @@ api.route("/likes", likes);
 api.route("/swipes", swipes);
 api.route("/geo", geo);
 api.route("/reviews", reviews);
+api.route("/stats", stats);
 
 const routes = new Hono<AppEnv>();
 routes.route("/api", api);
