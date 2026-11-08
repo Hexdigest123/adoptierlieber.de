@@ -62,7 +62,8 @@
 						href={social.href()}
 						class="inline-flex size-10 items-center justify-center rounded-full text-sand-700 focus-ring hover:bg-sand-200 hover:text-coral-700"
 						aria-label={social.label()}
-						{...social.external ? { target: "_blank", rel: "me noopener noreferrer" } : {}}
+						target={social.external ? "_blank" : undefined}
+						rel="external me noopener noreferrer"
 					>
 						{#if social.icon === "x"}
 							<svg

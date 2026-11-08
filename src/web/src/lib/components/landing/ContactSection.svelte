@@ -14,7 +14,8 @@
 
 	let { form }: { form: ActionData } = $props();
 
-	let dismissed = $state(false);
+	// Every new submission result shows its message again until dismissed.
+	let dismissed = $derived(!form);
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let captcha: ReturnType<typeof Turnstile> | undefined = $state();
 	let captchaToken = $state("");

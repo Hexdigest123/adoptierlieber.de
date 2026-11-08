@@ -19,11 +19,7 @@
 	let { data, children }: LayoutProps = $props();
 
 	let moreOpen = $state(false);
-	let search = $state("");
-
-	$effect(() => {
-		search = page.url.searchParams.get("q") ?? "";
-	});
+	let search = $derived(page.url.searchParams.get("q") ?? "");
 
 	const user = $derived(data.user);
 	const pending = $derived(data.pendingCount);
@@ -230,7 +226,7 @@
 				aria-label={m.admin_nav_more()}
 				use:dialog={() => (moreOpen = false)}
 			>
-				<div class="mb-3 h-1 w-10 self-center rounded-full bg-sand-200"></div>
+				<div class="mx-auto mb-3 h-1 w-10 rounded-full bg-sand-200"></div>
 				<div class="flex flex-col gap-1">
 					{#each mobileMore as item (item.href)}
 						<a

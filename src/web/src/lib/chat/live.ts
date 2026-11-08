@@ -77,3 +77,42 @@ export function connectThread(threadId: string, handlers: Handlers): () => void 
 		socket?.close();
 	};
 }
+
+/**
+ * Live updates for one thread: the socket plus an 8 s polling fallback. `shown` returns the
+ * rows on screen; unseen rows of this thread go to `onrows` until the returned cleanup runs.
+ */
+export function followThread(
+	threadId: string,
+	shown: () => ChatMessage[],
+	onrows: (rows: ChatMessage[]) => void,
+): () => void {
+	let stopped = false;
+
+	function deliver(rows: ChatMessage[]) {
+		if (stopped) return;
+		const known = new Set(shown().map((row) => row.id));
+		const fresh = rows.filter((row) => row.thread_id === threadId && !known.has(row.id));
+		if (fresh.length) onrows(fresh);
+	}
+
+	const disconnect = connectThread(threadId, { onmessage: (row) => deliver([row]) });
+	const timer = setInterval(async () => {
+		try {
+			const last = shown().at(-1)?.id;
+			const qs = last ? `?after=${encodeURIComponent(last)}` : "";
+			const response = await fetch(`/api/chats/${threadId}/messages${qs}`);
+			if (!response.ok) return;
+			const body = (await response.json()) as { items?: ChatMessage[] };
+			deliver(body.items ?? []);
+		} catch {
+			// offline; the next tick retries
+		}
+	}, 8000);
+
+	return () => {
+		stopped = true;
+		disconnect();
+		clearInterval(timer);
+	};
+}

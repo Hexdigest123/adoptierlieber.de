@@ -1,47 +1,21 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import CatalogGrid from "$lib/components/admin/CatalogGrid.svelte";
 	import EmptyState from "$lib/components/admin/EmptyState.svelte";
 	import StatusPill from "$lib/components/admin/StatusPill.svelte";
+	import Select from "$lib/components/ui/Select.svelte";
 	import { formatDate } from "$lib/admin/format";
-	import type { AdminAuditRow, ListEnvelope } from "$lib/admin/types";
+	import { ADMIN_PAGE_SIZE } from "$lib/admin/api";
+	import { searchParams } from "$lib/query";
+	import { pagedList } from "$lib/admin/paged.svelte";
+	import type { AdminAuditRow } from "$lib/admin/types";
 
 	let { data }: PageProps = $props();
 
-	let extra = $state<AdminAuditRow[]>([]);
-	let pageNum = $state(1);
-	let loading = $state(false);
 	let openId = $state<string | null>(null);
-
-	$effect(() => {
-		data.list;
-		extra = [];
-		pageNum = 1;
-	});
-
-	const items = $derived([...data.list.items, ...extra]);
-	const total = $derived(data.list.total);
-	const hasMore = $derived(items.length < total);
-
-	const actions = [
-		"suspend",
-		"unsuspend",
-		"delete_user",
-		"ban",
-		"drop_ban",
-		"approve",
-		"deny",
-		"invite",
-		"revoke_invite",
-		"remove_admin",
-		"note",
-		"approve_review",
-		"delete_review",
-		"accept_admin_invite",
-		"grant_super_admin",
-	] as const;
 
 	const labels: Record<string, () => string> = {
 		suspend: () => m.admin_action_suspend_label(),
@@ -56,51 +30,47 @@
 		remove_admin: () => m.admin_action_remove_admin_label(),
 		note: () => m.admin_action_note_label(),
 		ban_lookup_hit: () => m.admin_action_ban_lookup_hit_label(),
+		transfer_shelter: () => m.admin_action_transfer_shelter_label(),
+		archive_shelter: () => m.admin_action_archive_shelter_label(),
 		approve_review: () => m.admin_action_approve_review_label(),
 		delete_review: () => m.admin_action_delete_review_label(),
 		accept_admin_invite: () => m.admin_action_accept_admin_invite_label(),
 		grant_super_admin: () => m.admin_action_grant_super_admin_label(),
 	};
 
-	function onFilter(event: Event) {
-		const form = event.currentTarget as HTMLFormElement;
-		const next = new FormData(form);
-		const params = new URLSearchParams();
-		const action = String(next.get("action") ?? "");
-		const actorId = String(next.get("actor_id") ?? "");
-		const from = String(next.get("from") ?? "");
-		const to = String(next.get("to") ?? "");
-		const q = String(next.get("q") ?? data.q);
-		if (q) params.set("q", q);
-		if (action) params.set("action", action);
-		if (actorId) params.set("actor_id", actorId);
-		if (from) params.set("from", from);
-		if (to) params.set("to", to);
-		void goto(`/admin/audit?${params}`, { keepFocus: true, noScroll: true });
-	}
+	const actionOptions = $derived([
+		{ value: "", label: m.admin_filter_all() },
+		...Object.entries(labels).map(([value, label]) => ({ value, label: label() })),
+	]);
+	const actorOptions = $derived([
+		{ value: "", label: m.admin_filter_all() },
+		...data.admins.map((admin) => ({ value: admin.id, label: admin.name })),
+	]);
 
-	async function loadMore() {
-		if (loading || !hasMore) return;
-		loading = true;
-		const nextPage = pageNum + 1;
-		const params = new URLSearchParams();
-		params.set("page", String(nextPage));
-		params.set("per_page", "24");
-		if (data.q) params.set("q", data.q);
-		if (data.action) params.set("action", data.action);
-		if (data.actorId) params.set("actor_id", data.actorId);
-		if (data.from) params.set("from", data.from);
-		if (data.to) params.set("to", data.to);
-		try {
-			const response = await fetch(`/api/admin/audit?${params}`);
-			if (response.ok) {
-				const body = (await response.json()) as ListEnvelope<AdminAuditRow>;
-				extra = [...extra, ...body.items];
-				pageNum = nextPage;
-			}
-		} finally {
-			loading = false;
-		}
+	const list = pagedList<AdminAuditRow>(
+		() => data.list,
+		(page) =>
+			`/api/admin/audit?${searchParams({
+				page: String(page),
+				per_page: String(ADMIN_PAGE_SIZE),
+				q: data.q,
+				action: data.action,
+				actor_id: data.actorId,
+				from: data.from,
+				to: data.to,
+			})}`,
+	);
+
+	function onFilter(event: Event) {
+		const next = new FormData(event.currentTarget as HTMLFormElement);
+		const params = searchParams({
+			q: String(next.get("q") ?? data.q),
+			action: String(next.get("action") ?? ""),
+			actor_id: String(next.get("actor_id") ?? ""),
+			from: String(next.get("from") ?? ""),
+			to: String(next.get("to") ?? ""),
+		});
+		void goto(resolve(`/admin/audit?${params}`), { keepFocus: true, noScroll: true });
 	}
 </script>
 
@@ -108,32 +78,20 @@
 
 <form class="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" onchange={onFilter}>
 	<input type="hidden" name="q" value={data.q} />
-	<label class="flex flex-col gap-1 text-sm font-semibold text-sand-900">
-		{m.admin_audit_action()}
-		<select
-			name="action"
-			value={data.action}
-			class="h-11 rounded-xl border border-sand-300 bg-white px-3 text-base font-normal focus-ring"
-		>
-			<option value="">{m.admin_filter_all()}</option>
-			{#each actions as action (action)}
-				<option value={action}>{labels[action]()}</option>
-			{/each}
-		</select>
-	</label>
-	<label class="flex flex-col gap-1 text-sm font-semibold text-sand-900">
-		{m.admin_audit_actor()}
-		<select
-			name="actor_id"
-			value={data.actorId}
-			class="h-11 rounded-xl border border-sand-300 bg-white px-3 text-base font-normal focus-ring"
-		>
-			<option value="">{m.admin_filter_all()}</option>
-			{#each data.admins as admin (admin.id)}
-				<option value={admin.id}>{admin.name}</option>
-			{/each}
-		</select>
-	</label>
+	<Select
+		id="audit-action"
+		name="action"
+		label={m.admin_audit_action()}
+		options={actionOptions}
+		value={data.action}
+	/>
+	<Select
+		id="audit-actor"
+		name="actor_id"
+		label={m.admin_audit_actor()}
+		options={actorOptions}
+		value={data.actorId}
+	/>
 	<label class="flex flex-col gap-1 text-sm font-semibold text-sand-900">
 		{m.admin_audit_from()}
 		<input
@@ -154,11 +112,17 @@
 	</label>
 </form>
 
-{#if items.length === 0}
-	<EmptyState clearHref="/admin/audit" />
+{#if list.items.length === 0}
+	<EmptyState clearHref={resolve("/admin/audit")} />
 {:else}
-	<CatalogGrid shown={items.length} {total} {hasMore} {loading} onMore={loadMore}>
-		{#each items as row (row.id)}
+	<CatalogGrid
+		shown={list.items.length}
+		total={list.total}
+		hasMore={list.hasMore}
+		loading={list.loading}
+		onMore={list.loadMore}
+	>
+		{#each list.items as row (row.id)}
 			<button
 				type="button"
 				class="rounded-2xl text-left focus-ring"
@@ -166,13 +130,9 @@
 			>
 				<div class="rounded-2xl border border-sand-200 bg-white p-4">
 					<div class="flex flex-wrap items-center gap-2">
-						<StatusPill
-							status={row.action === "approve"
-								? "verified"
-								: row.action === "deny"
-									? "rejected"
-									: "pending"}
-						/>
+						{#if row.action === "approve" || row.action === "deny"}
+							<StatusPill status={row.action === "approve" ? "verified" : "rejected"} />
+						{/if}
 						<span class="text-sm font-semibold text-sand-950">
 							{labels[row.action] ? labels[row.action]() : row.action}
 						</span>
@@ -185,11 +145,11 @@
 						<p class="mt-1 line-clamp-2 text-sm text-sand-600">{row.reason}</p>
 					{/if}
 					{#if openId === row.id}
-						<dl class="mt-3 grid gap-1 text-xs text-sand-600">
-							<div>{m.admin_audit_actor()}: {row.actor_name} {row.actor_email}</div>
-							<div>{m.admin_audit_target()}: {row.target_type} {row.target_id ?? "—"}</div>
-							{#if row.reason}<div>{m.admin_ban_reason()}: {row.reason}</div>{/if}
-						</dl>
+						<div class="mt-3 grid gap-1 text-xs text-sand-600">
+							<p>{m.admin_audit_actor()}: {row.actor_name} {row.actor_email}</p>
+							<p>{m.admin_audit_target()}: {row.target_type} {row.target_id ?? "—"}</p>
+							{#if row.reason}<p>{m.admin_ban_reason()}: {row.reason}</p>{/if}
+						</div>
 					{/if}
 				</div>
 			</button>

@@ -4,9 +4,10 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Checkbox from "$lib/components/ui/Checkbox.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
+	import Select from "$lib/components/ui/Select.svelte";
 	import Textarea from "$lib/components/ui/Textarea.svelte";
 	import FormStatus from "$lib/components/ui/FormStatus.svelte";
-	import type { ApplicationField, InterestContext } from "$lib/types/shelter";
+	import type { InterestContext } from "$lib/types/shelter";
 	import { dialog } from "$lib/dialog";
 
 	type Props = {
@@ -48,22 +49,23 @@
 				value: answers[field.id] ?? "",
 			})),
 		};
-		const response = await fetch("/api/chats", {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify(payload),
-		});
-		saving = false;
-		if (!response.ok) {
-			error = m.error_invalid_input();
-			return;
+		try {
+			const response = await fetch("/api/chats", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(payload),
+			});
+			if (!response.ok) {
+				error = m.error_invalid_input();
+				return;
+			}
+			const thread = (await response.json()) as { id: string };
+			sentId = thread.id;
+		} catch {
+			error = m.error_generic();
+		} finally {
+			saving = false;
 		}
-		const thread = (await response.json()) as { id: string };
-		sentId = thread.id;
-	}
-
-	function fieldControl(field: ApplicationField) {
-		return field;
 	}
 </script>
 
@@ -109,6 +111,11 @@
 				<p class="mt-1 text-sm text-sand-700">
 					{m.shelter_interest_org({ animal: context.animal_name, org: context.org_name })}
 				</p>
+				{#if context.other_animals.length}
+					<p class="mt-2 text-sm text-sand-700">
+						{m.shelter_interest_others({ names: context.other_animals.join(", ") })}
+					</p>
+				{/if}
 
 				<form class="mt-5 flex flex-col gap-4" onsubmit={submit}>
 					<p id="grants-hint" class="text-sm text-sand-700">
@@ -134,7 +141,6 @@
 					</Checkbox>
 
 					{#each context.fields as field (field.id)}
-						{@const _ = fieldControl(field)}
 						{#if field.type === "long"}
 							<Textarea
 								id="f-{field.id}"
@@ -143,29 +149,22 @@
 								bind:value={answers[field.id]}
 							/>
 						{:else if field.type === "select"}
-							<div class="flex flex-col gap-1.5">
-								<label for="f-{field.id}" class="text-sm font-semibold text-sand-900">
-									{field.label}
-									{#if field.required}<span class="text-coral-600" aria-hidden="true"> *</span>{/if}
-								</label>
-								<select
-									id="f-{field.id}"
-									required={field.required}
-									bind:value={answers[field.id]}
-									class="h-11 w-full rounded-xl border border-sand-300 bg-white px-3.5 text-base text-sand-900 focus-ring"
-								>
-									<option value="">{m.shelter_interest_select()}</option>
-									{#each field.options ?? [] as option (option)}
-										<option value={option}>{option}</option>
-									{/each}
-								</select>
-							</div>
+							<Select
+								id="f-{field.id}"
+								label={field.label}
+								required={field.required}
+								bind:value={answers[field.id]}
+								options={[
+									{ value: "", label: m.shelter_interest_select() },
+									...(field.options ?? []).map((option) => ({ value: option, label: option })),
+								]}
+							/>
 						{:else if field.type === "yesno"}
-							<div class="flex flex-col gap-1.5">
-								<p class="text-sm font-semibold text-sand-900">
+							<fieldset class="flex flex-col gap-1.5">
+								<legend class="text-sm font-semibold text-sand-900">
 									{field.label}
 									{#if field.required}<span class="text-coral-600" aria-hidden="true"> *</span>{/if}
-								</p>
+								</legend>
 								<div class="flex gap-3">
 									<label class="text-sm text-sand-800">
 										<input
@@ -187,7 +186,7 @@
 										{m.shelter_no()}
 									</label>
 								</div>
-							</div>
+							</fieldset>
 						{:else}
 							<Input
 								id="f-{field.id}"

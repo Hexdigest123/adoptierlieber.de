@@ -5,9 +5,7 @@ export const BREED_OTHER = "__other__";
 const MIX = "Mischling";
 
 function listed(...names: string[]): readonly string[] {
-	const rest = names
-		.filter((name) => name !== MIX)
-		.sort((a, b) => a.localeCompare(b, "de"));
+	const rest = names.filter((name) => name !== MIX).sort((a, b) => a.localeCompare(b, "de"));
 	return [MIX, ...rest];
 }
 

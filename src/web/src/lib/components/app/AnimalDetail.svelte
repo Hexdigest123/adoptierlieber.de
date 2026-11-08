@@ -3,6 +3,7 @@
 	import ChevronLeft from "lucide-svelte/icons/chevron-left";
 	import ChevronRight from "lucide-svelte/icons/chevron-right";
 	import Heart from "lucide-svelte/icons/heart";
+	import { untrack } from "svelte";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
@@ -18,7 +19,7 @@
 		sizeLabel,
 		speciesLabel,
 	} from "$lib/app/format";
-	import { backPath, withFrom } from "$lib/app/return";
+	import { animalHref, backPath } from "$lib/app/return";
 	import InterestSheet from "$lib/components/shelter/InterestSheet.svelte";
 	import type { InterestContext } from "$lib/types/shelter";
 	import type { PublicAnimal } from "$lib/types/catalog";
@@ -46,17 +47,21 @@
 	let interestOpen = $state(false);
 	let interest = $state<InterestContext | null>(null);
 	let interestLoading = $state(false);
-	let lastId = $state(animal.id);
+	let lastId: string | undefined;
 
 	const slides = $derived(animal.photos.length ? animal.photos : [null]);
 
+	// Keyed on the id alone: a like replaces `animal` and must not count another impression.
 	$effect(() => {
-		if (animal.id !== lastId) {
-			lastId = animal.id;
-			photo = 0;
-			if (gallery) gallery.scrollLeft = 0;
-		}
-		if (!publicView && !preview) void recordImpression(animal.id);
+		const id = animal.id;
+		untrack(() => {
+			if (lastId !== undefined && id !== lastId) {
+				photo = 0;
+				if (gallery) gallery.scrollLeft = 0;
+			}
+			lastId = id;
+			if (!publicView && !preview && animal.status === "live") void recordImpression(id);
+		});
 	});
 
 	function goToPhoto(index: number) {
@@ -84,7 +89,6 @@
 	}
 
 	async function recordImpression(id: string) {
-		if (animal.status !== "live") return;
 		try {
 			await fetch(`/api/animals/${id}/impressions`, { method: "POST" });
 		} catch {
@@ -137,9 +141,9 @@
 	const origin = $derived(page.url.searchParams.get("from"));
 	const backHref = $derived(publicView ? resolve("/") : resolve(backPath(origin)));
 
-	function partnerHref(id: string): string {
-		if (publicView) return resolve(`/animals/${id}`);
-		return withFrom(resolve(`/app/animals/${id}`), origin);
+	function partnerHref(id: string) {
+		if (publicView) return resolve("/animals/[id]", { id });
+		return animalHref(id, origin);
 	}
 </script>
 
@@ -172,6 +176,7 @@
 				? 'aspect-4/3'
 				: 'aspect-4/5'} {wide ? 'lg:sticky lg:top-20' : ''}"
 		>
+			<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 			<div
 				bind:this={gallery}
 				class="absolute inset-0 flex snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden"
@@ -334,7 +339,7 @@
 					<a
 						href={routeHref}
 						target="_blank"
-						rel="noopener noreferrer"
+						rel="external noopener noreferrer"
 						class="mt-2 inline-flex text-sm font-semibold text-coral-700 focus-ring"
 					>
 						{m.app_detail_route()}

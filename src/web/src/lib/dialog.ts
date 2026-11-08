@@ -46,3 +46,21 @@ export function dialog(node: HTMLElement, onclose: () => void) {
 		},
 	};
 }
+
+/** Calls `onclose` on a pointer down outside `node` or on Escape (menus, popovers). */
+export function dismissable(node: HTMLElement, onclose: () => void) {
+	function onPointer(event: PointerEvent) {
+		if (!node.contains(event.target as Node)) onclose();
+	}
+	function onKey(event: KeyboardEvent) {
+		if (event.key === "Escape") onclose();
+	}
+	document.addEventListener("pointerdown", onPointer);
+	document.addEventListener("keydown", onKey);
+	return {
+		destroy() {
+			document.removeEventListener("pointerdown", onPointer);
+			document.removeEventListener("keydown", onKey);
+		},
+	};
+}

@@ -6,35 +6,25 @@
 	import { m } from "$lib/paraglide/messages";
 	import Card from "$lib/components/ui/Card.svelte";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
+	import Input from "$lib/components/ui/Input.svelte";
+	import Select from "$lib/components/ui/Select.svelte";
 	import TabNav from "$lib/components/ui/TabNav.svelte";
 	import AdminAnimalCardView from "$lib/components/admin/AdminAnimalCard.svelte";
 	import AdminShelterCardView from "$lib/components/admin/AdminShelterCard.svelte";
 	import CatalogGrid from "$lib/components/admin/CatalogGrid.svelte";
 	import EmptyState from "$lib/components/admin/EmptyState.svelte";
 	import StatusPill from "$lib/components/admin/StatusPill.svelte";
-	import type {
-		AdminAnimalCard,
-		AdminShelterCard,
-		AdminUserCard,
-		ListEnvelope,
-	} from "$lib/admin/types";
+	import { catalogListPath } from "$lib/admin/api";
+	import { searchParams } from "$lib/query";
+	import { pagedList } from "$lib/admin/paged.svelte";
+	import type { AdminAnimalCard, AdminShelterCard, AdminUserCard } from "$lib/admin/types";
 
 	let { data }: PageProps = $props();
 
-	let extra = $state<unknown[]>([]);
-	let pageNum = $state(1);
-	let loading = $state(false);
-
-	$effect(() => {
-		data.list;
-		data.type;
-		extra = [];
-		pageNum = 1;
-	});
-
-	const items = $derived([...data.list.items, ...extra]);
-	const total = $derived(data.list.total);
-	const hasMore = $derived(items.length < total);
+	const list = pagedList<unknown>(
+		() => data.list,
+		(pageNum) => catalogListPath(data, pageNum),
+	);
 
 	const facets = [
 		{ type: "users" as const, label: () => m.admin_catalog_users() },
@@ -42,21 +32,17 @@
 		{ type: "animals" as const, label: () => m.admin_catalog_animals() },
 	];
 
-	function hrefFor(next: Record<string, string | undefined>): string {
-		const params = new URLSearchParams();
+	function hrefFor(next: Record<string, string | undefined>) {
 		const type = next.type ?? data.type;
-		params.set("type", type);
-		const q = next.q ?? data.q;
-		const status = next.status ?? data.status;
-		const city = next.city ?? data.city;
-		const verified = next.verified ?? data.verified;
-		const species = next.species ?? data.species;
-		if (q) params.set("q", q);
-		if (status) params.set("status", status);
-		if (city) params.set("city", city);
-		if (type === "users" && verified) params.set("verified", verified);
-		if (type === "animals" && species) params.set("species", species);
-		return `/admin/catalog?${params.toString()}`;
+		const params = searchParams({
+			type,
+			q: next.q ?? data.q,
+			status: next.status ?? data.status,
+			city: next.city ?? data.city,
+			verified: type === "users" ? (next.verified ?? data.verified) : "",
+			species: type === "animals" ? (next.species ?? data.species) : "",
+		});
+		return resolve(`/admin/catalog?${params}`);
 	}
 
 	const facetItems = $derived(
@@ -67,38 +53,43 @@
 		})),
 	);
 
-	async function loadMore() {
-		if (loading || !hasMore) return;
-		loading = true;
-		const nextPage = pageNum + 1;
-		const params = new URLSearchParams(page.url.searchParams);
-		params.set("page", String(nextPage));
-		params.set("per_page", "24");
-		if (data.type === "shelters" && data.status) {
-			params.set("verification_status", data.status);
-			params.delete("status");
-		}
-		const endpoint =
-			data.type === "users"
-				? "/api/admin/users"
-				: data.type === "shelters"
-					? "/api/admin/shelters"
-					: "/api/admin/animals";
-		try {
-			const response = await fetch(`${endpoint}?${params}`);
-			if (response.ok) {
-				const body = (await response.json()) as ListEnvelope<unknown>;
-				extra = [...extra, ...body.items];
-				pageNum = nextPage;
-			}
-		} finally {
-			loading = false;
-		}
-	}
+	const statusOptions = $derived([
+		{ value: "", label: m.admin_filter_all() },
+		...(data.type === "users"
+			? [
+					{ value: "active", label: m.admin_filter_active() },
+					{ value: "suspended", label: m.admin_filter_suspended() },
+				]
+			: data.type === "shelters"
+				? [
+						{ value: "pending", label: m.admin_filter_pending() },
+						{ value: "verified", label: m.admin_filter_verified() },
+						{ value: "rejected", label: m.admin_filter_rejected() },
+					]
+				: [
+						{ value: "draft", label: m.admin_status_draft() },
+						{ value: "live", label: m.admin_status_live() },
+						{ value: "found_home", label: m.admin_status_found_home() },
+					]),
+	]);
+	const verifiedOptions = $derived([
+		{ value: "", label: m.admin_filter_all() },
+		{ value: "yes", label: m.admin_filter_yes() },
+		{ value: "no", label: m.admin_filter_no() },
+	]);
+	const speciesOptions = $derived([
+		{ value: "", label: m.admin_filter_all() },
+		{ value: "cat", label: m.admin_species_cat() },
+		{ value: "dog", label: m.admin_species_dog() },
+		{ value: "rabbit", label: m.admin_species_rabbit() },
+		{ value: "guinea_pig", label: m.admin_species_guinea_pig() },
+		{ value: "bird", label: m.admin_species_bird() },
+		{ value: "reptile", label: m.admin_species_reptile() },
+		{ value: "other", label: m.admin_species_other() },
+	]);
 
 	function onFilter(event: Event) {
-		const form = event.currentTarget as HTMLFormElement;
-		const next = new FormData(form);
+		const next = new FormData(event.currentTarget as HTMLFormElement);
 		void goto(
 			hrefFor({
 				status: String(next.get("status") ?? "") || undefined,
@@ -120,70 +111,33 @@
 <TabNav label={m.admin_catalog_title()} items={facetItems} class="mb-4" />
 
 <form class="mb-5 grid gap-3 sm:grid-cols-3" onchange={onFilter}>
-	<label class="flex flex-col gap-1 text-sm font-semibold text-sand-900">
-		{m.admin_filter_status()}
-		<select
-			name="status"
-			value={data.status}
-			class="h-11 rounded-xl border border-sand-300 bg-white px-3 text-base font-normal focus-ring"
-		>
-			<option value="">{m.admin_filter_all()}</option>
-			{#if data.type === "users"}
-				<option value="active">{m.admin_filter_active()}</option>
-				<option value="suspended">{m.admin_filter_suspended()}</option>
-			{:else if data.type === "shelters"}
-				<option value="pending">{m.admin_filter_pending()}</option>
-				<option value="verified">{m.admin_filter_verified()}</option>
-				<option value="rejected">{m.admin_filter_rejected()}</option>
-			{:else}
-				<option value="draft">{m.admin_status_draft()}</option>
-				<option value="live">{m.admin_status_live()}</option>
-				<option value="found_home">{m.admin_status_found_home()}</option>
-			{/if}
-		</select>
-	</label>
+	<Select
+		id="catalog-status"
+		name="status"
+		label={m.admin_filter_status()}
+		options={statusOptions}
+		value={data.status}
+	/>
 	{#if data.type === "users"}
-		<label class="flex flex-col gap-1 text-sm font-semibold text-sand-900">
-			{m.admin_filter_verified_email()}
-			<select
-				name="verified"
-				value={data.verified}
-				class="h-11 rounded-xl border border-sand-300 bg-white px-3 text-base font-normal focus-ring"
-			>
-				<option value="">{m.admin_filter_all()}</option>
-				<option value="yes">{m.admin_filter_yes()}</option>
-				<option value="no">{m.admin_filter_no()}</option>
-			</select>
-		</label>
+		<Select
+			id="catalog-verified"
+			name="verified"
+			label={m.admin_filter_verified_email()}
+			options={verifiedOptions}
+			value={data.verified}
+		/>
 	{/if}
 	{#if data.type === "animals"}
-		<label class="flex flex-col gap-1 text-sm font-semibold text-sand-900">
-			{m.admin_filter_species()}
-			<select
-				name="species"
-				value={data.species}
-				class="h-11 rounded-xl border border-sand-300 bg-white px-3 text-base font-normal focus-ring"
-			>
-				<option value="">{m.admin_filter_all()}</option>
-				<option value="cat">{m.admin_species_cat()}</option>
-				<option value="dog">{m.admin_species_dog()}</option>
-				<option value="rabbit">{m.admin_species_rabbit()}</option>
-				<option value="guinea_pig">{m.admin_species_guinea_pig()}</option>
-				<option value="bird">{m.admin_species_bird()}</option>
-				<option value="reptile">{m.admin_species_reptile()}</option>
-				<option value="other">{m.admin_species_other()}</option>
-			</select>
-		</label>
+		<Select
+			id="catalog-species"
+			name="species"
+			label={m.admin_filter_species()}
+			options={speciesOptions}
+			value={data.species}
+		/>
 	{/if}
 	{#if data.type !== "animals"}
-		<label class="flex flex-col gap-1 text-sm font-semibold text-sand-900">
-			{m.admin_filter_city()}
-			<input
-				name="city"
-				value={data.city}
-				class="h-11 rounded-xl border border-sand-300 bg-white px-3 text-base font-normal focus-ring"
-			/>
-		</label>
+		<Input id="catalog-city" name="city" label={m.admin_filter_city()} value={data.city} />
 	{/if}
 </form>
 
@@ -202,11 +156,17 @@
 	</p>
 {/if}
 
-{#if items.length === 0}
-	<EmptyState clearHref="/admin/catalog?type={data.type}" />
+{#if list.items.length === 0}
+	<EmptyState clearHref={resolve(`/admin/catalog?type=${data.type}`)} />
 {:else}
-	<CatalogGrid shown={items.length} {total} {hasMore} {loading} onMore={loadMore}>
-		{#each items as item ((item as { id: string }).id)}
+	<CatalogGrid
+		shown={list.items.length}
+		total={list.total}
+		hasMore={list.hasMore}
+		loading={list.loading}
+		onMore={list.loadMore}
+	>
+		{#each list.items as item ((item as { id: string }).id)}
 			{#if data.type === "users"}
 				{@const row = item as AdminUserCard}
 				<a
@@ -217,7 +177,8 @@
 						<div class="flex items-start gap-3">
 							<Avatar
 								name={row.display_name ?? row.name}
-								hasAvatar={row.has_avatar && row.id === data.user?.id}
+								userId={row.id}
+								hasAvatar={row.has_avatar}
 								size="sm"
 							/>
 							<div class="min-w-0 flex-1">

@@ -48,9 +48,10 @@
 			{/if}
 			{#if totpUri && totpSecret}
 				<div class="mx-auto w-48 [&_svg]:h-full [&_svg]:w-full">
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -- uqr SVG holds only QR geometry -->
 					{@html qr}
 				</div>
-				<p class="break-all font-mono text-sm text-sand-800">
+				<p class="font-mono text-sm break-all text-sand-800">
 					<span class="font-sans font-semibold">{m.auth_mfa_setup_totp_secret()}:</span>
 					{totpSecret}
 				</p>
@@ -82,7 +83,10 @@
 			{/if}
 		</section>
 
-		<section class="flex flex-col gap-4 border-t border-sand-200 pt-8" aria-labelledby="mfa-passkey-title">
+		<section
+			class="flex flex-col gap-4 border-t border-sand-200 pt-8"
+			aria-labelledby="mfa-passkey-title"
+		>
 			<h2 id="mfa-passkey-title" class="text-lg font-bold text-sand-950">
 				{m.auth_mfa_setup_passkey_title()}
 			</h2>

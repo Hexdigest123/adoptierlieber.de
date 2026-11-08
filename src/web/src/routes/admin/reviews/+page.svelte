@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
+	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Card from "$lib/components/ui/Card.svelte";
@@ -10,36 +11,30 @@
 	import EmptyState from "$lib/components/admin/EmptyState.svelte";
 	import StatusPill from "$lib/components/admin/StatusPill.svelte";
 	import { formatDate } from "$lib/admin/format";
-	import type { AdminReviewRow, ListEnvelope } from "$lib/admin/types";
+	import { ADMIN_PAGE_SIZE } from "$lib/admin/api";
+	import { searchParams } from "$lib/query";
+	import { pagedList } from "$lib/admin/paged.svelte";
+	import type { AdminReviewRow } from "$lib/admin/types";
 	import Star from "lucide-svelte/icons/star";
 
 	let { data, form }: PageProps = $props();
 
-	let extra = $state<AdminReviewRow[]>([]);
-	let pageNum = $state(1);
-	let loading = $state(false);
 	let target = $state<{ review: AdminReviewRow; action: "approve" | "remove" } | null>(null);
 
-	$effect(() => {
-		data.list;
-		extra = [];
-		pageNum = 1;
-	});
-
-	const items = $derived([...data.list.items, ...extra]);
-	const total = $derived(data.list.total);
-	const hasMore = $derived(items.length < total);
-
-	function hrefFor(status: string): string {
-		const params = new URLSearchParams();
-		params.set("status", status);
-		if (data.q) params.set("q", data.q);
-		return `/admin/reviews?${params}`;
-	}
+	const list = pagedList<AdminReviewRow>(
+		() => data.list,
+		(page) =>
+			`/api/admin/reviews?${searchParams({
+				page: String(page),
+				per_page: String(ADMIN_PAGE_SIZE),
+				status: data.status === "pending" || data.status === "approved" ? data.status : "",
+				q: data.q,
+			})}`,
+	);
 
 	const statusItems = $derived(
 		["pending", "approved", "all"].map((status) => ({
-			href: hrefFor(status),
+			href: resolve(`/admin/reviews?${searchParams({ status, q: data.q })}`),
 			label:
 				status === "pending"
 					? m.admin_filter_pending()
@@ -49,29 +44,6 @@
 			active: data.status === status,
 		})),
 	);
-
-	async function loadMore() {
-		if (loading || !hasMore) return;
-		loading = true;
-		const nextPage = pageNum + 1;
-		const params = new URLSearchParams();
-		params.set("page", String(nextPage));
-		params.set("per_page", "24");
-		if (data.status === "pending" || data.status === "approved") {
-			params.set("status", data.status);
-		}
-		if (data.q) params.set("q", data.q);
-		try {
-			const response = await fetch(`/api/admin/reviews?${params}`);
-			if (response.ok) {
-				const body = (await response.json()) as ListEnvelope<AdminReviewRow>;
-				extra = [...extra, ...body.items];
-				pageNum = nextPage;
-			}
-		} finally {
-			loading = false;
-		}
-	}
 </script>
 
 <h1 class="mb-4 text-2xl font-black tracking-tight text-sand-950">{m.admin_reviews_title()}</h1>
@@ -82,11 +54,17 @@
 
 <TabNav label={m.admin_filter_status()} items={statusItems} class="mb-5" />
 
-{#if items.length === 0}
-	<EmptyState clearHref="/admin/reviews" />
+{#if list.items.length === 0}
+	<EmptyState clearHref={resolve("/admin/reviews")} />
 {:else}
-	<CatalogGrid shown={items.length} {total} {hasMore} {loading} onMore={loadMore}>
-		{#each items as row (row.id)}
+	<CatalogGrid
+		shown={list.items.length}
+		total={list.total}
+		hasMore={list.hasMore}
+		loading={list.loading}
+		onMore={list.loadMore}
+	>
+		{#each list.items as row (row.id)}
 			<Card padding="sm">
 				<div class="flex items-start justify-between gap-3">
 					<div class="min-w-0">

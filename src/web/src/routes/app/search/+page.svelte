@@ -2,6 +2,7 @@
 	import { untrack } from "svelte";
 	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
+	import { searchParams } from "$lib/query";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Checkbox from "$lib/components/ui/Checkbox.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
@@ -14,7 +15,15 @@
 
 	const user = $derived(page.data.user);
 
-	const COLOR_OPTIONS = ["schwarz", "weiß", "braun", "grau", "getigert", "mehrfarbig"] as const;
+	// Values match the (German) colours shelters enter; labels follow the UI language.
+	const COLOR_OPTIONS = [
+		{ value: "schwarz", label: () => m.app_search_color_black() },
+		{ value: "weiß", label: () => m.app_search_color_white() },
+		{ value: "braun", label: () => m.app_search_color_brown() },
+		{ value: "grau", label: () => m.app_search_color_grey() },
+		{ value: "getigert", label: () => m.app_search_color_tabby() },
+		{ value: "mehrfarbig", label: () => m.app_search_color_multi() },
+	];
 
 	let q = $state("");
 	let breed = $state("");
@@ -76,9 +85,8 @@
 			breedHits = [];
 			return;
 		}
-		const params = new URLSearchParams({ q: qBreed });
 		const species = speciesQuery();
-		if (species && !species.includes(",")) params.set("species", species);
+		const params = searchParams({ q: qBreed, species: species.includes(",") ? "" : species });
 		try {
 			const res = await fetch(`/api/animals/breeds?${params}`);
 			if (!res.ok) return;
@@ -93,22 +101,21 @@
 		loading = true;
 		searched = true;
 		error = false;
-		const params = new URLSearchParams({
+		const params = searchParams({
 			mode: "search",
 			sort,
 			per_page: "24",
+			q: q.trim(),
+			species: speciesQuery(),
+			sex,
+			size,
+			min_age: minAge,
+			max_age: maxAge,
+			good_with: goodWith.join(","),
+			colors: colors.join(","),
+			special_needs: specialNeeds === "include" ? "" : specialNeeds,
+			breed: breed.trim(),
 		});
-		if (q.trim()) params.set("q", q.trim());
-		const species = speciesQuery();
-		if (species) params.set("species", species);
-		if (sex) params.set("sex", sex);
-		if (size) params.set("size", size);
-		if (minAge) params.set("min_age", minAge);
-		if (maxAge) params.set("max_age", maxAge);
-		if (goodWith.length) params.set("good_with", goodWith.join(","));
-		if (colors.length) params.set("colors", colors.join(","));
-		if (specialNeeds !== "include") params.set("special_needs", specialNeeds);
-		if (breed.trim()) params.set("breed", breed.trim());
 		try {
 			const res = await fetch(`/api/animals?${params}`);
 			if (!res.ok) {
@@ -215,18 +222,18 @@
 		<fieldset>
 			<legend class="mb-2 text-sm font-semibold text-sand-900">{m.app_search_colors()}</legend>
 			<div class="flex flex-wrap gap-2">
-				{#each COLOR_OPTIONS as option (option)}
+				{#each COLOR_OPTIONS as option (option.value)}
 					<button
 						type="button"
-						aria-pressed={colors.includes(option)}
+						aria-pressed={colors.includes(option.value)}
 						class="min-h-11 cursor-pointer rounded-full border px-3 py-1.5 text-sm font-semibold focus-ring {colors.includes(
-							option,
+							option.value,
 						)
 							? 'border-coral-600 bg-coral-600 text-white'
 							: 'border-sand-200 text-sand-800'}"
-						onclick={() => toggleColor(option)}
+						onclick={() => toggleColor(option.value)}
 					>
-						{option}
+						{option.label()}
 					</button>
 				{/each}
 			</div>

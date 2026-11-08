@@ -101,7 +101,10 @@
 	</p>
 
 	{#if totpUri && totpSecret}
-		<div class="mx-auto w-40 [&_svg]:h-full [&_svg]:w-full">{@html qr}</div>
+		<div class="mx-auto w-40 [&_svg]:h-full [&_svg]:w-full">
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -- uqr SVG holds only QR geometry -->
+			{@html qr}
+		</div>
 		<p class="font-mono text-xs break-all text-sand-800">{totpSecret}</p>
 		<form method="POST" action="?/confirmTotp" class="flex flex-col gap-3" use:enhance>
 			<input type="hidden" name="totpUri" value={totpUri} />
