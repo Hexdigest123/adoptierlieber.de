@@ -29,7 +29,11 @@ function prefSpeciesTags(raw: unknown): PrefSpeciesTag[] {
   const out: PrefSpeciesTag[] = [];
   for (const part of parts) {
     if (
-      (part === "dog" || part === "cat" || part === "small" || part === "bird" || part === "open") &&
+      (part === "dog" ||
+        part === "cat" ||
+        part === "small" ||
+        part === "bird" ||
+        part === "open") &&
       !out.includes(part)
     ) {
       out.push(part);
@@ -141,7 +145,9 @@ function prefsOverlap(prefs: UserPreferences | null | undefined, animal: Animal)
     checks += 1;
     const traits = (animal.traits ?? []).map((t) => t.toLowerCase());
     if (prefs.lifestyle === "active") {
-      if (traits.some((t) => t.includes("aktiv") || t.includes("energie") || t.includes("active"))) {
+      if (
+        traits.some((t) => t.includes("aktiv") || t.includes("energie") || t.includes("active"))
+      ) {
         hits += 1;
       }
     } else if (prefs.lifestyle === "cuddle") {
@@ -159,7 +165,10 @@ function prefsOverlap(prefs: UserPreferences | null | undefined, animal: Animal)
   return hits / checks;
 }
 
-function implicitAffinity(weights: Record<string, number> | null | undefined, animal: Animal): number {
+function implicitAffinity(
+  weights: Record<string, number> | null | undefined,
+  animal: Animal,
+): number {
   if (!weights) return 0.5;
   const keys = traitKeys(animal);
   let sum = 0;

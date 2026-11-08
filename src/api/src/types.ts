@@ -5,7 +5,6 @@ import type {
   messagesTable,
   reviewsTable,
   sessionsTable,
-  shelterInvitesTable,
   shelterMembersTable,
   sheltersTable,
   threadsTable,
@@ -58,18 +57,12 @@ export type PublicSession = {
   expiresAt: Date;
   setup_required?: boolean;
 };
-export type AuthResult =
-  | PublicSession
-  | { mfa_required: true; mfa_token: string };
+export type AuthResult = PublicSession | { mfa_required: true; mfa_token: string };
 export type Shelter = InferSelectModel<typeof sheltersTable>;
 export type ShelterMember = InferSelectModel<typeof shelterMembersTable>;
 export type Animal = InferSelectModel<typeof animalsTable>;
-export type AnimalSpecies = Animal["species"];
-export type AnimalSex = Animal["sex"];
-export type AnimalSize = Animal["size"];
 export type Thread = InferSelectModel<typeof threadsTable>;
 export type Message = InferSelectModel<typeof messagesTable>;
-export type ShelterInvite = InferSelectModel<typeof shelterInvitesTable>;
 export type Review = InferSelectModel<typeof reviewsTable>;
 export type ReviewStatus = Review["status"];
 

@@ -51,7 +51,7 @@ animals.get("/:id", rateLimitByIp("animal-public", 120), async (c) => {
   const token = readSessionCookie(c);
   if (token) {
     try {
-      const session = await createSessionService(c.env).validate(token);
+      const { session } = await createSessionService(c.env).validate(token);
       const animal = await createCatalogService(c.env).get(session.userId, c.req.param("id"));
       return c.json(animal, 200);
     } catch {

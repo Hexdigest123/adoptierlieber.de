@@ -1,5 +1,6 @@
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
+import { inChunks } from "../lib/d1";
 import { animalsTable, sheltersTable } from "../schema";
 import { getDb, type Env } from "../config/env";
 import type { ApplicationField, ShelterChecklist } from "../types";
@@ -51,6 +52,12 @@ export function createShelterRepo(env: Env) {
           verificationStatus: sheltersTable.verificationStatus,
         })
         .get();
+    },
+
+    findByIds(ids: string[]) {
+      return inChunks(ids, (chunk) =>
+        db.select().from(sheltersTable).where(inArray(sheltersTable.id, chunk)).all(),
+      );
     },
 
     findById(id: string) {
@@ -133,12 +140,7 @@ export function createShelterRepo(env: Env) {
         verificationDecidedBy: string;
       },
     ) {
-      return db
-        .update(sheltersTable)
-        .set(values)
-        .where(eq(sheltersTable.id, id))
-        .returning()
-        .get();
+      return db.update(sheltersTable).set(values).where(eq(sheltersTable.id, id)).returning().get();
     },
 
     delete(id: string) {

@@ -1,4 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
+import { inChunks } from "../lib/d1";
 import { drizzle } from "drizzle-orm/d1";
 import { getDb, type Env } from "../config/env";
 import { threadReadsTable } from "../schema";
@@ -20,22 +21,15 @@ export function createThreadReadRepo(env: Env) {
     },
 
     listByUserThreads(userId: string, threadIds: string[]) {
-      if (threadIds.length === 0) return Promise.resolve([] as { threadId: string; lastReadAt: Date }[]);
-      return db
-        .select({ threadId: threadReadsTable.threadId, lastReadAt: threadReadsTable.lastReadAt })
-        .from(threadReadsTable)
-        .where(
-          and(eq(threadReadsTable.userId, userId), inArray(threadReadsTable.threadId, threadIds)),
-        )
-        .all();
-    },
-
-    find(threadId: string, userId: string) {
-      return db
-        .select()
-        .from(threadReadsTable)
-        .where(and(eq(threadReadsTable.threadId, threadId), eq(threadReadsTable.userId, userId)))
-        .get();
+      return inChunks(threadIds, (chunk) =>
+        db
+          .select({ threadId: threadReadsTable.threadId, lastReadAt: threadReadsTable.lastReadAt })
+          .from(threadReadsTable)
+          .where(
+            and(eq(threadReadsTable.userId, userId), inArray(threadReadsTable.threadId, chunk)),
+          )
+          .all(),
+      );
     },
   };
 }

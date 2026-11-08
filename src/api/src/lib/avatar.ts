@@ -67,11 +67,7 @@ export async function parseAvatarFile(file: File): Promise<ParsedAvatar> {
   return { bytes, contentType };
 }
 
-export async function putAvatar(
-  env: Env,
-  userId: string,
-  avatar: ParsedAvatar,
-): Promise<string> {
+export async function putAvatar(env: Env, userId: string, avatar: ParsedAvatar): Promise<string> {
   const key = avatarObjectKey(userId);
   await env.adoptierlieber_images.put(key, avatar.bytes, {
     httpMetadata: { contentType: avatar.contentType },

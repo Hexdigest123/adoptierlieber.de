@@ -15,7 +15,9 @@ export function parseListQuery(search: URLSearchParams, fallback = 24): ListQuer
   const rawPage = Number(search.get("page") ?? "1");
   const rawPer = Number(search.get("per_page") ?? String(fallback));
   const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
-  const per_page = Number.isFinite(rawPer) ? Math.min(50, Math.max(1, Math.floor(rawPer))) : fallback;
+  const per_page = Number.isFinite(rawPer)
+    ? Math.min(50, Math.max(1, Math.floor(rawPer)))
+    : fallback;
   return { page, per_page, offset: (page - 1) * per_page };
 }
 

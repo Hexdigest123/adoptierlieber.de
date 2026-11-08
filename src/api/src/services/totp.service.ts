@@ -48,7 +48,7 @@ export function createTotpService(env: Env) {
       const secret = generateTotpSecret();
       const blob = await sealSecret(env, secret, userId);
       if (!(await users.updateTotpPending(userId, blob))) {
-        throw new HTTPException(500, { message: "something wen't wrong" });
+        throw new HTTPException(500, { message: "something went wrong" });
       }
       await env.RATE_LIMIT_KV.put(`totp:enroll:${userId}`, "1", {
         expirationTtl: ENROLL_TTL_SECONDS,
@@ -69,7 +69,7 @@ export function createTotpService(env: Env) {
       }
       const blob = await sealSecret(env, secret, userId);
       if (!(await users.confirmTotp(userId, blob))) {
-        throw new HTTPException(500, { message: "something wen't wrong" });
+        throw new HTTPException(500, { message: "something went wrong" });
       }
       await users.updateTotpLastCounter(userId, counter);
       await env.RATE_LIMIT_KV.delete(`totp:enroll:${userId}`);

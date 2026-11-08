@@ -25,12 +25,7 @@ import { createAnimalRepo } from "../repositories/animal.repo";
 import { createThreadRepo } from "../repositories/thread.repo";
 import { createImpressionRepo } from "../repositories/impression.repo";
 import { createSnippetRepo } from "../repositories/snippet.repo";
-import type {
-  ApplicationField,
-  Shelter,
-  ShelterChecklist,
-  ShelterMember,
-} from "../types";
+import type { ApplicationField, Shelter, ShelterChecklist, ShelterMember } from "../types";
 import {
   deleteShelterLogo,
   getShelterLogoObject,
@@ -225,7 +220,7 @@ export function createShelterService(env: Env) {
       }
       if (!shelter) {
         await userRepo.delete(user.id);
-        throw new HTTPException(500, { message: "something wen't wrong" });
+        throw new HTTPException(500, { message: "something went wrong" });
       }
 
       try {
@@ -671,8 +666,7 @@ export function createShelterService(env: Env) {
     async getLogo(userId: string | null, shelterId: string) {
       const shelter = await requireShelter(shelterId);
       if (!shelter.logoKey) return null;
-      const publicOk =
-        shelter.verificationStatus === "verified" && !shelter.archivedAt;
+      const publicOk = shelter.verificationStatus === "verified" && !shelter.archivedAt;
       if (!publicOk) {
         if (!userId) {
           throw new HTTPException(404, { message: "logo not found" });
@@ -714,7 +708,7 @@ export function createShelterService(env: Env) {
         body: data.body,
       });
       if (!row) {
-        throw new HTTPException(500, { message: "something wen't wrong" });
+        throw new HTTPException(500, { message: "something went wrong" });
       }
       return {
         id: row.id,

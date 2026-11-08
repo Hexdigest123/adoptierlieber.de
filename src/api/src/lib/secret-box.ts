@@ -29,7 +29,7 @@ function fromHex(value: string): Uint8Array | null {
 async function totpKeyRaw(env: Env): Promise<Uint8Array> {
   const raw = (env.SECRET_TOTP_KEY ?? process.env.SECRET_TOTP_KEY ?? "").trim();
   if (!raw) {
-    throw new HTTPException(500, { message: "something wen't wrong" });
+    throw new HTTPException(500, { message: "something went wrong" });
   }
   const hex = fromHex(raw);
   if (hex && hex.length === 32) return hex;
@@ -40,10 +40,10 @@ async function totpKeyRaw(env: Env): Promise<Uint8Array> {
   try {
     bytes = unb64url(raw);
   } catch {
-    throw new HTTPException(500, { message: "something wen't wrong" });
+    throw new HTTPException(500, { message: "something went wrong" });
   }
   if (bytes.length !== 32) {
-    throw new HTTPException(500, { message: "something wen't wrong" });
+    throw new HTTPException(500, { message: "something went wrong" });
   }
   return bytes;
 }
@@ -75,7 +75,7 @@ export async function sealSecret(env: Env, plaintext: string, aad: string): Prom
 export async function openSecret(env: Env, blob: string, aad: string): Promise<string> {
   const bytes = unb64url(blob);
   if (bytes.length < 1 + IV_LENGTH + 16 || bytes[0] !== VERSION) {
-    throw new HTTPException(500, { message: "something wen't wrong" });
+    throw new HTTPException(500, { message: "something went wrong" });
   }
   const iv = bytes.slice(1, 1 + IV_LENGTH);
   const cipher = bytes.slice(1 + IV_LENGTH);
@@ -88,6 +88,6 @@ export async function openSecret(env: Env, blob: string, aad: string): Promise<s
     );
     return new TextDecoder().decode(plain);
   } catch {
-    throw new HTTPException(500, { message: "something wen't wrong" });
+    throw new HTTPException(500, { message: "something went wrong" });
   }
 }
