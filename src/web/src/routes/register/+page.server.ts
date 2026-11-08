@@ -6,27 +6,15 @@ import { isTurnstileRejection, TURNSTILE_FIELD } from "$lib/turnstile";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// A taken address answers like a fresh signup (the API mails the owner), so there is no
+// "email taken" error; 409 only means a banned name/address/email.
 async function readApiError(
 	response: Response,
-): Promise<"email_taken" | "not_allowed" | "rate_limited" | "invalid" | "captcha" | "generic"> {
+): Promise<"not_allowed" | "rate_limited" | "invalid" | "captcha" | "generic"> {
 	if (await isTurnstileRejection(response)) return "captcha";
-	if (response.status === 409) {
-		try {
-			const body = (await response.clone().json()) as { error?: string };
-			if (body.error === "registration not allowed") return "not_allowed";
-		} catch {
-			// fall through
-		}
-		return "email_taken";
-	}
+	if (response.status === 409) return "not_allowed";
 	if (response.status === 429) return "rate_limited";
 	if (response.status === 400) return "invalid";
-	try {
-		const body = (await response.json()) as { error?: string };
-		if (body.error === "email already registered") return "email_taken";
-	} catch {
-		// ignore parse errors
-	}
 	return "generic";
 }
 
@@ -96,9 +84,6 @@ export const actions: Actions = {
 		if (displayName) body.set("displayName", displayName);
 		if (accountType === "shelter") {
 			body.set("orgName", values.orgName);
-			body.set("street", values.street);
-			body.set("zip", values.zip);
-			body.set("city", values.city);
 			if (values.website) body.set("website", values.website);
 			if (values.registrationNumber) body.set("registrationNumber", values.registrationNumber);
 			if (values.description) body.set("description", values.description);

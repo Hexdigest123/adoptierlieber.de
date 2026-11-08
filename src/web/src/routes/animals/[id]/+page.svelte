@@ -2,10 +2,10 @@
 	import type { PageProps } from "./$types";
 	import AnimalDetail from "$lib/components/app/AnimalDetail.svelte";
 	import { m } from "$lib/paraglide/messages";
-	import { jsonLdText, SITE_ORIGIN } from "$lib/seo";
+	import { jsonLdScript, SITE_ORIGIN } from "$lib/seo";
 
 	let { data }: PageProps = $props();
-	let animal = $state(data.animal);
+	let animal = $derived(data.animal);
 
 	const title = $derived(`${animal.name} – Adoptier Lieber`);
 	const description = $derived(
@@ -17,8 +17,8 @@
 		animal.photos[0] ? `${SITE_ORIGIN}${animal.photos[0]}` : `${SITE_ORIGIN}/og.png`,
 	);
 	const canonical = $derived(`${SITE_ORIGIN}/animals/${animal.id}`);
-	const json = $derived(
-		jsonLdText({
+	const structured = $derived(
+		jsonLdScript({
 			"@context": "https://schema.org",
 			"@type": "Animal",
 			name: animal.name,
@@ -43,7 +43,8 @@
 	<meta name="twitter:title" content={title} />
 	<meta name="twitter:description" content={description} />
 	<meta name="twitter:image" content={image} />
-	{@html `<script type="application/ld+json">${json}</script>`}
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+	{@html structured}
 </svelte:head>
 
 <div class="mx-auto w-full max-w-2xl px-4 py-8">

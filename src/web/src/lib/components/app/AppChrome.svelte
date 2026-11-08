@@ -90,9 +90,12 @@
 
 	async function refreshInRange() {
 		try {
-			const params = new URLSearchParams({ mode: "search", per_page: "1" });
 			const species = speciesQuery();
-			if (species) params.set("species", species);
+			const params = new URLSearchParams({
+				mode: "search",
+				per_page: "1",
+				...(species ? { species } : {}),
+			});
 			const res = await fetch(`/api/animals?${params}`);
 			if (!res.ok) return;
 			const body = (await res.json()) as { in_range?: number; total?: number };

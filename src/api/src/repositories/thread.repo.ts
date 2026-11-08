@@ -1,4 +1,5 @@
 import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { inChunks } from "../lib/d1";
 import { drizzle } from "drizzle-orm/d1";
 import { getDb, type Env } from "../config/env";
 import { animalsTable, threadsTable, usersTable } from "../schema";
@@ -51,6 +52,10 @@ export function createThreadRepo(env: Env) {
         .where(where)
         .orderBy(desc(threadsTable.lastMessageAt))
         .all();
+    },
+
+    listByAnimal(animalId: string) {
+      return db.select().from(threadsTable).where(eq(threadsTable.animalId, animalId)).all();
     },
 
     listByAdopter(userId: string) {
@@ -127,25 +132,27 @@ export function createThreadRepo(env: Env) {
     },
 
     countByAnimalIds(animalIds: string[]) {
-      if (animalIds.length === 0) return Promise.resolve([] as { animalId: string; n: number }[]);
-      return db
-        .select({ animalId: threadsTable.animalId, n: sql<number>`count(*)` })
-        .from(threadsTable)
-        .where(inArray(threadsTable.animalId, animalIds))
-        .groupBy(threadsTable.animalId)
-        .all();
+      return inChunks(animalIds, (chunk) =>
+        db
+          .select({ animalId: threadsTable.animalId, n: sql<number>`count(*)` })
+          .from(threadsTable)
+          .where(inArray(threadsTable.animalId, chunk))
+          .groupBy(threadsTable.animalId)
+          .all(),
+      );
     },
 
     countUnreadByAnimalIds(animalIds: string[]) {
-      if (animalIds.length === 0) return Promise.resolve([] as { animalId: string; n: number }[]);
-      return db
-        .select({ animalId: threadsTable.animalId, n: sql<number>`count(*)` })
-        .from(threadsTable)
-        .where(
-          and(inArray(threadsTable.animalId, animalIds), eq(threadsTable.unreadForShelter, true)),
-        )
-        .groupBy(threadsTable.animalId)
-        .all();
+      return inChunks(animalIds, (chunk) =>
+        db
+          .select({ animalId: threadsTable.animalId, n: sql<number>`count(*)` })
+          .from(threadsTable)
+          .where(
+            and(inArray(threadsTable.animalId, chunk), eq(threadsTable.unreadForShelter, true)),
+          )
+          .groupBy(threadsTable.animalId)
+          .all(),
+      );
     },
 
     update(

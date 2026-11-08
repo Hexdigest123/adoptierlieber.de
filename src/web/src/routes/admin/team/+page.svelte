@@ -48,11 +48,7 @@
 	{#each data.team.items as member (member.id)}
 		<Card padding="sm">
 			<div class="flex flex-wrap items-center gap-3">
-				<Avatar
-					name={member.name}
-					hasAvatar={member.has_avatar && member.id === data.user?.id}
-					size="sm"
-				/>
+				<Avatar name={member.name} userId={member.id} hasAvatar={member.has_avatar} size="sm" />
 				<div class="min-w-0 flex-1">
 					<p class="font-semibold text-sand-950">{member.name}</p>
 					<p class="text-sm text-sand-600">{member.email}</p>

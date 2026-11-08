@@ -33,7 +33,7 @@ shelters.post("/", rateLimitByIp("create-shelter", 5, { failClosed: true }), asy
     c.executionCtx.waitUntil(
       sendMail(
         verifyEmailTemplate({ to: asString(fields.email), token: result.verificationToken }),
-      ),
+      ).catch(console.error),
     );
     notifyInBackground(c, (to) =>
       shelterRegistrationNotificationTemplate({
@@ -169,7 +169,11 @@ shelters.delete("/:id/members/:userId", sessionValidation, async (c) => {
 });
 
 shelters.post("/:id/transfer", sessionValidation, async (c) => {
-  await createShelterService(c.env).transfer(c.get("userId"), c.req.param("id"), await c.req.json());
+  await createShelterService(c.env).transfer(
+    c.get("userId"),
+    c.req.param("id"),
+    await c.req.json(),
+  );
   return c.json({}, 200);
 });
 
@@ -247,7 +251,7 @@ shelters.get("/:id/logo", rateLimitByIp("shelter-logo", 120), async (c) => {
   let userId: string | null = null;
   if (token) {
     try {
-      const session = await createSessionService(c.env).validate(token);
+      const { session } = await createSessionService(c.env).validate(token);
       userId = session.userId;
     } catch {
       // public fallback for verified shelters
@@ -308,7 +312,11 @@ shelters.patch("/:id/animals/:animalId", sessionValidation, async (c) => {
 });
 
 shelters.delete("/:id/animals/:animalId", sessionValidation, async (c) => {
-  await createAnimalService(c.env).remove(c.get("userId"), c.req.param("id"), c.req.param("animalId"));
+  await createAnimalService(c.env).remove(
+    c.get("userId"),
+    c.req.param("id"),
+    c.req.param("animalId"),
+  );
   return c.json({}, 200);
 });
 

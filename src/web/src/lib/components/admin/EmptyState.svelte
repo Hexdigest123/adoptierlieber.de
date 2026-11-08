@@ -1,8 +1,9 @@
 <script lang="ts">
+	import type { ResolvedPathname } from "$app/types";
 	import { m } from "$lib/paraglide/messages";
 
 	type Props = {
-		clearHref?: string;
+		clearHref?: ResolvedPathname;
 	};
 
 	let { clearHref }: Props = $props();

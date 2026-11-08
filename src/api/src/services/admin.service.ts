@@ -16,12 +16,7 @@ import {
 import { generateToken, hashPassword, hashToken } from "../lib/hashing";
 import { sendMail } from "../lib/mail";
 import { listEnvelope, parseListQuery, type ListEnvelope } from "../lib/pagination";
-import {
-  effectivePlatformRole,
-  isSuperAdmin,
-  PLATFORM_ROLE,
-  SHELTER_ROLE,
-} from "../lib/roles";
+import { effectivePlatformRole, isSuperAdmin, PLATFORM_ROLE, SHELTER_ROLE } from "../lib/roles";
 import {
   adminBanSchema,
   adminInviteSchema,
@@ -168,24 +163,26 @@ export function createAdminService(env: Env) {
       action: search.get("action")?.trim() || undefined,
       actorId: search.get("actor_id")?.trim() || undefined,
       from: parseOptionalDate(search.get("from")),
-      to: parseOptionalDate(search.get("to")),
+      to: parseOptionalDate(search.get("to"), true),
       offset: page.offset,
       limit: page.per_page,
     };
   }
 
-  function parseOptionalDate(value: string | null): Date | undefined {
+  /** A date-only `to` (date input) includes that whole day. */
+  function parseOptionalDate(value: string | null, endOfDay = false): Date | undefined {
     if (!value) return undefined;
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? undefined : date;
+    if (Number.isNaN(date.getTime())) return undefined;
+    if (endOfDay && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return new Date(date.getTime() + 24 * 60 * 60 * 1000 - 1);
+    }
+    return date;
   }
 
   return {
     async overview() {
-      const [counts, recent] = await Promise.all([
-        adminRepo.overview(),
-        adminRepo.recentAudit(),
-      ]);
+      const [counts, recent] = await Promise.all([adminRepo.overview(), adminRepo.recentAudit()]);
       return {
         ...counts,
         recent_audit: recent.map((row) => ({
@@ -512,8 +509,10 @@ export function createAdminService(env: Env) {
       return env.adoptierlieber_images.get(key);
     },
 
-    async listApplications(search: URLSearchParams): Promise<ListEnvelope<Record<string, unknown>>> {
-      if (!search.has("verification_status") && !search.get("verification_status")) {
+    async listApplications(
+      search: URLSearchParams,
+    ): Promise<ListEnvelope<Record<string, unknown>>> {
+      if (!search.get("verification_status")?.trim()) {
         search = new URLSearchParams(search);
         search.set("verification_status", "pending");
       }

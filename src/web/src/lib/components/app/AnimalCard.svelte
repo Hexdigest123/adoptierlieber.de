@@ -1,9 +1,8 @@
 <script lang="ts">
 	import Heart from "lucide-svelte/icons/heart";
-	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import type { PublicAnimal } from "$lib/types/catalog";
-	import { withFrom, type AnimalOrigin } from "$lib/app/return";
+	import { animalHref, type AnimalOrigin } from "$lib/app/return";
 	import {
 		ageLabel,
 		bondedNames,
@@ -25,7 +24,7 @@
 		onunlike?: (id: string) => void;
 	} = $props();
 
-	const href = $derived(withFrom(resolve(`/app/animals/${animal.id}`), from));
+	const href = $derived(animalHref(animal.id, from));
 	const meta = $derived(
 		metaLine(speciesLabel(animal.species), distanceLabel(animal.distance_km, animal.shelter.city)),
 	);

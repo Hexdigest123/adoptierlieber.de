@@ -15,7 +15,10 @@
 		unread={data.unread}
 	/>
 	<main id="content" class="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-24 sm:px-6 md:pb-10">
-		{@render children()}
+		<!-- Pages keep editing state; another shelter must start from fresh data. -->
+		{#key data.current?.shelter_id}
+			{@render children()}
+		{/key}
 	</main>
 	{#if data.shelter && data.current}
 		<Coachmark

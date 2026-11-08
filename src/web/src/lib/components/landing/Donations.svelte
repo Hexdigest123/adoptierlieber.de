@@ -70,6 +70,9 @@
 		{:else}
 			<div
 				class="mx-auto mt-12 max-w-4xl"
+				role="region"
+				aria-roledescription="carousel"
+				aria-labelledby="donations-title"
 				onmouseenter={() => (paused = true)}
 				onmouseleave={() => (paused = false)}
 				onfocusin={() => (paused = true)}
@@ -125,7 +128,7 @@
 										</div>
 										{#if shelter.donation_description}
 											<p
-												class="min-w-0 text-base leading-relaxed [overflow-wrap:anywhere] text-sand-700"
+												class="min-w-0 text-base leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap text-sand-700"
 											>
 												{shelter.donation_description}
 											</p>

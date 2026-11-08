@@ -9,24 +9,20 @@
 	import ConfirmDialog from "$lib/components/admin/ConfirmDialog.svelte";
 	import EmptyState from "$lib/components/admin/EmptyState.svelte";
 	import { formatDate, shortHash } from "$lib/admin/format";
-	import type { AdminBanRow, ListEnvelope } from "$lib/admin/types";
+	import { ADMIN_PAGE_SIZE } from "$lib/admin/api";
+	import { searchParams } from "$lib/query";
+	import { pagedList } from "$lib/admin/paged.svelte";
+	import type { AdminBanRow } from "$lib/admin/types";
 
 	let { data, form }: PageProps = $props();
 
-	let extra = $state<AdminBanRow[]>([]);
-	let pageNum = $state(1);
-	let loading = $state(false);
 	let dropTarget = $state<AdminBanRow | null>(null);
 
-	$effect(() => {
-		data.list;
-		extra = [];
-		pageNum = 1;
-	});
-
-	const items = $derived([...data.list.items, ...extra]);
-	const total = $derived(data.list.total);
-	const hasMore = $derived(items.length < total);
+	const list = pagedList<AdminBanRow>(
+		() => data.list,
+		(page) =>
+			`/api/admin/bans?${searchParams({ page: String(page), per_page: String(ADMIN_PAGE_SIZE), q: data.q })}`,
+	);
 	const lookup = $derived(
 		form && "lookup" in form
 			? (form.lookup as
@@ -40,26 +36,6 @@
 					  })
 			: null,
 	);
-
-	async function loadMore() {
-		if (loading || !hasMore) return;
-		loading = true;
-		const nextPage = pageNum + 1;
-		const params = new URLSearchParams();
-		params.set("page", String(nextPage));
-		params.set("per_page", "24");
-		if (data.q) params.set("q", data.q);
-		try {
-			const response = await fetch(`/api/admin/bans?${params}`);
-			if (response.ok) {
-				const body = (await response.json()) as ListEnvelope<AdminBanRow>;
-				extra = [...extra, ...body.items];
-				pageNum = nextPage;
-			}
-		} finally {
-			loading = false;
-		}
-	}
 </script>
 
 <h1 class="mb-4 text-2xl font-black tracking-tight text-sand-950">{m.admin_bans_title()}</h1>
@@ -85,7 +61,7 @@
 				<FormStatus type="error">
 					<p class="font-semibold">{m.admin_bans_match()}</p>
 					<p class="mt-1 font-mono text-sm">{shortHash(lookup.hash)}…</p>
-					<p class="mt-1 text-sm">{lookup.reason}</p>
+					<p class="mt-1 text-sm whitespace-pre-wrap">{lookup.reason}</p>
 					<p class="mt-1 text-xs tabular-nums">{formatDate(lookup.created_at)}</p>
 				</FormStatus>
 				<div class="mt-3">
@@ -112,14 +88,20 @@
 	{/if}
 </Card>
 
-{#if items.length === 0}
+{#if list.items.length === 0}
 	<EmptyState />
 {:else}
-	<CatalogGrid shown={items.length} {total} {hasMore} {loading} onMore={loadMore}>
-		{#each items as row (row.hash)}
+	<CatalogGrid
+		shown={list.items.length}
+		total={list.total}
+		hasMore={list.hasMore}
+		loading={list.loading}
+		onMore={list.loadMore}
+	>
+		{#each list.items as row (row.hash)}
 			<Card padding="sm">
 				<p class="font-mono text-sm font-semibold text-sand-950">{shortHash(row.hash)}…</p>
-				<p class="mt-2 text-sm text-sand-800">{row.reason}</p>
+				<p class="mt-2 text-sm whitespace-pre-wrap text-sand-800">{row.reason}</p>
 				<p class="mt-1 text-xs text-sand-500 tabular-nums">
 					{formatDate(row.created_at)}
 					{#if row.banned_by_name}

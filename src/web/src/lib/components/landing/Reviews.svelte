@@ -62,6 +62,9 @@
 		{:else}
 			<div
 				class="mx-auto mt-12 max-w-4xl"
+				role="region"
+				aria-roledescription="carousel"
+				aria-labelledby="reviews-title"
 				onmouseenter={() => (paused = true)}
 				onmouseleave={() => (paused = false)}
 				onfocusin={() => (paused = true)}

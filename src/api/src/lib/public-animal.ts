@@ -67,9 +67,11 @@ export function photoUrl(animalId: string, index: number): string {
   return `/api/animals/${animalId}/photos/${index}`;
 }
 
-function photoUrls(animalId: string, photos: string[] | null): string[] {
-  const count = photos?.length ?? 0;
-  return Array.from({ length: count }, (_, i) => photoUrl(animalId, i));
+// Index URLs are cached publicly for a day; every photo change bumps updatedAt, so the
+// version keeps a reordered or deleted photo from showing under its old index.
+function photoUrls(animal: Animal): string[] {
+  const version = animal.updatedAt.getTime();
+  return (animal.photos ?? []).map((_, i) => `${photoUrl(animal.id, i)}?v=${version}`);
 }
 
 /**
@@ -105,7 +107,7 @@ export function toPublicAnimal(
     traits: animal.traits ?? [],
     tagline: animal.tagline,
     description: animal.description,
-    photos: photoUrls(animal.id, animal.photos),
+    photos: photoUrls(animal),
     status: animal.status,
     vaccinated: animal.vaccinated,
     neutered: animal.neutered,
@@ -146,7 +148,7 @@ export function toPublicExcerpt(
     age_months: animal.ageMonths,
     age_unknown: animal.ageUnknown,
     tagline: animal.tagline,
-    photos: photoUrls(animal.id, animal.photos),
+    photos: photoUrls(animal),
     traits: animal.traits ?? [],
     bonded_partner: publicBondLabel(animal, bonded_partners),
     bonded_partners,

@@ -33,6 +33,9 @@
 			{:then { default: ShelterMap }}
 				<div class="w-full">
 					<ShelterMap {shelters} {loggedIn} />
+					{#if shelters.length === 0}
+						<p class="mt-4 text-center text-sm text-sand-600">{m.showcase_map_empty()}</p>
+					{/if}
 				</div>
 			{/await}
 		</div>

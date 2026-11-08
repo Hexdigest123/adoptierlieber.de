@@ -1,4 +1,5 @@
 import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { inChunks } from "../lib/d1";
 import { drizzle } from "drizzle-orm/d1";
 import { getDb, type Env } from "../config/env";
 import { animalImpressionsDailyTable, animalsTable, sheltersTable } from "../schema";
@@ -67,12 +68,13 @@ export function createImpressionRepo(env: Env) {
     },
 
     listLiveWithoutPhotos(animalIds: string[]) {
-      if (animalIds.length === 0) return Promise.resolve([] as { id: string }[]);
-      return db
-        .select({ id: animalsTable.id })
-        .from(animalsTable)
-        .where(and(inArray(animalsTable.id, animalIds), eq(animalsTable.status, "live")))
-        .all();
+      return inChunks(animalIds, (chunk) =>
+        db
+          .select({ id: animalsTable.id })
+          .from(animalsTable)
+          .where(and(inArray(animalsTable.id, chunk), eq(animalsTable.status, "live")))
+          .all(),
+      );
     },
   };
 }

@@ -1,5 +1,8 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
+	import { invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import type { ResolvedPathname } from "$app/types";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
 	import { photoUrl } from "$lib/types/shelter";
@@ -9,17 +12,63 @@
 
 	const kpis = $derived(data.dashboard.kpis);
 	const tiles = $derived([
-		{ label: m.shelter_kpi_live(), value: kpis.live, href: "/shelter/animals?status=live" },
-		{ label: m.shelter_kpi_drafts(), value: kpis.drafts, href: "/shelter/animals?status=draft" },
-		{ label: m.shelter_kpi_new(), value: kpis.new_threads, href: "/shelter/messages?filter=new" },
-		{ label: m.shelter_kpi_unread(), value: kpis.unread, href: "/shelter/messages" },
-		{ label: m.shelter_kpi_saves(), value: kpis.likes, href: "/shelter/animals?status=live" },
+		{
+			label: m.shelter_kpi_live(),
+			value: kpis.live,
+			href: resolve("/shelter/animals?status=live"),
+		},
+		{
+			label: m.shelter_kpi_drafts(),
+			value: kpis.drafts,
+			href: resolve("/shelter/animals?status=draft"),
+		},
+		{
+			label: m.shelter_kpi_new(),
+			value: kpis.new_threads,
+			href: resolve("/shelter/messages?filter=new"),
+		},
+		{ label: m.shelter_kpi_unread(), value: kpis.unread, href: resolve("/shelter/messages") },
+		{
+			label: m.shelter_kpi_saves(),
+			value: kpis.likes,
+			href: resolve("/shelter/animals?status=live"),
+		},
 		{
 			label: m.shelter_kpi_impressions(),
 			value: kpis.impressions_7d,
-			href: "/shelter/animals?status=live",
+			href: resolve("/shelter/animals?status=live"),
 		},
 	]);
+
+	/** The API lists one entry per animal; show each kind once, with a count and a link. */
+	const attention = $derived.by(() => {
+		const counts: Record<string, number> = {};
+		for (const row of data.dashboard.attention) counts[row.kind] = (counts[row.kind] ?? 0) + 1;
+		return Object.entries(counts).map(([kind, count]) => ({
+			kind,
+			count,
+			href: attentionHref(kind),
+		}));
+	});
+
+	function attentionHref(kind: string): ResolvedPathname | null {
+		if (kind === "stale_draft_no_photo") return resolve("/shelter/animals?status=draft");
+		if (kind === "live_no_photo") return resolve("/shelter/animals?status=live");
+		if (kind === "unanswered") return resolve("/shelter/messages?filter=unread");
+		return null;
+	}
+
+	async function showCoach() {
+		try {
+			await fetch(`/api/shelters/${data.current!.shelter_id}/checklist`, {
+				method: "PATCH",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ dismissed: false }),
+			});
+		} finally {
+			await invalidateAll();
+		}
+	}
 
 	function attentionLabel(kind: string): string {
 		if (kind === "stale_draft_no_photo") return m.shelter_attention_stale();
@@ -37,21 +86,11 @@
 	</div>
 	<div class="flex flex-wrap gap-2">
 		{#if data.shelter?.checklist.dismissed}
-			<Button
-				variant="ghost"
-				size="sm"
-				onclick={() => {
-					void fetch(`/api/shelters/${data.current!.shelter_id}/checklist`, {
-						method: "PATCH",
-						headers: { "content-type": "application/json" },
-						body: JSON.stringify({ dismissed: false }),
-					}).then(() => location.reload());
-				}}
-			>
+			<Button variant="ghost" size="sm" onclick={() => void showCoach()}>
 				{m.shelter_coach_title()}
 			</Button>
 		{/if}
-		<Button href="/shelter/animals/new" size="sm"
+		<Button href={resolve("/shelter/animals/new")} size="sm"
 			>{data.hasAnimals ? m.shelter_animal_add() : m.shelter_animal_new()}</Button
 		>
 	</div>
@@ -74,13 +113,25 @@
 </ul>
 <p class="mt-2 text-xs text-sand-600">{m.shelter_impressions_hint()}</p>
 
-{#if data.dashboard.attention.length}
+{#if attention.length}
 	<section class="mt-8">
 		<h2 class="text-lg font-bold text-sand-950">{m.shelter_attention_title()}</h2>
 		<ul class="mt-3 flex flex-col gap-2">
-			{#each data.dashboard.attention as row, i (row.kind + (row.animal_id ?? i))}
-				<li class="rounded-xl border border-sand-200 bg-white px-4 py-3 text-sm text-sand-800">
-					{attentionLabel(row.kind)}
+			{#each attention as row (row.kind)}
+				<li>
+					{#if row.href}
+						<a
+							href={row.href}
+							class="flex items-center justify-between gap-3 rounded-xl border border-sand-200 bg-white px-4 py-3 text-sm text-sand-800 focus-ring hover:bg-peach-50"
+						>
+							{attentionLabel(row.kind)}
+							{#if row.count > 1}<span class="font-semibold tabular-nums">{row.count}</span>{/if}
+						</a>
+					{:else}
+						<p class="rounded-xl border border-sand-200 bg-white px-4 py-3 text-sm text-sand-800">
+							{attentionLabel(row.kind)}
+						</p>
+					{/if}
 				</li>
 			{/each}
 		</ul>
@@ -90,7 +141,7 @@
 <section class="mt-8">
 	<div class="flex items-center justify-between">
 		<h2 class="text-lg font-bold text-sand-950">{m.shelter_recent_title()}</h2>
-		<a href="/shelter/messages" class="text-sm font-medium text-coral-700"
+		<a href={resolve("/shelter/messages")} class="text-sm font-medium text-coral-700"
 			>{m.shelter_recent_all()}</a
 		>
 	</div>
@@ -101,7 +152,7 @@
 			{#each data.dashboard.recent_threads as thread (thread.id)}
 				<li>
 					<a
-						href="/shelter/messages/{thread.id}"
+						href={resolve("/shelter/messages/[id]", { id: thread.id })}
 						class="flex items-center gap-3 rounded-xl border border-sand-200 bg-white px-3 py-2 focus-ring hover:bg-peach-50"
 					>
 						{#if thread.animal_photo && data.current}
@@ -122,6 +173,7 @@
 						</div>
 						{#if thread.unread}
 							<span class="size-2.5 shrink-0 rounded-full bg-coral-600" aria-hidden="true"></span>
+							<span class="sr-only">{m.shelter_filter_unread()}</span>
 						{/if}
 					</a>
 				</li>

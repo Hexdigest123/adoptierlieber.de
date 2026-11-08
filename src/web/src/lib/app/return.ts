@@ -1,3 +1,6 @@
+import { resolve } from "$app/paths";
+import type { ResolvedPathname } from "$app/types";
+
 const ORIGIN_PATHS = {
 	catalog: "/app/catalog",
 	likes: "/app/likes",
@@ -16,7 +19,8 @@ export function backPath(from: string | null): OriginPath {
 	return "/app";
 }
 
-export function withFrom(path: string, from: string | null): string {
-	if (!isAnimalOrigin(from)) return path;
-	return `${path}?from=${from}`;
+/** In-app animal page that remembers the list it was opened from (for its back link). */
+export function animalHref(id: string, from: string | null): ResolvedPathname {
+	if (!isAnimalOrigin(from)) return resolve("/app/animals/[id]", { id });
+	return resolve(`/app/animals/${id}?from=${from}`);
 }

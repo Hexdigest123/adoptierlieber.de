@@ -1,3 +1,4 @@
+import { inChunks } from "../lib/d1";
 import {
   and,
   desc,
@@ -69,7 +70,10 @@ export function createAdminRepo(env: Env) {
   return {
     async overview() {
       const [users, suspended, pending, verified, rejected, animals] = await Promise.all([
-        db.select({ n: sql<number>`count(*)` }).from(usersTable).get(),
+        db
+          .select({ n: sql<number>`count(*)` })
+          .from(usersTable)
+          .get(),
         db
           .select({ n: sql<number>`count(*)` })
           .from(usersTable)
@@ -90,7 +94,10 @@ export function createAdminRepo(env: Env) {
           .from(sheltersTable)
           .where(eq(sheltersTable.verificationStatus, "rejected"))
           .get(),
-        db.select({ n: sql<number>`count(*)` }).from(animalsTable).get(),
+        db
+          .select({ n: sql<number>`count(*)` })
+          .from(animalsTable)
+          .get(),
       ]);
       return {
         users: Number(users?.n ?? 0),
@@ -170,7 +177,11 @@ export function createAdminRepo(env: Env) {
 
     async listShelters(params: AdminListParams) {
       const filters = [];
-      if (params.verificationStatus === "pending" || params.verificationStatus === "verified" || params.verificationStatus === "rejected") {
+      if (
+        params.verificationStatus === "pending" ||
+        params.verificationStatus === "verified" ||
+        params.verificationStatus === "rejected"
+      ) {
         filters.push(eq(sheltersTable.verificationStatus, params.verificationStatus));
       }
       if (params.city) {
@@ -189,9 +200,11 @@ export function createAdminRepo(env: Env) {
       }
       const where = filters.length ? and(...filters) : undefined;
 
+      // One row per shelter: shelters may have several owners; list the earliest.
       const ownerJoin = and(
         eq(shelterMembersTable.shelterId, sheltersTable.id),
         eq(shelterMembersTable.role, SHELTER_ROLE.OWNER),
+        sql`${shelterMembersTable.id} = (SELECT sm.id FROM shelter_members sm WHERE sm.shelter_id = ${sheltersTable.id} AND sm.role = ${SHELTER_ROLE.OWNER} ORDER BY sm.created_at, sm.id LIMIT 1)`,
       );
 
       const [totalRow, items] = await Promise.all([
@@ -359,12 +372,13 @@ export function createAdminRepo(env: Env) {
     },
 
     namesByIds(ids: string[]) {
-      if (ids.length === 0) return Promise.resolve([]);
-      return db
-        .select({ id: usersTable.id, name: usersTable.name })
-        .from(usersTable)
-        .where(inArray(usersTable.id, ids))
-        .all();
+      return inChunks(ids, (chunk) =>
+        db
+          .select({ id: usersTable.id, name: usersTable.name })
+          .from(usersTable)
+          .where(inArray(usersTable.id, chunk))
+          .all(),
+      );
     },
 
     async listAudit(params: AdminListParams) {
@@ -459,12 +473,7 @@ export function createAdminRepo(env: Env) {
         .get();
     },
 
-    insertInvite(input: {
-      email: string;
-      tokenHash: string;
-      invitedBy: string;
-      expiresAt: Date;
-    }) {
+    insertInvite(input: { email: string; tokenHash: string; invitedBy: string; expiresAt: Date }) {
       return db.insert(adminInvitesTable).values(input).returning().get();
     },
 
@@ -512,7 +521,12 @@ export function createAdminRepo(env: Env) {
         .all();
     },
 
-    insertNote(input: { shelterId: string; authorId: string | null; authorName: string; body: string }) {
+    insertNote(input: {
+      shelterId: string;
+      authorId: string | null;
+      authorName: string;
+      body: string;
+    }) {
       return db.insert(applicationNotesTable).values(input).returning().get();
     },
 

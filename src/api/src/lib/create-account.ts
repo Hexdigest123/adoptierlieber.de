@@ -126,7 +126,7 @@ export async function insertRegisteredUser(
     platformRole,
   });
   if (!row) {
-    throw new HTTPException(500, { message: "something wen't wrong" });
+    throw new HTTPException(500, { message: "something went wrong" });
   }
   return row;
 }

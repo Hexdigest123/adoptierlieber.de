@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { inChunks } from "../lib/d1";
 import { drizzle } from "drizzle-orm/d1";
 import { getDb, type Env } from "../config/env";
 import { animalsTable, sheltersTable } from "../schema";
@@ -48,25 +49,19 @@ export function createAnimalRepo(env: Env) {
     },
 
     findByIds(ids: string[]) {
-      if (!ids.length) return Promise.resolve([]);
-      return db.select().from(animalsTable).where(inArray(animalsTable.id, ids)).all();
+      return inChunks(ids, (chunk) =>
+        db.select().from(animalsTable).where(inArray(animalsTable.id, chunk)).all(),
+      );
     },
 
     listByBondGroup(groupId: string) {
-      return db
-        .select()
-        .from(animalsTable)
-        .where(eq(animalsTable.bondGroupId, groupId))
-        .all();
+      return db.select().from(animalsTable).where(eq(animalsTable.bondGroupId, groupId)).all();
     },
 
     listByBondGroups(groupIds: string[]) {
-      if (!groupIds.length) return Promise.resolve([]);
-      return db
-        .select()
-        .from(animalsTable)
-        .where(inArray(animalsTable.bondGroupId, groupIds))
-        .all();
+      return inChunks(groupIds, (chunk) =>
+        db.select().from(animalsTable).where(inArray(animalsTable.bondGroupId, chunk)).all(),
+      );
     },
 
     update(id: string, values: Partial<AnimalWrite>) {
@@ -108,10 +103,7 @@ export function createAnimalRepo(env: Env) {
     incrementLikes(id: string, delta: number) {
       return db
         .update(animalsTable)
-        .set({
-          likeCount: sql`max(0, ${animalsTable.likeCount} + ${delta})`,
-          updatedAt: new Date(),
-        })
+        .set({ likeCount: sql`max(0, ${animalsTable.likeCount} + ${delta})` })
         .where(eq(animalsTable.id, id))
         .run();
     },

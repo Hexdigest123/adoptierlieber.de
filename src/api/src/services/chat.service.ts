@@ -13,11 +13,13 @@ import { sendMail } from "../lib/mail";
 import { newThreadNotifyTemplate } from "../lib/email-templates";
 import { chatRoomStub } from "../durable-objects/chat-room";
 import type {
+  Animal,
   ApplicationAnswer,
   ApplicationField,
   GrantProfile,
   Message,
   Thread,
+  User,
 } from "../types";
 
 type ThreadView = {
@@ -77,6 +79,11 @@ export function createChatService(env: Env) {
   const messageRepo = createMessageRepo(env);
   const userRepo = createUserRepo(env);
 
+  async function namesOf(animalIds: string[]): Promise<Map<string, string>> {
+    const rows = await animalRepo.findByIds([...new Set(animalIds)]);
+    return new Map(rows.map((row) => [row.id, row.name]));
+  }
+
   async function staffOf(userId: string, shelterId: string) {
     return memberRepo.findMembership(userId, shelterId);
   }
@@ -94,21 +101,64 @@ export function createChatService(env: Env) {
     return { thread, isStaff: Boolean(staff), isAdopter };
   }
 
-  async function toThreadView(thread: Thread, viewerId?: string): Promise<ThreadView> {
-    const [animal, adopter, last, assigned, mine, shelter] = await Promise.all([
-      animalRepo.findById(thread.animalId),
-      userRepo.findById(thread.adopterUserId),
-      messageRepo.lastByThread(thread.id),
-      thread.assignedUserId ? userRepo.findById(thread.assignedUserId) : Promise.resolve(undefined),
-      viewerId ? threadReadRepo.find(thread.id, viewerId) : Promise.resolve(undefined),
-      shelterRepo.findById(thread.shelterId),
+  /** One query per related table, so long inboxes stay within D1's per-request query cap. */
+  async function toThreadViews(threads: Thread[], viewerId?: string): Promise<ThreadView[]> {
+    if (threads.length === 0) return [];
+    const ids = threads.map((thread) => thread.id);
+    const unique = (values: (string | null)[]) => [
+      ...new Set(values.filter((value): value is string => Boolean(value))),
+    ];
+    const [animals, users, lastMessages, reads, shelters] = await Promise.all([
+      animalRepo.findByIds(unique(threads.map((thread) => thread.animalId))),
+      userRepo.findByIds(
+        unique(threads.flatMap((thread) => [thread.adopterUserId, thread.assignedUserId])),
+      ),
+      messageRepo.lastByThreads(ids),
+      viewerId ? threadReadRepo.listByUserThreads(viewerId, ids) : Promise.resolve([]),
+      shelterRepo.findByIds(unique(threads.map((thread) => thread.shelterId))),
     ]);
-    const unreadForMe =
-      viewerId && viewerId === thread.adopterUserId
-        ? thread.unreadForAdopter
-        : viewerId
-          ? !mine || mine.lastReadAt.getTime() < thread.lastMessageAt.getTime()
-          : thread.unreadForShelter;
+    const animalById = new Map(animals.map((row) => [row.id, row]));
+    const userById = new Map(users.map((row) => [row.id, row]));
+    const lastByThread = new Map(lastMessages.map((row) => [row.threadId, row]));
+    const readByThread = new Map(reads.map((row) => [row.threadId, row.lastReadAt]));
+    const shelterById = new Map(shelters.map((row) => [row.id, row]));
+    return threads.map((thread) => {
+      const animal = animalById.get(thread.animalId);
+      const adopter = userById.get(thread.adopterUserId);
+      const last = lastByThread.get(thread.id);
+      const assigned = thread.assignedUserId ? userById.get(thread.assignedUserId) : undefined;
+      const readAt = readByThread.get(thread.id);
+      const unreadForMe =
+        viewerId && viewerId === thread.adopterUserId
+          ? thread.unreadForAdopter
+          : viewerId
+            ? !readAt || readAt.getTime() < thread.lastMessageAt.getTime()
+            : thread.unreadForShelter;
+      return toView(
+        thread,
+        { animal, adopter, last, assigned, unreadForMe },
+        shelterById.get(thread.shelterId)?.orgName ?? "",
+      );
+    });
+  }
+
+  async function toThreadView(thread: Thread, viewerId?: string): Promise<ThreadView> {
+    const [view] = await toThreadViews([thread], viewerId);
+    return view;
+  }
+
+  function toView(
+    thread: Thread,
+    related: {
+      animal?: Animal;
+      adopter?: User;
+      last?: Message;
+      assigned?: User;
+      unreadForMe: boolean;
+    },
+    shelterName: string,
+  ): ThreadView {
+    const { animal, adopter, last, assigned, unreadForMe } = related;
     return {
       id: thread.id,
       shelter_id: thread.shelterId,
@@ -130,7 +180,7 @@ export function createChatService(env: Env) {
       assigned_name: assigned ? assigned.displayName || assigned.name : null,
       email_granted: thread.emailGranted,
       profile_granted: thread.profileGranted,
-      shelter_name: shelter?.orgName ?? "",
+      shelter_name: shelterName,
     };
   }
 
@@ -175,7 +225,7 @@ export function createChatService(env: Env) {
         throw new HTTPException(404, { message: "animal not found" });
       }
       const shelter = await shelterRepo.findById(animal.shelterId);
-      if (!shelter || shelter.verificationStatus !== "verified") {
+      if (!shelter || shelter.archivedAt || shelter.verificationStatus !== "verified") {
         throw new HTTPException(404, { message: "animal not found" });
       }
       const staff = await staffOf(userId, shelter.id);
@@ -222,7 +272,7 @@ export function createChatService(env: Env) {
         throw error;
       }
       if (!thread) {
-        throw new HTTPException(500, { message: "something wen't wrong" });
+        throw new HTTPException(500, { message: "something went wrong" });
       }
 
       await messageRepo.create({
@@ -277,33 +327,25 @@ export function createChatService(env: Env) {
         const rows = await threadRepo.listByShelter(opts.shelterId, {
           archived: opts.archived ?? false,
         });
-        return Promise.all(rows.map((row) => toThreadView(row, userId)));
+        return toThreadViews(rows, userId);
       }
-      const rows = await threadRepo.listByAdopter(userId);
-      return Promise.all(rows.map((row) => toThreadView(row, userId)));
+      return toThreadViews(await threadRepo.listByAdopter(userId), userId);
     },
 
     async get(userId: string, threadId: string) {
       const { thread, isStaff } = await requireThreadAccess(userId, threadId);
       const view = await toThreadView(thread, userId);
-      const siblings = await threadRepo.listByShelterAdopter(thread.shelterId, thread.adopterUserId);
-      const prior = siblings
-        .filter((row) => row.id !== thread.id)
-        .map((row) => ({
-          id: row.id,
-          animal_id: row.animalId,
-          last_message_at: row.lastMessageAt.toISOString(),
-        }));
-      const animalNames = new Map<string, string>();
-      for (const row of prior) {
-        const animal = await animalRepo.findById(row.animal_id);
-        animalNames.set(row.id, animal?.name ?? "");
-      }
+      const prior = (
+        await threadRepo.listByShelterAdopter(thread.shelterId, thread.adopterUserId)
+      ).filter((row) => row.id !== thread.id);
+      const animalNames = await namesOf(prior.map((row) => row.animalId));
       return {
         ...view,
         prior: prior.map((row) => ({
-          ...row,
-          animal_name: animalNames.get(row.id) ?? "",
+          id: row.id,
+          animal_id: row.animalId,
+          last_message_at: row.lastMessageAt.toISOString(),
+          animal_name: animalNames.get(row.animalId) ?? "",
         })),
         grant: isStaff
           ? {
@@ -313,6 +355,10 @@ export function createChatService(env: Env) {
             }
           : undefined,
       };
+    },
+
+    async assertAccess(userId: string, threadId: string): Promise<void> {
+      await requireThreadAccess(userId, threadId);
     },
 
     async listMessages(userId: string, threadId: string, after?: string) {
@@ -343,7 +389,7 @@ export function createChatService(env: Env) {
         body: data.body,
       });
       if (!row) {
-        throw new HTTPException(500, { message: "something wen't wrong" });
+        throw new HTTPException(500, { message: "something went wrong" });
       }
       await threadRepo.update(threadId, {
         lastMessageAt: new Date(),
@@ -431,11 +477,8 @@ export function createChatService(env: Env) {
       const others = (await threadRepo.listByShelterAdopter(shelter.id, userId)).filter(
         (row) => row.animalId !== animalId,
       );
-      const otherNames: string[] = [];
-      for (const row of others) {
-        const other = await animalRepo.findById(row.animalId);
-        if (other) otherNames.push(other.name);
-      }
+      const names = await namesOf(others.map((row) => row.animalId));
+      const otherNames = others.flatMap((row) => names.get(row.animalId) ?? []);
       return {
         animal_id: animal.id,
         animal_name: animal.name,

@@ -64,14 +64,12 @@
 				<dt class="font-medium text-sand-700">{m.admin_application_website()}</dt>
 				<dd>
 					{#if websiteHref}
-						<!-- eslint-disable svelte/no-navigation-without-resolve -- external, http(s)-only -->
 						<a
 							href={websiteHref}
 							class="font-medium text-coral-700 underline underline-offset-2"
 							target="_blank"
-							rel="noopener noreferrer">{application.website}</a
+							rel="external noopener noreferrer">{application.website}</a
 						>
-						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					{:else if application.website}
 						<span class="break-all">{application.website}</span>
 					{:else}
@@ -90,11 +88,15 @@
 		</dl>
 		{#if application.description}
 			<h2 class="mt-5 text-sm font-medium text-sand-700">{m.admin_application_description()}</h2>
-			<p class="mt-1 text-sm leading-relaxed text-sand-800">{application.description}</p>
+			<p class="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-sand-800">
+				{application.description}
+			</p>
 		{/if}
 		{#if application.verification_reason}
 			<h2 class="mt-5 text-sm font-medium text-sand-700">{m.admin_deny_reason()}</h2>
-			<p class="mt-1 text-sm leading-relaxed text-sand-800">{application.verification_reason}</p>
+			<p class="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-sand-800">
+				{application.verification_reason}
+			</p>
 		{/if}
 	</Card>
 
@@ -106,11 +108,7 @@
 			<Card focusable>
 				<p class="text-sm font-medium text-sand-600">{m.admin_shelter_owner()}</p>
 				<div class="mt-3 flex items-center gap-3">
-					<Avatar
-						name={owner.name}
-						hasAvatar={owner.has_avatar && owner.user_id === data.user?.id}
-						size="sm"
-					/>
+					<Avatar name={owner.name} userId={owner.user_id} hasAvatar={owner.has_avatar} size="sm" />
 					<div>
 						<p class="font-semibold text-sand-950">{owner.name}</p>
 						<p class="text-sm text-sand-600">{owner.email}</p>

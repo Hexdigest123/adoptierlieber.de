@@ -82,7 +82,8 @@ export class ChatRoom extends DurableObject<Env> {
   }
 
   async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
-    ws.close(code, reason);
+    // 1005/1006 only describe how the peer left; they are reserved and can't be sent back.
+    closeQuietly(ws, code === 1005 || code === 1006 ? 1000 : code, reason);
   }
 
   /** Open sockets still inside their max age; expired ones are closed on the way. */

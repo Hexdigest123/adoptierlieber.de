@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
+	import type { ResolvedPathname } from "$app/types";
 	import type { AdminShelterCard } from "$lib/admin/types";
 	import { m } from "$lib/paraglide/messages";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
@@ -10,7 +11,7 @@
 		href,
 	}: {
 		shelter: AdminShelterCard;
-		href?: string;
+		href?: ResolvedPathname;
 	} = $props();
 
 	const target = $derived(href ?? resolve("/admin/catalog/shelters/[id]", { id: shelter.id }));

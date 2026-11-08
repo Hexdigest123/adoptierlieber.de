@@ -4,6 +4,7 @@
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import { getLocale } from "$lib/paraglide/runtime";
+	import { safeHttpUrl } from "$lib/safe-url";
 	import type { PublicMapShelter } from "$lib/types/catalog";
 	import "leaflet/dist/leaflet.css";
 
@@ -47,22 +48,11 @@
 		return letter ? letter.toLocaleUpperCase(locale) : "?";
 	}
 
-	function safeWebsite(url: string | null): string | null {
-		if (!url) return null;
-		try {
-			const parsed = new URL(url);
-			if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
-			return parsed.href;
-		} catch {
-			return null;
-		}
-	}
-
 	function popupHtml(shelter: PublicMapShelter): string {
 		const logo = shelter.has_logo
 			? `<img src="${escapeHtml(`/api/shelters/${shelter.id}/logo`)}" alt="" width="224" height="144" />`
 			: "";
-		const website = safeWebsite(shelter.website);
+		const website = safeHttpUrl(shelter.website);
 		const websiteLink = website
 			? `<a class="shelter-map-popup-web" href="${escapeHtml(website)}" target="_blank" rel="noopener noreferrer">${escapeHtml(m.showcase_map_website())}</a>`
 			: "";

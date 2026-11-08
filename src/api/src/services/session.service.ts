@@ -4,7 +4,7 @@ import { generateToken, hashToken } from "../lib/hashing";
 import { createSessionSchema } from "../lib/zod";
 import { createSessionRepo } from "../repositories/session.repo";
 import { createUserRepo } from "../repositories/user.repo";
-import type { PublicSession, Session } from "../types";
+import type { PublicSession, Session, User } from "../types";
 
 const LAST_USED_GRANULARITY_MS = 5 * 60 * 1000;
 
@@ -56,7 +56,7 @@ export function createSessionService(env: Env) {
       }
 
       if (!row) {
-        throw new HTTPException(500, { message: "something wen't wrong" });
+        throw new HTTPException(500, { message: "something went wrong" });
       }
 
       return {
@@ -92,7 +92,7 @@ export function createSessionService(env: Env) {
       }
       return session;
     },
-    async validate(sessionToken: string): Promise<Session> {
+    async validate(sessionToken: string): Promise<{ session: Session; user: User }> {
       const hashedSessionToken: string = await hashToken(sessionToken);
 
       const session = await repo.find(hashedSessionToken);
@@ -122,7 +122,7 @@ export function createSessionService(env: Env) {
         await repo.updateLastUsedWithToken(session.sessionToken);
       }
 
-      return session;
+      return { session, user };
     },
     async refreshExpiresAtWithToken(sessionToken: string): Promise<boolean> {
       const hashedSessionToken = await hashToken(sessionToken);

@@ -196,13 +196,17 @@ export function seoForRoute(
 	};
 }
 
-/** Escape `<` so JSON-LD cannot break out of the script tag. */
-export function jsonLdText(payload: unknown): string {
-	return JSON.stringify(payload).replaceAll("<", "\\u003c");
+/**
+ * JSON-LD script tag for `{@html}`. `<` is escaped so the payload cannot close the tag;
+ * built here because a literal script tag in markup breaks the Svelte ESLint parser.
+ */
+export function jsonLdScript(payload: unknown): string {
+	const json = JSON.stringify(payload).replaceAll("<", "\\u003c");
+	return `<script type="application/ld+json">${json}</script>`;
 }
 
 export function jsonLd(seo: Seo, locale: string): string {
-	return jsonLdText({
+	return jsonLdScript({
 		"@context": "https://schema.org",
 		"@graph": [
 			{

@@ -27,7 +27,9 @@ users.post("/", rateLimitByIp("create-user", 5, { failClosed: true }), async (c)
   const email = typeof fields.email === "string" ? fields.email : "";
   if (result && "verificationToken" in result) {
     c.executionCtx.waitUntil(
-      sendMail(verifyEmailTemplate({ to: email, token: result.verificationToken })),
+      sendMail(verifyEmailTemplate({ to: email, token: result.verificationToken })).catch(
+        console.error,
+      ),
     );
     notifyInBackground(c, (to) =>
       userRegistrationNotificationTemplate({
@@ -99,7 +101,10 @@ users.get("/me/avatar", sessionValidation, async (c) => {
 
 /** Stream another user's avatar when the viewer shares a thread or shelter. */
 users.get("/:id/avatar", sessionValidation, async (c) => {
-  const object = await createUserService(c.env).getAvatarForViewer(c.get("userId"), c.req.param("id"));
+  const object = await createUserService(c.env).getAvatarForViewer(
+    c.get("userId"),
+    c.req.param("id"),
+  );
   if (!object) {
     return c.json({ error: "avatar not found" }, 404);
   }

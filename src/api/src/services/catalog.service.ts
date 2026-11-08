@@ -88,7 +88,10 @@ export function parseCatalogFilters(search: URLSearchParams): CatalogFilters {
     breed: search.get("breed")?.trim().slice(0, 80) || undefined,
     species,
     sex: sexRaw === "male" || sexRaw === "female" || sexRaw === "unknown" ? sexRaw : undefined,
-    size: sizeRaw === "s" || sizeRaw === "m" || sizeRaw === "l" || sizeRaw === "xl" ? sizeRaw : undefined,
+    size:
+      sizeRaw === "s" || sizeRaw === "m" || sizeRaw === "l" || sizeRaw === "xl"
+        ? sizeRaw
+        : undefined,
     status: statusRaw === "found_home" ? "found_home" : statusRaw === "live" ? "live" : undefined,
     min_age: minAge != null && Number.isFinite(Number(minAge)) ? Number(minAge) : undefined,
     max_age: maxAge != null && Number.isFinite(Number(maxAge)) ? Number(maxAge) : undefined,
@@ -99,7 +102,8 @@ export function parseCatalogFilters(search: URLSearchParams): CatalogFilters {
         ? specialRaw
         : undefined,
     range:
-      range !== undefined && (range === null || (Number.isFinite(range) && range > 0 && range <= 500))
+      range !== undefined &&
+      (range === null || (Number.isFinite(range) && range > 0 && range <= 500))
         ? range
         : undefined,
     sort: sortRaw === "distance" || sortRaw === "new" ? sortRaw : "best",
@@ -108,7 +112,8 @@ export function parseCatalogFilters(search: URLSearchParams): CatalogFilters {
 }
 
 function matchesQuery(row: AnimalWithShelter, q: string): boolean {
-  const hay = `${row.animal.name} ${row.animal.breed ?? ""} ${row.animal.tagline ?? ""} ${row.shelter.city} ${row.shelter.orgName}`.toLowerCase();
+  const hay =
+    `${row.animal.name} ${row.animal.breed ?? ""} ${row.animal.tagline ?? ""} ${row.shelter.city} ${row.shelter.orgName}`.toLowerCase();
   return hay.includes(q.toLowerCase());
 }
 
@@ -275,11 +280,9 @@ export function createCatalogService(env: Env) {
       const candidates = rows;
       rows = applyHardFilters(rows, filters, user, origin);
 
-      const likedIds = new Set(await catalog.likedAnimalIds(userId));
-      const skipSince = new Date(Date.now() - SKIP_COOLDOWN_MS);
-      const [skipIds, skipReasons] = await Promise.all([
-        catalog.recentSkipIds(userId, skipSince).then((ids) => new Set(ids)),
-        catalog.recentSkipReasons(userId, skipSince),
+      const [likedIds, { ids: skipIds, reasons: skipReasons }] = await Promise.all([
+        catalog.likedAnimalIds(userId).then((ids) => new Set(ids)),
+        catalog.recentSkips(userId, new Date(Date.now() - SKIP_COOLDOWN_MS)),
       ]);
 
       if (filters.mode === "deck") {
@@ -354,10 +357,7 @@ export function createCatalogService(env: Env) {
     async sitemap(): Promise<{ id: string; updated_at: string }[]> {
       const rows = await catalog.listLive();
       return rows
-        .filter(
-          (row) =>
-            !row.shelter.archivedAt && row.shelter.verificationStatus === "verified",
-        )
+        .filter((row) => !row.shelter.archivedAt && row.shelter.verificationStatus === "verified")
         .map((row) => ({
           id: row.animal.id,
           updated_at: row.animal.updatedAt.toISOString(),

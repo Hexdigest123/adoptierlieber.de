@@ -1,23 +1,20 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
-	import { onMount, tick } from "svelte";
+	import { tick, untrack } from "svelte";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
-	import { connectThread } from "$lib/chat/live";
+	import { followThread } from "$lib/chat/live";
 	import { dayKey, formatDay, formatTime } from "$lib/datetime";
 	import Button from "$lib/components/ui/Button.svelte";
+	import Textarea from "$lib/components/ui/Textarea.svelte";
 	import type { ChatMessage } from "$lib/types/shelter";
 
 	let { data }: PageProps = $props();
 
-	let messages = $state<ChatMessage[]>(data.messages);
+	let messages = $derived<ChatMessage[]>(data.messages);
 	let draft = $state("");
 	let sending = $state(false);
 	let sendError = $state(false);
-
-	$effect(() => {
-		messages = data.messages;
-	});
 
 	const closed = $derived(data.thread.animal_status === "found_home");
 	const today = dayKey(new Date());
@@ -77,31 +74,15 @@
 		}
 	}
 
-	function merge(row: ChatMessage) {
-		if (messages.some((item) => item.id === row.id)) return;
-		void append([row]);
-	}
-
-	onMount(() => {
-		scrollToEnd();
-		const stop = connectThread(data.thread.id, { onmessage: merge });
-		const timer = setInterval(async () => {
-			const last = messages.at(-1)?.id;
-			const qs = last ? `?after=${last}` : "";
-			const response = await fetch(`/api/chats/${data.thread.id}/messages${qs}`);
-			if (!response.ok) return;
-			const body = (await response.json()) as { items?: ChatMessage[] };
-			const items = body.items ?? [];
-			if (items.length) {
-				const known = new Set(messages.map((row) => row.id));
-				const extra = items.filter((row) => !known.has(row.id));
-				if (extra.length) void append(extra);
-			}
-		}, 8000);
-		return () => {
-			stop();
-			clearInterval(timer);
-		};
+	// Keyed on the thread: SvelteKit reuses this page when navigating to another thread.
+	$effect(() => {
+		const threadId = data.thread.id;
+		untrack(scrollToEnd);
+		return followThread(
+			threadId,
+			() => messages,
+			(rows) => void append(rows),
+		);
 	});
 </script>
 
@@ -169,19 +150,22 @@
 					<p class="text-sm text-coral-700">{m.error_generic()}</p>
 				{/if}
 				<div class="flex items-end gap-2">
-					<textarea
+					<Textarea
+						id="thread-composer"
+						class="min-w-0 flex-1"
+						label={m.shelter_composer_placeholder()}
+						hideLabel
 						bind:value={draft}
 						rows={2}
 						maxlength={2000}
-						aria-label={m.shelter_composer_placeholder()}
-						class="min-h-11 min-w-0 flex-1 resize-y rounded-xl border border-sand-300 bg-white px-3.5 py-2.5 focus-ring"
 						placeholder={m.shelter_composer_placeholder()}
 						onkeydown={(event) => {
 							if (event.key === "Enter" && !event.shiftKey) {
 								event.preventDefault();
 								void send();
 							}
-						}}></textarea>
+						}}
+					/>
 					<Button type="submit" loading={sending}>{m.shelter_send()}</Button>
 				</div>
 			</div>

@@ -1,10 +1,13 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
+	import { invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Card from "$lib/components/ui/Card.svelte";
+	import FormStatus from "$lib/components/ui/FormStatus.svelte";
+	import Input from "$lib/components/ui/Input.svelte";
 	import AdminAnimalCardView from "$lib/components/admin/AdminAnimalCard.svelte";
 	import StatusPill from "$lib/components/admin/StatusPill.svelte";
 	import { formatDate } from "$lib/admin/format";
@@ -15,6 +18,24 @@
 	const websiteHref = $derived(safeHttpUrl(shelter.website));
 	const owner = $derived(shelter.members.find((member) => member.role === 1) ?? shelter.members[0]);
 	let actionError = $state(false);
+
+	async function adminAction(path: string, body?: unknown) {
+		actionError = false;
+		try {
+			const res = await fetch(path, {
+				method: "POST",
+				headers: body === undefined ? undefined : { "content-type": "application/json" },
+				body: body === undefined ? undefined : JSON.stringify(body),
+			});
+			if (!res.ok) {
+				actionError = true;
+				return;
+			}
+			await invalidateAll();
+		} catch {
+			actionError = true;
+		}
+	}
 </script>
 
 <div class="mb-5">
@@ -42,16 +63,14 @@
 					<p class="text-xl font-bold text-sand-950">{shelter.org_name}</p>
 					<p class="text-sm text-sand-700">{shelter.street}, {shelter.zip} {shelter.city}</p>
 					{#if websiteHref}
-						<!-- eslint-disable svelte/no-navigation-without-resolve -- external, http(s)-only -->
 						<a
 							href={websiteHref}
 							class="text-sm font-medium text-coral-700 underline underline-offset-2"
 							target="_blank"
-							rel="noopener noreferrer"
+							rel="external noopener noreferrer"
 						>
 							{shelter.website}
 						</a>
-						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					{:else if shelter.website}
 						<p class="text-sm break-all text-sand-700">{shelter.website}</p>
 					{/if}
@@ -60,7 +79,9 @@
 			<StatusPill status={shelter.verification_status} />
 		</div>
 		{#if shelter.description}
-			<p class="mt-4 text-sm leading-relaxed text-sand-800">{shelter.description}</p>
+			<p class="mt-4 text-sm leading-relaxed whitespace-pre-wrap text-sand-800">
+				{shelter.description}
+			</p>
 		{/if}
 		<dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
 			<div>
@@ -98,11 +119,7 @@
 			<Card focusable>
 				<p class="text-sm font-medium text-sand-600">{m.admin_shelter_owner()}</p>
 				<div class="mt-3 flex items-center gap-3">
-					<Avatar
-						name={owner.name}
-						hasAvatar={owner.has_avatar && owner.user_id === data.user?.id}
-						size="sm"
-					/>
+					<Avatar name={owner.name} userId={owner.user_id} hasAvatar={owner.has_avatar} size="sm" />
 					<div>
 						<p class="font-semibold text-sand-950">{owner.name}</p>
 						<p class="text-sm text-sand-600">{owner.email}</p>
@@ -127,25 +144,22 @@
 				const form = event.currentTarget;
 				const value = String(new FormData(form).get("user_id") ?? "").trim();
 				if (!value) return;
-				const res = await fetch(`/api/admin/shelters/${shelter.id}/owner`, {
-					method: "POST",
-					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ user_id: value }),
-				});
-				if (res.ok) location.reload();
-				else actionError = true;
+				await adminAction(`/api/admin/shelters/${shelter.id}/owner`, { user_id: value });
 			}}
 		>
-			<input
+			<Input
+				id="shelter-transfer-user"
+				class="min-w-56 flex-1"
 				name="user_id"
+				label={m.admin_shelter_transfer_user()}
+				hideLabel
 				required
 				placeholder={m.admin_shelter_transfer_user()}
-				class="h-11 min-w-56 flex-1 rounded-xl border border-sand-300 px-3 focus-ring"
 			/>
 			<Button type="submit" size="sm">{m.admin_shelter_transfer()}</Button>
 		</form>
 		{#if actionError}
-			<p class="mt-2 text-sm text-coral-700">{m.admin_error_generic()}</p>
+			<FormStatus type="error" class="mt-2">{m.admin_error_generic()}</FormStatus>
 		{/if}
 		<div class="mt-3">
 			<Button
@@ -154,9 +168,7 @@
 				size="sm"
 				onclick={async () => {
 					if (!confirm(m.admin_shelter_archive_confirm())) return;
-					const res = await fetch(`/api/admin/shelters/${shelter.id}/archive`, { method: "POST" });
-					if (res.ok) location.reload();
-					else actionError = true;
+					await adminAction(`/api/admin/shelters/${shelter.id}/archive`);
 				}}
 			>
 				{m.admin_shelter_archive()}
@@ -179,7 +191,8 @@
 					<div class="flex items-center gap-3">
 						<Avatar
 							name={member.name}
-							hasAvatar={member.has_avatar && member.user_id === data.user?.id}
+							userId={member.user_id}
+							hasAvatar={member.has_avatar}
 							size="sm"
 						/>
 						<div>

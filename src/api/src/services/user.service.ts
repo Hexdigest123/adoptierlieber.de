@@ -417,15 +417,15 @@ export function createUserService(env: Env) {
         const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
         const { token, hashedToken } = await generateToken();
 
+        if (!(await repo.updateDeletionToken(session.userId, hashedToken, expiresAt))) {
+          return false;
+        }
+
         try {
           await sendMail(accountDeletionTemplate({ to: user.email, token }));
         } catch (e: unknown) {
           console.error(e);
           throw new HTTPException(500, { message: "failed to send deletion email" });
-        }
-
-        if (!(await repo.updateDeletionToken(session.userId, hashedToken, expiresAt))) {
-          return false;
         }
       }
 
@@ -492,7 +492,7 @@ export function createUserService(env: Env) {
       }
     },
 
-    async updateProfile(userId: string, input: unknown): Promise<PublicUser> {
+    async updateProfile(userId: string, input: unknown): Promise<void> {
       const data = updateUserSchema.parse(input);
       const current = await repo.findById(userId);
       if (!current) {
@@ -523,7 +523,6 @@ export function createUserService(env: Env) {
       if (!row) {
         throw new HTTPException(404, { message: "user not found" });
       }
-      return this.getById(userId);
     },
 
     async putAvatar(userId: string, file: File): Promise<void> {

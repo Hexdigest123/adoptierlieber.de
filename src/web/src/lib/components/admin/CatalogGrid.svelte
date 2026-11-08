@@ -16,14 +16,14 @@
 
 	let sentinel: HTMLDivElement | undefined = $state();
 
+	// Recreated after every load: a sentinel still in view then reports again and loads the next page.
 	$effect(() => {
-		if (!sentinel || !onMore) return;
+		if (!sentinel || !onMore || loading || !hasMore) return;
 		const node = sentinel;
+		const more = onMore;
 		const observer = new IntersectionObserver(
 			(entries) => {
-				if (entries.some((entry) => entry.isIntersecting) && hasMore && !loading) {
-					onMore();
-				}
+				if (entries.some((entry) => entry.isIntersecting)) more();
 			},
 			{ rootMargin: "240px" },
 		);

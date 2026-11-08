@@ -43,6 +43,7 @@
 		<meta name="twitter:image" content={seo.image} />
 		<meta name="twitter:image:alt" content={m.meta_og_image_alt()} />
 
-		{@html `<script type="application/ld+json">${structured}</script>`}
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+		{@html structured}
 	{/if}
 </svelte:head>

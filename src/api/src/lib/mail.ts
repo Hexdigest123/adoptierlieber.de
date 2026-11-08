@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { LOGO_ATTACHMENT } from "./email-templates";
 
 export const MAIL_SENDER = process.env.SECRET_SMTP_FROM;
 
@@ -25,5 +26,7 @@ export async function sendMail(options: MailOptions) {
     subject: options.subject,
     text: options.text,
     html: options.html,
+    // Every HTML mail is built by email-templates' layout(), which references the logo by CID.
+    attachments: options.html ? [LOGO_ATTACHMENT] : undefined,
   });
 }

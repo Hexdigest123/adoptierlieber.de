@@ -2,6 +2,7 @@
 	import Eye from "lucide-svelte/icons/eye";
 	import X from "lucide-svelte/icons/x";
 	import RotateCcw from "lucide-svelte/icons/rotate-ccw";
+	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
@@ -39,7 +40,7 @@
 	}
 
 	function openProfile() {
-		window.location.href = moreHref;
+		void goto(moreHref);
 	}
 
 	function completeSwipe(direction: "left" | "right") {

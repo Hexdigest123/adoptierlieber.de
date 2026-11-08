@@ -39,7 +39,10 @@ const userPreferencesSchema = z
     prefs_done: z.boolean().optional(),
     species: z.union([prefSpeciesTag, z.array(prefSpeciesTag).max(5)]).optional(),
     home: z.enum(["apartment", "house", "yard"]).optional(),
-    with: z.array(z.enum(["kids", "dog", "cat", "alone"])).max(4).optional(),
+    with: z
+      .array(z.enum(["kids", "dog", "cat", "alone"]))
+      .max(4)
+      .optional(),
     lifestyle: z.enum(["active", "cuddle", "first"]).optional(),
   })
   .strict();
@@ -228,20 +231,9 @@ export const createReviewSchema = z.object({
   website: z.string().max(200).optional(),
 });
 
-export const speciesSchema = z.enum([
-  "cat",
-  "dog",
-  "rabbit",
-  "guinea_pig",
-  "bird",
-  "reptile",
-  "other",
-]);
-
 export const animalSexSchema = z.enum(["male", "female", "unknown"]);
 export const animalSizeSchema = z.enum(["s", "m", "l", "xl"]);
 export const triadSchema = z.enum(["yes", "no", "unknown"]);
-export const animalStatusSchema = z.enum(["draft", "live", "found_home"]);
 
 export const updateShelterSchema = z
   .object({
@@ -249,8 +241,14 @@ export const updateShelterSchema = z
     street: text(120).optional(),
     zip: text(16).optional(),
     city: text(80).optional(),
-    website: z.union([webUrl, z.literal("")]).nullable().optional(),
-    donation_url: z.union([webUrl, z.literal("")]).nullable().optional(),
+    website: z
+      .union([webUrl, z.literal("")])
+      .nullable()
+      .optional(),
+    donation_url: z
+      .union([webUrl, z.literal("")])
+      .nullable()
+      .optional(),
     donation_description: z.string().trim().max(500).nullable().optional(),
     registration_number: text(80).nullable().optional(),
     description: text(4000).nullable().optional(),
@@ -272,7 +270,7 @@ export const updateShelterSchema = z
 
 export const animalWriteSchema = z.object({
   name: z.string().min(1).max(80),
-  species: speciesSchema,
+  species: animalSpeciesSchema,
   breed: z.string().min(1).max(80).nullable().optional(),
   sex: animalSexSchema.nullable().optional(),
   age_months: z.coerce.number().int().min(0).max(600).nullable().optional(),
@@ -314,9 +312,9 @@ export const adminOrphanTransferSchema = z.object({
 });
 
 export const createAnimalSchema = animalWriteSchema;
-export const updateAnimalSchema = animalWriteSchema.partial().refine((value) =>
-  Object.values(value).some((entry) => entry !== undefined),
-);
+export const updateAnimalSchema = animalWriteSchema
+  .partial()
+  .refine((value) => Object.values(value).some((entry) => entry !== undefined));
 
 export const foundHomeSchema = z.object({
   note: z.string().max(280).optional(),
@@ -332,7 +330,10 @@ export const applicationFieldSchema = z
     hidden: z.boolean().optional(),
   })
   .refine((field) => field.hidden || field.label.length > 0)
-  .refine((field) => field.hidden || field.type !== "select" || (field.options && field.options.length > 0));
+  .refine(
+    (field) =>
+      field.hidden || field.type !== "select" || (field.options && field.options.length > 0),
+  );
 
 export const applicationFormSchema = z.array(applicationFieldSchema).max(12);
 

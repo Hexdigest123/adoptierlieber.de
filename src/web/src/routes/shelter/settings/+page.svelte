@@ -1,7 +1,9 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
 	import { enhance } from "$app/forms";
+	import { invalidateAll } from "$app/navigation";
 	import { m } from "$lib/paraglide/messages";
+	import StatusPill from "$lib/components/admin/StatusPill.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
 	import Textarea from "$lib/components/ui/Textarea.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
@@ -12,6 +14,31 @@
 	const shelter = $derived(data.shelter);
 	const locked = $derived(!data.isOwner || data.readonly);
 	const identityLocked = $derived(locked || data.identityLocked);
+
+	// The logo URL is cached for a day; a new version must show right after the change.
+	let logoVersion = $state(0);
+	let logoError = $state(false);
+
+	async function changeLogo(method: "PUT" | "DELETE", file?: File) {
+		if (!shelter) return;
+		logoError = false;
+		let body: FormData | undefined;
+		if (file) {
+			body = new FormData();
+			body.set("logo", file);
+		}
+		try {
+			const response = await fetch(`/api/shelters/${shelter.id}/logo`, { method, body });
+			if (!response.ok) {
+				logoError = true;
+				return;
+			}
+			logoVersion = Date.now();
+			await invalidateAll();
+		} catch {
+			logoError = true;
+		}
+	}
 </script>
 
 <p class="text-center text-sm text-sand-700">{m.shelter_settings_subtitle()}</p>
@@ -108,25 +135,25 @@
 			</div>
 			{#if shelter.has_logo}
 				<img
-					src="/api/shelters/{shelter.id}/logo"
+					src="/api/shelters/{shelter.id}/logo{logoVersion ? `?v=${logoVersion}` : ''}"
 					alt=""
 					class="size-20 rounded-xl border border-sand-200 object-cover"
 				/>
 			{/if}
 			{#if !locked}
-				<label class="inline-flex">
-					<span class="sr-only">{m.shelter_logo_add()}</span>
+				<label
+					class="inline-flex w-fit rounded-full outline-2 outline-offset-2 outline-transparent has-focus-visible:outline-coral-600"
+				>
 					<input
 						type="file"
 						accept="image/jpeg,image/png,image/webp"
 						class="sr-only"
 						onchange={async (event) => {
-							const file = event.currentTarget.files?.[0];
+							const input = event.currentTarget;
+							const file = input.files?.[0];
 							if (!file) return;
-							const body = new FormData();
-							body.set("logo", file);
-							await fetch(`/api/shelters/${shelter.id}/logo`, { method: "PUT", body });
-							location.reload();
+							await changeLogo("PUT", file);
+							input.value = "";
 						}}
 					/>
 					<span
@@ -136,15 +163,12 @@
 					</span>
 				</label>
 				{#if shelter.has_logo}
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						onclick={async () => {
-							await fetch(`/api/shelters/${shelter.id}/logo`, { method: "DELETE" });
-							location.reload();
-						}}>{m.shelter_logo_remove()}</Button
+					<Button type="button" variant="ghost" size="sm" onclick={() => void changeLogo("DELETE")}
+						>{m.shelter_logo_remove()}</Button
 					>
+				{/if}
+				{#if logoError}
+					<FormStatus type="error">{m.error_invalid_input()}</FormStatus>
 				{/if}
 			{/if}
 		</section>
@@ -163,8 +187,8 @@
 				>{m.shelter_notify_error({ error: shelter.notify_last_error })}</FormStatus
 			>
 		{/if}
-		<p class="text-sm text-sand-600">
-			{m.shelter_verification()}: {shelter.verification_status}
+		<p class="flex items-center gap-2 text-sm text-sand-600">
+			{m.shelter_verification()}: <StatusPill status={shelter.verification_status} />
 		</p>
 		{#if form?.success}
 			<FormStatus type="success">{m.shelter_saved()}</FormStatus>

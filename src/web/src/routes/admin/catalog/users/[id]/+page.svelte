@@ -53,7 +53,8 @@
 		<div class="flex items-start gap-4">
 			<Avatar
 				name={target.display_name ?? target.name}
-				hasAvatar={target.has_avatar && target.id === actor?.id}
+				userId={target.id}
+				hasAvatar={target.has_avatar}
 				size="lg"
 			/>
 			<div class="min-w-0">
@@ -99,10 +100,10 @@
 						<a
 							href={mapHref}
 							target="_blank"
-							rel="noopener noreferrer"
+							rel="external noopener noreferrer"
 							class="ml-2 font-medium text-coral-700 underline underline-offset-2"
 						>
-							{m.admin_filter_city()}
+							{m.admin_user_map()}
 						</a>
 					{/if}
 				</dd>

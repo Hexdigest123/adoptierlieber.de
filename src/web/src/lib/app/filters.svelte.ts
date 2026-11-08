@@ -10,8 +10,9 @@ function readStored(): AnimalSpecies[] {
 		const parsed: unknown = JSON.parse(raw);
 		if (!Array.isArray(parsed)) return [];
 		const allowed = new Set(SPECIES_CHIPS.flatMap((chip) => chip.species));
-		return parsed.filter((value): value is AnimalSpecies =>
-			typeof value === "string" && allowed.has(value as AnimalSpecies),
+		return parsed.filter(
+			(value): value is AnimalSpecies =>
+				typeof value === "string" && allowed.has(value as AnimalSpecies),
 		);
 	} catch {
 		return [];
@@ -47,7 +48,7 @@ export function toggleChip(chipId: string): void {
 	if (allOn) {
 		setSelectedSpecies(species.filter((s) => !chip.species.includes(s)));
 	} else {
-		setSelectedSpecies([...new Set([...species, ...chip.species])]);
+		setSelectedSpecies([...species, ...chip.species.filter((s) => !species.includes(s))]);
 	}
 }
 
