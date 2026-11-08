@@ -19,7 +19,7 @@ invites.post("/acceptance", rateLimitByIp("invite-accept", 10, { failClosed: tru
   const sessionToken = readSessionCookie(c);
   if (sessionToken) {
     try {
-      const session = await createSessionService(c.env).validate(sessionToken);
+      const { session } = await createSessionService(c.env).validate(sessionToken);
       sessionUserId = session.userId;
     } catch {
       sessionUserId = null;

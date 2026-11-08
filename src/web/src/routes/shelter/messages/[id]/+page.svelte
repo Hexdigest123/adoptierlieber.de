@@ -1,20 +1,32 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
-	import { onMount } from "svelte";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
-	import { connectThread } from "$lib/chat/live";
+	import { followThread } from "$lib/chat/live";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
+	import Select from "$lib/components/ui/Select.svelte";
+	import Textarea from "$lib/components/ui/Textarea.svelte";
+	import { dialog } from "$lib/dialog";
 	import type { ChatMessage } from "$lib/types/shelter";
 
 	let { data }: PageProps = $props();
 
-	let messages = $state<ChatMessage[]>(data.messages);
+	let messages = $derived<ChatMessage[]>(data.messages);
 	let draft = $state("");
 	let sending = $state(false);
 	let sendError = $state(false);
 	let showProfile = $state(false);
-	let assigned = $state(data.thread.assigned_user_id ?? "");
+	let assigned = $derived(data.thread.assigned_user_id ?? "");
+
+	const assignOptions = $derived([
+		{ value: "", label: m.shelter_assign_none() },
+		...data.members.map((member) => ({
+			value: member.user_id,
+			label: member.display_name || member.name,
+		})),
+	]);
 
 	const closed = $derived(
 		data.thread.animal_status === "found_home" || data.shelter?.verification_status === "rejected",
@@ -57,7 +69,7 @@
 			sendError = true;
 			return;
 		}
-		location.href = "/shelter/messages";
+		await goto(resolve("/shelter/messages"));
 	}
 
 	async function assign() {
@@ -69,31 +81,14 @@
 		if (!response.ok) sendError = true;
 	}
 
-	function merge(row: ChatMessage) {
-		if (messages.some((item) => item.id === row.id)) return;
-		messages = [...messages, row];
-	}
-
-	onMount(() => {
-		const stop = connectThread(data.thread.id, { onmessage: merge });
-		const timer = setInterval(async () => {
-			const last = messages.at(-1)?.id;
-			const qs = last ? `?after=${last}` : "";
-			const response = await fetch(`/api/chats/${data.thread.id}/messages${qs}`);
-			if (!response.ok) return;
-			const body = (await response.json()) as { items?: ChatMessage[] };
-			const items = body.items ?? [];
-			if (items.length) {
-				const known = new Set(messages.map((row) => row.id));
-				const extra = items.filter((row) => !known.has(row.id));
-				if (extra.length) messages = [...messages, ...extra];
-			}
-		}, 8000);
-		return () => {
-			stop();
-			clearInterval(timer);
-		};
-	});
+	// Keyed on the thread: SvelteKit reuses this page when opening another thread.
+	$effect(() =>
+		followThread(
+			data.thread.id,
+			() => messages,
+			(rows) => (messages = [...messages, ...rows]),
+		),
+	);
 </script>
 
 <div class="flex flex-col gap-4 lg:flex-row">
@@ -102,7 +97,7 @@
 			<div>
 				<h1 class="text-xl font-black text-sand-950">{data.thread.adopter_name}</h1>
 				<a
-					href="/shelter/animals/{data.thread.animal_id}"
+					href={resolve("/shelter/animals/[id]", { id: data.thread.animal_id })}
 					class="text-sm font-medium text-coral-700"
 				>
 					{data.thread.animal_name}
@@ -112,19 +107,17 @@
 				{/if}
 			</div>
 			<div class="flex flex-wrap gap-2">
-				<label class="flex items-center gap-2 text-sm font-medium text-sand-800">
-					{m.shelter_assign()}
-					<select
+				<div class="flex items-center gap-2 text-sm font-medium text-sand-800">
+					<span aria-hidden="true">{m.shelter_assign()}</span>
+					<Select
+						id="thread-assign"
+						label={m.shelter_assign()}
+						hideLabel
+						options={assignOptions}
 						bind:value={assigned}
-						class="h-9 rounded-full border border-sand-300 bg-white px-3 text-sm font-medium"
 						onchange={() => void assign()}
-					>
-						<option value="">{m.shelter_assign_none()}</option>
-						{#each data.members as member (member.user_id)}
-							<option value={member.user_id}>{member.display_name || member.name}</option>
-						{/each}
-					</select>
-				</label>
+					/>
+				</div>
 				<Button variant="ghost" size="sm" class="lg:hidden" onclick={() => (showProfile = true)}>
 					{m.shelter_profile_open()}
 				</Button>
@@ -137,7 +130,7 @@
 				{#each data.thread.prior as prior (prior.id)}
 					<li>
 						<a
-							href="/shelter/messages/{prior.id}"
+							href={resolve("/shelter/messages/[id]", { id: prior.id })}
 							class="text-sm font-medium text-coral-700 underline underline-offset-2 focus-ring"
 						>
 							{m.shelter_also({ animal: prior.animal_name })}
@@ -205,18 +198,22 @@
 					void send();
 				}}
 			>
-				<textarea
+				<Textarea
+					id="thread-composer"
+					class="min-w-0 flex-1"
+					label={m.shelter_composer_placeholder()}
+					hideLabel
 					bind:value={draft}
 					rows={3}
 					maxlength={2000}
-					class="min-h-11 min-w-0 flex-1 resize-y rounded-xl border border-sand-300 bg-white px-3.5 py-2.5 focus-ring"
 					placeholder={m.shelter_composer_placeholder()}
 					onkeydown={(event) => {
 						if (event.key === "Enter" && !event.shiftKey) {
 							event.preventDefault();
 							void send();
 						}
-					}}></textarea>
+					}}
+				/>
 				<Button type="submit" loading={sending}>{m.shelter_send()}</Button>
 			</form>
 		{/if}
@@ -229,7 +226,13 @@
 
 {#if showProfile}
 	<div class="fixed inset-0 z-50 flex items-end bg-sand-950/40 lg:hidden">
-		<div class="max-h-[80dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-5">
+		<div
+			class="max-h-[80dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-5"
+			role="dialog"
+			aria-modal="true"
+			aria-label={data.thread.adopter_name}
+			use:dialog={() => (showProfile = false)}
+		>
 			<div class="flex justify-end">
 				<Button variant="ghost" size="sm" onclick={() => (showProfile = false)}
 					>{m.shelter_interest_cancel()}</Button

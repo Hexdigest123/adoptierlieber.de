@@ -16,12 +16,7 @@ export async function adminMutate(
 		body: body === undefined ? undefined : JSON.stringify(body),
 	});
 	if (response.ok) {
-		let json: unknown = {};
-		try {
-			json = await response.json();
-		} catch {
-			json = {};
-		}
+		const json: unknown = await response.json().catch(() => ({}));
 		return { ok: true, status: response.status, json };
 	}
 	if (response.status === 403) {

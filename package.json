@@ -16,15 +16,14 @@
     "db:migrate": "bun run --filter @adoptierlieber/api db:migrate",
     "db:migrate:local": "bun run --filter @adoptierlieber/api db:migrate:local",
     "check": "bun run --filter @adoptierlieber/api check && bun run --filter @adoptierlieber/web check",
+    "lint": "prettier --check src/api && bun run --filter @adoptierlieber/web lint",
+    "format": "prettier --write src/api && bun run --filter @adoptierlieber/web format",
     "types": "bun run --filter @adoptierlieber/api types && bun run --filter @adoptierlieber/web types"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "prettier": "^3.8.3",
     "typescript": "^6.0.3",
     "wrangler": "^4.123.0"
-  },
-  "dependencies": {
-    "@types/nodemailer": "^8.0.1",
-    "nodemailer": "^9.0.5"
   }
 }

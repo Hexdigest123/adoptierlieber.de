@@ -8,7 +8,8 @@ import {
   photoReorderSchema,
   updateAnimalSchema,
 } from "../lib/zod";
-import { BOND_GROUP_MAX, bondLabel, partnersOf, type BondedPartner } from "../lib/bond";
+import type { z } from "zod";
+import { BOND_GROUP_MAX, bondLabel, partnerMap, partnersOf, type BondedPartner } from "../lib/bond";
 import { SHELTER_ROLE } from "../lib/roles";
 import { createAnimalRepo } from "../repositories/animal.repo";
 import { createShelterRepo } from "../repositories/shelter.repo";
@@ -31,6 +32,30 @@ import type { Animal, Shelter } from "../types";
 // Cap them per shelter so a (possibly unverified) shelter can't grow storage
 // without bound. Equals the largest bond group createGroup accepts.
 const DRAFT_MAX = 100;
+
+type AnimalInput = z.infer<typeof createAnimalSchema>;
+
+function draftWrite(shelterId: string, data: AnimalInput): AnimalWrite {
+  return {
+    shelterId,
+    name: data.name,
+    species: data.species,
+    breed: data.breed ?? null,
+    sex: data.sex ?? null,
+    ageMonths: data.age_months ?? null,
+    ageUnknown: data.age_unknown ?? false,
+    size: data.size ?? null,
+    colors: data.colors ?? null,
+    traits: data.traits ?? null,
+    tagline: data.tagline ?? null,
+    description: data.description ?? null,
+    vaccinated: data.vaccinated ?? null,
+    neutered: data.neutered ?? null,
+    chipped: data.chipped ?? null,
+    houseTrained: data.house_trained ?? null,
+    status: "draft",
+  };
+}
 
 function toWrite(data: {
   name?: string;
@@ -210,6 +235,14 @@ export function createAnimalService(env: Env) {
     }
   }
 
+  async function markFirstAnimal(shelter: Shelter) {
+    const checklist =
+      shelter.checklist && typeof shelter.checklist === "object" ? shelter.checklist : {};
+    if (!("first_animal" in checklist && checklist.first_animal)) {
+      await shelterRepo.update(shelter.id, { checklist: { ...checklist, first_animal: true } });
+    }
+  }
+
   async function assertDraftRoom(shelterId: string, adding: number) {
     const drafts = await animalRepo.countByShelter(shelterId, "draft");
     if (Number(drafts?.n ?? 0) + adding > DRAFT_MAX) {
@@ -285,44 +318,22 @@ export function createAnimalService(env: Env) {
         await assertPartners(shelterId, partnerIds, 1);
       }
       const row = await animalRepo.create({
-        shelterId,
-        name: data.name,
-        species: data.species,
-        breed: data.breed ?? null,
-        sex: data.sex ?? null,
-        ageMonths: data.age_months ?? null,
-        ageUnknown: data.age_unknown ?? false,
-        size: data.size ?? null,
-        colors: data.colors ?? null,
-        traits: data.traits ?? null,
-        tagline: data.tagline ?? null,
-        description: data.description ?? null,
-        vaccinated: data.vaccinated ?? null,
-        neutered: data.neutered ?? null,
-        chipped: data.chipped ?? null,
-        houseTrained: data.house_trained ?? null,
+        ...draftWrite(shelterId, data),
         bondedPartner: partnerIds?.length
-          ? data.bonded_partner ?? null
+          ? (data.bonded_partner ?? null)
           : partnerIds === undefined
-            ? data.bonded_partner ?? null
+            ? (data.bonded_partner ?? null)
             : null,
         bondedAnimalId:
-          partnerIds?.[0] ?? (partnerIds === undefined ? data.bonded_animal_id ?? null : null),
-        status: "draft",
+          partnerIds?.[0] ?? (partnerIds === undefined ? (data.bonded_animal_id ?? null) : null),
       });
       if (!row) {
-        throw new HTTPException(500, { message: "something wen't wrong" });
+        throw new HTTPException(500, { message: "something went wrong" });
       }
       if (partnerIds?.length) {
         await joinGroup(shelterId, [row.id, ...partnerIds]);
       }
-      const checklist =
-        shelter.checklist && typeof shelter.checklist === "object" ? shelter.checklist : {};
-      if (!("first_animal" in checklist && checklist.first_animal)) {
-        await shelterRepo.update(shelterId, {
-          checklist: { ...checklist, first_animal: true },
-        });
-      }
+      await markFirstAnimal(shelter);
       const fresh = await animalRepo.findById(row.id);
       return withCounts(fresh ?? row);
     },
@@ -456,9 +467,7 @@ export function createAnimalService(env: Env) {
       if (!updated) {
         throw new HTTPException(404, { message: "animal not found" });
       }
-      const threads = await threadRepo.listByShelter(shelterId);
-      for (const thread of threads) {
-        if (thread.animalId !== animalId) continue;
+      for (const thread of await threadRepo.listByAnimal(animalId)) {
         await messageRepo.create({
           threadId: thread.id,
           authorUserId: null,
@@ -559,7 +568,7 @@ export function createAnimalService(env: Env) {
         photos: [],
       });
       if (!copy) {
-        throw new HTTPException(500, { message: "something wen't wrong" });
+        throw new HTTPException(500, { message: "something went wrong" });
       }
       return withCounts(copy);
     },
@@ -579,24 +588,32 @@ export function createAnimalService(env: Env) {
       assertWritable(shelter);
       const data = createGroupSchema.parse(input);
       await assertDraftRoom(shelterId, data.members.length);
-      const created = [];
+      // Not via create(): its per-animal lookups would exceed D1's per-request query cap.
+      const ids: string[] = [];
       for (const member of data.members) {
-        created.push(
-          await this.create(userId, shelterId, {
-            ...member,
-            bonded_animal_id: null,
-            bonded_animal_ids: [],
-            bonded_partner: null,
-          }),
-        );
+        const row = await animalRepo.create(draftWrite(shelterId, member));
+        if (!row) {
+          throw new HTTPException(500, { message: "something went wrong" });
+        }
+        ids.push(row.id);
       }
-      const ids = created.map((row) => row.id);
+      await markFirstAnimal(shelter);
       await joinGroup(shelterId, ids);
-      const members = [];
-      for (const id of ids) {
-        const fresh = await animalRepo.findById(id);
-        if (fresh) members.push(await withCounts(fresh));
-      }
+      const rows = await animalRepo.findByIds(ids);
+      const partners = partnerMap(rows, rows, []);
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      const members = ids.flatMap((id) => {
+        const row = byId.get(id);
+        return row
+          ? [
+              toStaffAnimal(row, {
+                thread_count: 0,
+                unread_threads: 0,
+                bonded_partners: partners.get(id) ?? [],
+              }),
+            ]
+          : [];
+      });
       return { members };
     },
 

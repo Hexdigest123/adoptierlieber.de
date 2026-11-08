@@ -43,7 +43,7 @@
 		if (!data.user) {
 			// Kept for after login; read back (and cleared) when the visitor returns.
 			if (token) stashLinkToken(STASH_KEY, token);
-			await goto(`${resolve("/login")}?next=${encodeURIComponent(resolve("/shelter/invite"))}`, {
+			await goto(resolve(`/login?next=${encodeURIComponent(resolve("/shelter/invite"))}`), {
 				replaceState: true,
 			});
 			return;

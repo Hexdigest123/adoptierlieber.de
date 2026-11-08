@@ -1,8 +1,11 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
+	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Card from "$lib/components/ui/Card.svelte";
+	import Input from "$lib/components/ui/Input.svelte";
+	import Select from "$lib/components/ui/Select.svelte";
 	import TabNav from "$lib/components/ui/TabNav.svelte";
 	import StatusPill from "$lib/components/admin/StatusPill.svelte";
 	import Heart from "lucide-svelte/icons/heart";
@@ -69,32 +72,34 @@
 	label={m.shelter_animals_title()}
 	class="mt-4"
 	items={tabs.map((tab) => ({
-		href: tab.id === "all" ? "/shelter/animals" : `/shelter/animals?status=${tab.id}`,
+		href: resolve(tab.id === "all" ? "/shelter/animals" : `/shelter/animals?status=${tab.id}`),
 		label: tab.label(),
 		active: data.status === tab.id,
 	}))}
 />
 
 <div class="mt-4 flex flex-wrap gap-3">
-	<label class="sr-only" for="shelter-animals-q">{m.shelter_animals_search()}</label>
-	<input
+	<Input
 		id="shelter-animals-q"
+		class="min-w-48 flex-1"
 		type="search"
+		label={m.shelter_animals_search()}
+		hideLabel
 		bind:value={query}
 		placeholder={m.shelter_animals_search()}
-		class="h-11 min-w-48 flex-1 rounded-xl border border-sand-300 bg-white px-3.5 text-base focus-ring"
 	/>
-	<label class="sr-only" for="shelter-animals-sort">{m.app_search_sort()}</label>
-	<select
+	<Select
 		id="shelter-animals-sort"
+		label={m.app_search_sort()}
+		hideLabel
 		bind:value={sort}
-		class="h-11 rounded-xl border border-sand-300 bg-white px-3 text-sm font-medium focus-ring"
-	>
-		<option value="updated">{m.shelter_sort_updated()}</option>
-		<option value="name">{m.shelter_sort_name()}</option>
-		<option value="impressions">{m.shelter_sort_impressions()}</option>
-		<option value="likes">{m.shelter_sort_saves()}</option>
-	</select>
+		options={[
+			{ value: "updated", label: m.shelter_sort_updated() },
+			{ value: "name", label: m.shelter_sort_name() },
+			{ value: "impressions", label: m.shelter_sort_impressions() },
+			{ value: "likes", label: m.shelter_sort_saves() },
+		]}
+	/>
 </div>
 
 {#if filtered.length === 0}
@@ -108,7 +113,7 @@
 	<ul class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 		{#each filtered as animal (animal.id)}
 			<li>
-				<a href="/shelter/animals/{animal.id}" class="block">
+				<a href={resolve("/shelter/animals/[id]", { id: animal.id })} class="block">
 					<Card focusable padding="none" class="overflow-hidden">
 						{#if animal.photos[0] && data.current}
 							<img

@@ -2,6 +2,7 @@
 	import { resolve } from "$app/paths";
 	import { untrack } from "svelte";
 	import { m } from "$lib/paraglide/messages";
+	import { searchParams } from "$lib/query";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Select from "$lib/components/ui/Select.svelte";
 	import AnimalCard from "$lib/components/app/AnimalCard.svelte";
@@ -27,9 +28,7 @@
 	async function load() {
 		loading = true;
 		error = false;
-		const params = new URLSearchParams({ per_page: "50", sort });
-		const species = speciesQuery();
-		if (species) params.set("species", species);
+		const params = searchParams({ per_page: "50", sort, species: speciesQuery() });
 		try {
 			const res = await fetch(`/api/likes?${params}`);
 			if (!res.ok) {
@@ -57,8 +56,12 @@
 		const prev = animals;
 		animals = animals.filter((row) => row.id !== id);
 		toast = m.app_saved_removed();
-		const res = await fetch(`/api/animals/${id}/like`, { method: "DELETE" });
-		if (!res.ok) animals = prev;
+		try {
+			const res = await fetch(`/api/animals/${id}/like`, { method: "DELETE" });
+			if (!res.ok) animals = prev;
+		} catch {
+			animals = prev;
+		}
 		setTimeout(() => {
 			if (toast === m.app_saved_removed()) toast = "";
 		}, 4000);

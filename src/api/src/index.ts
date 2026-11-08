@@ -15,10 +15,7 @@ const STATS_CRON = "0 5 * * *";
 async function purgeAudit(env: Env): Promise<void> {
   // created_at is unix seconds (drizzle mode "timestamp"); a ms cutoff matches every row.
   const cutoff = Math.floor((Date.now() - AUDIT_RETENTION_MS) / 1000);
-  await getDb(env)
-    .prepare("DELETE FROM admin_audit WHERE created_at < ?")
-    .bind(cutoff)
-    .run();
+  await getDb(env).prepare("DELETE FROM admin_audit WHERE created_at < ?").bind(cutoff).run();
 }
 
 export default {
@@ -30,7 +27,7 @@ export default {
     }
     ctx.waitUntil(
       Promise.all([
-        purgeAudit(env),
+        purgeAudit(env).catch((error) => console.error(error)),
         sendDailyDigests(env).catch((error) => console.error(error)),
         createUserService(env)
           .purgeUnverified()

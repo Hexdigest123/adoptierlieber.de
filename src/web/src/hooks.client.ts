@@ -2,9 +2,7 @@ import type { ClientInit } from "@sveltejs/kit";
 import { isMfaSetupRequired, MFA_SETUP_PATH } from "$lib/mfa-setup";
 
 function onSetupPath(): boolean {
-	return (
-		location.pathname === MFA_SETUP_PATH || location.pathname.startsWith(`${MFA_SETUP_PATH}/`)
-	);
+	return location.pathname === MFA_SETUP_PATH || location.pathname.startsWith(`${MFA_SETUP_PATH}/`);
 }
 
 export const init: ClientInit = () => {

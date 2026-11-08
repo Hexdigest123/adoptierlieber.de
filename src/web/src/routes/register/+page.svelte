@@ -215,7 +215,6 @@
 	}
 
 	const errorMessages = {
-		email_taken: () => m.error_email_taken(),
 		not_allowed: () => m.error_registration_not_allowed(),
 		rate_limited: () => m.error_rate_limited(),
 		invalid: () => m.error_invalid_input(),

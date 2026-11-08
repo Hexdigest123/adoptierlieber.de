@@ -1,11 +1,13 @@
 import { SITE_ORIGIN } from "$lib/seo";
 import type { RequestHandler } from "./$types";
 
+// Rules are path prefixes: "/app" alone would also block /apple-touch-icon.png (JSON-LD logo).
 export const GET: RequestHandler = () => {
 	const body = `User-agent: *
 Allow: /
 Disallow: /api/
-Disallow: /app
+Disallow: /app$
+Disallow: /app/
 Disallow: /admin
 Disallow: /shelter
 Disallow: /profile
@@ -15,6 +17,7 @@ Disallow: /verify
 Disallow: /forgot-password
 Disallow: /reset-password
 Disallow: /mfa/setup
+Disallow: /delete-account
 Disallow: /impressum
 Disallow: /datenschutz
 Sitemap: ${SITE_ORIGIN}/sitemap.xml

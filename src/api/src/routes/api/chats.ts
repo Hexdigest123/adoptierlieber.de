@@ -108,7 +108,7 @@ chats.get("/:id/socket", async (c) => {
   if (!socketOriginAllowed(c.req.header("origin"))) {
     return c.json({ error: "origin not allowed" }, 403);
   }
-  await createChatService(c.env).get(c.get("userId"), c.req.param("id"));
+  await createChatService(c.env).assertAccess(c.get("userId"), c.req.param("id"));
   const stub = c.env.CHAT_ROOM.getByName(c.req.param("id"));
   const headers = new Headers(c.req.raw.headers);
   headers.set("x-user-id", c.get("userId"));

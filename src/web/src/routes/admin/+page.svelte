@@ -9,31 +9,35 @@
 	let { data }: PageProps = $props();
 
 	const stats = $derived([
-		{ label: m.admin_home_users(), value: data.overview.users, href: "/admin/catalog?type=users" },
+		{
+			label: m.admin_home_users(),
+			value: data.overview.users,
+			href: resolve("/admin/catalog?type=users"),
+		},
 		{
 			label: m.admin_home_pending(),
 			value: data.overview.pending_applications,
-			href: "/admin/applications",
+			href: resolve("/admin/applications"),
 		},
 		{
 			label: m.admin_home_suspended(),
 			value: data.overview.suspended,
-			href: "/admin/catalog?type=users&status=suspended",
+			href: resolve("/admin/catalog?type=users&status=suspended"),
 		},
 		{
 			label: m.admin_home_animals(),
 			value: data.overview.animals,
-			href: "/admin/catalog?type=animals",
+			href: resolve("/admin/catalog?type=animals"),
 		},
 		{
 			label: m.admin_home_verified(),
 			value: data.overview.shelters_verified,
-			href: "/admin/catalog?type=shelters&status=verified",
+			href: resolve("/admin/catalog?type=shelters&status=verified"),
 		},
 		{
 			label: m.admin_home_rejected(),
 			value: data.overview.shelters_rejected,
-			href: "/admin/catalog?type=shelters&status=rejected",
+			href: resolve("/admin/catalog?type=shelters&status=rejected"),
 		},
 	]);
 

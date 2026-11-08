@@ -1,5 +1,7 @@
 <script lang="ts">
-	type Item = { href: string; label: string; active: boolean };
+	import type { ResolvedPathname } from "$app/types";
+
+	type Item = { href: ResolvedPathname; label: string; active: boolean };
 
 	let {
 		label,
@@ -8,7 +10,7 @@
 	}: {
 		/** Accessible name of the nav landmark. */
 		label: string;
-		/** Links to sibling views; pass hrefs already resolved. */
+		/** Links to sibling views, built with resolve(). */
 		items: Item[];
 		class?: string;
 	} = $props();
@@ -16,7 +18,6 @@
 
 <nav aria-label={label} class="flex gap-5 overflow-x-auto border-b border-sand-200 {className}">
 	{#each items as item (item.href)}
-		<!-- eslint-disable svelte/no-navigation-without-resolve -- callers pass resolved hrefs -->
 		<a
 			href={item.href}
 			aria-current={item.active ? "page" : undefined}
@@ -26,6 +27,5 @@
 		>
 			{item.label}
 		</a>
-		<!-- eslint-enable svelte/no-navigation-without-resolve -->
 	{/each}
 </nav>

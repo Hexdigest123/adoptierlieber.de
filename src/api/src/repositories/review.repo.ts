@@ -68,7 +68,11 @@ export function createReviewRepo(env: Env) {
       }
       const where = filters.length ? and(...filters) : undefined;
       const [totalRow, items] = await Promise.all([
-        db.select({ n: sql<number>`count(*)` }).from(reviewsTable).where(where).get(),
+        db
+          .select({ n: sql<number>`count(*)` })
+          .from(reviewsTable)
+          .where(where)
+          .get(),
         db
           .select()
           .from(reviewsTable)

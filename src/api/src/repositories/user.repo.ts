@@ -1,7 +1,8 @@
 import { drizzle } from "drizzle-orm/d1";
 import { usersTable } from "../schema";
 import { getDb, type Env } from "../config/env";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { inChunks } from "../lib/d1";
 import { PLATFORM_ROLE } from "../lib/roles";
 
 export type CreateUserInput = {
@@ -52,6 +53,12 @@ export function createUserRepo(env: Env) {
 
     findById(id: string) {
       return db.select().from(usersTable).where(eq(usersTable.id, id)).get();
+    },
+
+    findByIds(ids: string[]) {
+      return inChunks(ids, (chunk) =>
+        db.select().from(usersTable).where(inArray(usersTable.id, chunk)).all(),
+      );
     },
 
     findByEmail(email: string) {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
+	import type { ResolvedPathname } from "$app/types";
 	import { ageLabel, coverPhoto, speciesLabel } from "$lib/app/format";
 	import type { AdminShelterAnimal } from "$lib/admin/types";
 	import AnimalPhoto from "$lib/components/app/AnimalPhoto.svelte";
@@ -10,7 +11,7 @@
 		href,
 	}: {
 		animal: AdminShelterAnimal & { shelter_name?: string; city?: string };
-		href?: string;
+		href?: ResolvedPathname;
 	} = $props();
 
 	const target = $derived(href ?? resolve("/admin/catalog/animals/[id]", { id: animal.id }));

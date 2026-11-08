@@ -64,7 +64,9 @@
 			</ul>
 		{/if}
 		{#if animal.description}
-			<p class="mt-4 text-sm leading-relaxed text-sand-800">{animal.description}</p>
+			<p class="mt-4 text-sm leading-relaxed whitespace-pre-wrap text-sand-800">
+				{animal.description}
+			</p>
 		{/if}
 		<dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
 			<div>

@@ -171,18 +171,13 @@ export async function takeWebauthnRegChallenge(env: Env, userId: string): Promis
 
 export async function putWebauthnAuthChallenge(env: Env, challenge: string): Promise<string> {
   const { token, hashedToken } = await generateToken();
-  await env.RATE_LIMIT_KV.put(
-    `webauthn:auth:${hashedToken}`,
-    JSON.stringify({ challenge }),
-    { expirationTtl: WEBAUTHN_TTL_SECONDS },
-  );
+  await env.RATE_LIMIT_KV.put(`webauthn:auth:${hashedToken}`, JSON.stringify({ challenge }), {
+    expirationTtl: WEBAUTHN_TTL_SECONDS,
+  });
   return token;
 }
 
-export async function peekWebauthnAuthChallenge(
-  env: Env,
-  challengeId: string,
-): Promise<string> {
+export async function peekWebauthnAuthChallenge(env: Env, challengeId: string): Promise<string> {
   const hashed = await hashToken(challengeId);
   const raw = await env.RATE_LIMIT_KV.get(`webauthn:auth:${hashed}`);
   if (!raw) {

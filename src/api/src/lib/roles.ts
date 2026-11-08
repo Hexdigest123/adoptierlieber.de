@@ -19,8 +19,6 @@ export const PLATFORM_ROLE = {
   USER: 2,
 } as const;
 
-export type PlatformRole = (typeof PLATFORM_ROLE)[keyof typeof PLATFORM_ROLE];
-
 export type RoleSubject = {
   email: string;
   platformRole: number;
@@ -79,12 +77,11 @@ export function isSuperAdmin(subject: RoleSubject, allowlist: readonly string[])
 }
 
 export function isPlatformAdmin(subject: RoleSubject, allowlist: readonly string[]): boolean {
-  return hasPrivilege(subject.platformRole, PLATFORM_ROLE.ADMIN) || isSuperAdmin(subject, allowlist);
+  return (
+    hasPrivilege(subject.platformRole, PLATFORM_ROLE.ADMIN) || isSuperAdmin(subject, allowlist)
+  );
 }
 
-export function effectivePlatformRole(
-  subject: RoleSubject,
-  allowlist: readonly string[],
-): number {
+export function effectivePlatformRole(subject: RoleSubject, allowlist: readonly string[]): number {
   return isSuperAdmin(subject, allowlist) ? PLATFORM_ROLE.SUPER_ADMIN : subject.platformRole;
 }

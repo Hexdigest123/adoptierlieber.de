@@ -17,5 +17,5 @@ export const errorHandler: ErrorHandler = (err, c) => {
     return c.json({ error: "Invalid request" }, 400);
   }
   console.error(err); // stack stays server-side
-  return c.json({ error: "Something wen't wrong!" }, 500);
+  return c.json({ error: "Something went wrong!" }, 500);
 };

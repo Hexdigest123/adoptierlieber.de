@@ -16,7 +16,7 @@ sessions.get("/me", async (c) => {
 /** Extends the session's expiry, so POST: a GET must not change state. */
 sessions.post("/refresh", async (c) => {
   if (!(await createSessionService(c.env).refreshExpiresAtWithToken(c.get("sessionToken")))) {
-    return c.json({ error: "something wen't wrong" }, 500);
+    return c.json({ error: "something went wrong" }, 500);
   }
   return c.json({ status: "ok" }, 200);
 });

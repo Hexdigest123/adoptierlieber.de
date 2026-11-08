@@ -8,6 +8,8 @@
 		error?: string;
 		/** Neutral helper text, hidden when error is set. */
 		hint?: string;
+		/** Keeps the label for screen readers only, when the surrounding UI already names the field. */
+		hideLabel?: boolean;
 		icon?: Snippet;
 		id: string;
 		class?: string;
@@ -17,6 +19,7 @@
 		label,
 		error,
 		hint,
+		hideLabel = false,
 		icon,
 		id,
 		class: className = "",
@@ -33,7 +36,7 @@
 </script>
 
 <div class="flex flex-col gap-1.5 {className}">
-	<label for={id} class="text-sm font-semibold text-sand-900">
+	<label for={id} class={hideLabel ? "sr-only" : "text-sm font-semibold text-sand-900"}>
 		{label}
 		{#if required}<span class="text-coral-600" aria-hidden="true"> *</span>{/if}
 	</label>

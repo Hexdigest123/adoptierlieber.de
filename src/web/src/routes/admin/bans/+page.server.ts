@@ -1,6 +1,6 @@
 import { fail } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
-import { adminFetch, adminList } from "$lib/admin/api";
+import { adminList } from "$lib/admin/api";
 import { adminMutate } from "$lib/admin/mutate";
 import type { AdminBanRow } from "$lib/admin/types";
 

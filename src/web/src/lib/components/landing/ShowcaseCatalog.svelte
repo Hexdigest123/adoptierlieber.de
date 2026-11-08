@@ -13,7 +13,7 @@
 		loggedIn?: boolean;
 	} = $props();
 
-	function hrefFor(card: ShowcaseCard): string {
+	function hrefFor(card: ShowcaseCard) {
 		return loggedIn
 			? resolve("/app/animals/[id]", { id: card.id })
 			: resolve("/animals/[id]", { id: card.id });

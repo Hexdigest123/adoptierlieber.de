@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { afterNavigate } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
@@ -12,6 +13,7 @@
 	import type { ShelterMembershipSummary } from "$lib/types/session";
 	import type { StaffShelter } from "$lib/types/shelter";
 	import LocaleSwitcher from "$lib/components/ui/LocaleSwitcher.svelte";
+	import { dismissable } from "$lib/dialog";
 
 	type Props = {
 		user: App.Locals["user"];
@@ -30,26 +32,26 @@
 
 	const tabs = $derived([
 		{
-			href: "/shelter",
+			href: resolve("/shelter"),
 			label: m.shelter_tab_overview(),
 			icon: LayoutGrid,
 			match: "exact" as const,
 		},
 		{
-			href: "/shelter/animals",
+			href: resolve("/shelter/animals"),
 			label: m.shelter_tab_animals(),
 			icon: PawPrint,
 			match: "prefix" as const,
 		},
 		{
-			href: "/shelter/messages",
+			href: resolve("/shelter/messages"),
 			label: m.shelter_tab_messages(),
 			icon: MessageCircle,
 			match: "prefix" as const,
 			badge: unread,
 		},
 		{
-			href: "/shelter/settings",
+			href: resolve("/shelter/settings"),
 			label: m.shelter_tab_settings(),
 			icon: SlidersHorizontal,
 			match: "prefix" as const,
@@ -62,6 +64,7 @@
 	}
 
 	let switchOpen = $state(false);
+	afterNavigate(() => (switchOpen = false));
 </script>
 
 <a
@@ -79,7 +82,7 @@
 			</a>
 			{#if current}
 				{#if memberships.length > 1}
-					<div class="relative">
+					<div class="relative" use:dismissable={() => (switchOpen = false)}>
 						<button
 							type="button"
 							class="flex max-w-[14rem] cursor-pointer items-center gap-1 truncate rounded-full px-2 py-1 text-sm font-semibold text-sand-900 focus-ring hover:bg-peach-100 sm:max-w-xs"
@@ -96,7 +99,7 @@
 								{#each memberships as row (row.shelter_id)}
 									<li>
 										<a
-											href="/shelter?shelter={row.shelter_id}"
+											href={resolve(`/shelter?shelter=${row.shelter_id}`)}
 											class="block truncate px-3 py-2 text-sm font-medium text-sand-800 hover:bg-peach-50 {row.shelter_id ===
 											current.shelter_id
 												? 'bg-peach-50 text-coral-700'

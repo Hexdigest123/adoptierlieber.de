@@ -1,16 +1,16 @@
 <script lang="ts">
+	import { afterNavigate } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import { page } from "$app/state";
 	import { m } from "$lib/paraglide/messages";
 	import Avatar from "$lib/components/ui/Avatar.svelte";
 	import { openWidget } from "$lib/components/ui/widgets.svelte";
 	import type { SessionUser } from "$lib/types/session";
 	import LocaleSwitcher from "$lib/components/ui/LocaleSwitcher.svelte";
+	import { dismissable } from "$lib/dialog";
 
 	let { user, onNavigate }: { user: SessionUser; onNavigate?: () => void } = $props();
 
 	let open = $state(false);
-	let root: HTMLDivElement | undefined = $state();
 
 	const isAdmin = $derived(user.platform_role <= 1);
 	const hasShelter = $derived(user.memberships.length > 0);
@@ -25,29 +25,10 @@
 		onNavigate?.();
 	}
 
-	$effect(() => {
-		page.url.pathname;
-		close();
-	});
-
-	$effect(() => {
-		if (!open) return;
-		function onPointer(event: PointerEvent) {
-			if (root && !root.contains(event.target as Node)) close();
-		}
-		function onKey(event: KeyboardEvent) {
-			if (event.key === "Escape") close();
-		}
-		document.addEventListener("pointerdown", onPointer);
-		document.addEventListener("keydown", onKey);
-		return () => {
-			document.removeEventListener("pointerdown", onPointer);
-			document.removeEventListener("keydown", onKey);
-		};
-	});
+	afterNavigate(close);
 </script>
 
-<div class="relative" bind:this={root}>
+<div class="relative" use:dismissable={close}>
 	<button
 		type="button"
 		class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full focus-ring"

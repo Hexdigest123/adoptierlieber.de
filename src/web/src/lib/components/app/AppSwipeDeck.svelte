@@ -96,6 +96,14 @@
 		if (current) void recordImpression(current.id);
 	});
 
+	// Leaving the deck: a pending fling must not navigate later, a pending skip is sent now.
+	$effect(() => () => {
+		clearTimeout(undoTimer);
+		clearTimeout(reasonTimer);
+		clearTimeout(flingTimer);
+		if (pendingSkip) void sendReason();
+	});
+
 	async function writeSwipe(action: "like" | "skip", animalId: string, reason?: string) {
 		try {
 			const res = await fetch("/api/swipes", {
@@ -194,18 +202,22 @@
 			restore(gone);
 			return;
 		}
-		const res = await fetch("/api/swipes", {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ animal_id: current?.id ?? "undo", action: "undo" }),
-		});
-		if (!res.ok) return;
-		const body = (await res.json()) as { animal_id?: string };
-		if (!body.animal_id) return;
-		const detail = await fetch(`/api/animals/${body.animal_id}`);
-		if (!detail.ok) return;
-		const animal = (await detail.json()) as PublicAnimal;
-		animals = [animal, ...animals.filter((row) => row.id !== animal.id)];
+		try {
+			const res = await fetch("/api/swipes", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ animal_id: current?.id ?? "undo", action: "undo" }),
+			});
+			if (!res.ok) return;
+			const body = (await res.json()) as { animal_id?: string };
+			if (!body.animal_id) return;
+			const detail = await fetch(`/api/animals/${body.animal_id}`);
+			if (!detail.ok) return;
+			const animal = (await detail.json()) as PublicAnimal;
+			animals = [animal, ...animals.filter((row) => row.id !== animal.id)];
+		} catch {
+			// offline: nothing to restore
+		}
 	}
 
 	function onPointerDown(event: PointerEvent) {

@@ -1,5 +1,6 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
+import { inChunks } from "../lib/d1";
 import { getDb, type Env } from "../config/env";
 import { messagesTable } from "../schema";
 
@@ -28,16 +29,27 @@ export function createMessageRepo(env: Env) {
             sql`${messagesTable}.rowid > (SELECT rowid FROM messages WHERE id = ${afterMessageId})`,
           )
         : eq(messagesTable.threadId, threadId);
-      return db.select().from(messagesTable).where(where).orderBy(asc(sql`${messagesTable}.rowid`)).all();
-    },
-
-    lastByThread(threadId: string) {
       return db
         .select()
         .from(messagesTable)
-        .where(eq(messagesTable.threadId, threadId))
-        .orderBy(desc(sql`${messagesTable}.rowid`))
-        .get();
+        .where(where)
+        .orderBy(asc(sql`${messagesTable}.rowid`))
+        .all();
+    },
+
+    lastByThreads(threadIds: string[]) {
+      return inChunks(threadIds, (chunk) =>
+        db
+          .select()
+          .from(messagesTable)
+          .where(
+            and(
+              inArray(messagesTable.threadId, chunk),
+              sql`${messagesTable}.rowid = (SELECT MAX(m2.rowid) FROM messages m2 WHERE m2.thread_id = ${messagesTable.threadId})`,
+            ),
+          )
+          .all(),
+      );
     },
   };
 }

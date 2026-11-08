@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { inChunks } from "../lib/d1";
 import { drizzle } from "drizzle-orm/d1";
 import { getDb, type Env } from "../config/env";
 import {
@@ -65,7 +66,12 @@ export function createCatalogRepo(env: Env) {
         .then((rows) => rows.map((row) => row.id));
     },
 
-    async recentSkipReasons(userId: string, since: Date): Promise<Set<string>> {
+    async recentSkips(
+      userId: string,
+      since: Date,
+    ): Promise<{ ids: Set<string>; reasons: Set<string> }> {
+      // The latest event per animal decides. An animal skipped after `since`
+      // has its latest event inside that window too, so one query is enough.
       const rows = await db
         .select({
           animalId: swipeEventsTable.animalId,
@@ -77,32 +83,16 @@ export function createCatalogRepo(env: Env) {
         .orderBy(desc(swipeEventsTable.createdAt))
         .all();
       const seen = new Set<string>();
+      const ids = new Set<string>();
       const reasons = new Set<string>();
       for (const row of rows) {
         if (seen.has(row.animalId)) continue;
         seen.add(row.animalId);
-        if (row.action === "skip" && row.reason) reasons.add(row.reason);
+        if (row.action !== "skip") continue;
+        ids.add(row.animalId);
+        if (row.reason) reasons.add(row.reason);
       }
-      return reasons;
-    },
-
-    async recentSkipIds(userId: string, since: Date): Promise<string[]> {
-      // The latest event per animal decides. An animal skipped after `since`
-      // has its latest event inside that window too, so one query is enough.
-      const rows = await db
-        .select({ animalId: swipeEventsTable.animalId, action: swipeEventsTable.action })
-        .from(swipeEventsTable)
-        .where(and(eq(swipeEventsTable.userId, userId), gt(swipeEventsTable.createdAt, since)))
-        .orderBy(desc(swipeEventsTable.createdAt))
-        .all();
-      const seen = new Set<string>();
-      const still: string[] = [];
-      for (const row of rows) {
-        if (seen.has(row.animalId)) continue;
-        seen.add(row.animalId);
-        if (row.action === "skip") still.push(row.animalId);
-      }
-      return still;
+      return { ids, reasons };
     },
 
     findLike(userId: string, animalId: string) {
@@ -114,11 +104,7 @@ export function createCatalogRepo(env: Env) {
     },
 
     insertLike(userId: string, animalId: string) {
-      return db
-        .insert(animalLikesTable)
-        .values({ userId, animalId })
-        .returning()
-        .get();
+      return db.insert(animalLikesTable).values({ userId, animalId }).returning().get();
     },
 
     deleteLike(userId: string, animalId: string) {
@@ -140,16 +126,17 @@ export function createCatalogRepo(env: Env) {
         .all();
     },
 
-    likesByAnimalIds(userId: string, animalIds: string[]): Promise<Set<string>> {
-      if (animalIds.length === 0) return Promise.resolve(new Set());
-      return db
-        .select({ id: animalLikesTable.animalId })
-        .from(animalLikesTable)
-        .where(
-          and(eq(animalLikesTable.userId, userId), inArray(animalLikesTable.animalId, animalIds)),
-        )
-        .all()
-        .then((rows) => new Set(rows.map((row) => row.id)));
+    async likesByAnimalIds(userId: string, animalIds: string[]): Promise<Set<string>> {
+      const rows = await inChunks(animalIds, (chunk) =>
+        db
+          .select({ id: animalLikesTable.animalId })
+          .from(animalLikesTable)
+          .where(
+            and(eq(animalLikesTable.userId, userId), inArray(animalLikesTable.animalId, chunk)),
+          )
+          .all(),
+      );
+      return new Set(rows.map((row) => row.id));
     },
 
     insertSwipe(

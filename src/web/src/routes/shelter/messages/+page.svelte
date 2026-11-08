@@ -1,12 +1,28 @@
 <script lang="ts">
 	import type { PageProps } from "./$types";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
+	import Input from "$lib/components/ui/Input.svelte";
+	import Select from "$lib/components/ui/Select.svelte";
 	import { photoUrl } from "$lib/types/shelter";
 	import { formatDateTime } from "$lib/datetime";
 
 	let { data }: PageProps = $props();
 
 	let query = $state("");
+
+	const animalOptions = $derived([
+		{ value: "", label: m.shelter_filter_animal() },
+		...data.animals.map((animal) => ({ value: animal.id, label: animal.name })),
+	]);
+
+	function onAnimal(event: Event & { currentTarget: HTMLSelectElement }) {
+		const id = event.currentTarget.value;
+		void goto(
+			resolve(id ? `/shelter/messages?animal=${encodeURIComponent(id)}` : "/shelter/messages"),
+		);
+	}
 
 	const rows = $derived.by(() => {
 		const q = query.trim().toLowerCase();
@@ -22,7 +38,7 @@
 
 <div class="mt-4 flex flex-wrap gap-2">
 	<a
-		href="/shelter/messages"
+		href={resolve("/shelter/messages")}
 		aria-current={data.filter === "all" && !data.animalId ? "page" : undefined}
 		class="inline-flex h-11 items-center rounded-full px-3 text-sm font-medium focus-ring {data.filter ===
 			'all' && !data.animalId
@@ -32,7 +48,7 @@
 		{m.shelter_filter_all()}
 	</a>
 	<a
-		href="/shelter/messages?filter=unread"
+		href={resolve("/shelter/messages?filter=unread")}
 		aria-current={data.filter === "unread" ? "page" : undefined}
 		class="inline-flex h-11 items-center rounded-full px-3 text-sm font-medium focus-ring {data.filter ===
 		'unread'
@@ -42,7 +58,7 @@
 		{m.shelter_filter_unread()}
 	</a>
 	<a
-		href="/shelter/messages?filter=mine"
+		href={resolve("/shelter/messages?filter=mine")}
 		aria-current={data.filter === "mine" ? "page" : undefined}
 		class="inline-flex h-11 items-center rounded-full px-3 text-sm font-medium focus-ring {data.filter ===
 		'mine'
@@ -51,27 +67,22 @@
 	>
 		{m.shelter_mine()}
 	</a>
-	<label class="sr-only" for="shelter-messages-animal">{m.shelter_filter_animal()}</label>
-	<select
+	<Select
 		id="shelter-messages-animal"
-		class="h-11 rounded-full border border-sand-300 bg-white px-3 text-sm font-medium focus-ring"
-		onchange={(event) => {
-			const value = event.currentTarget.value;
-			location.href = value ? `/shelter/messages?animal=${value}` : "/shelter/messages";
-		}}
-	>
-		<option value="">{m.shelter_filter_animal()}</option>
-		{#each data.animals as animal (animal.id)}
-			<option value={animal.id} selected={data.animalId === animal.id}>{animal.name}</option>
-		{/each}
-	</select>
-	<label class="sr-only" for="shelter-messages-q">{m.shelter_messages_search()}</label>
-	<input
+		label={m.shelter_filter_animal()}
+		hideLabel
+		options={animalOptions}
+		value={data.animalId ?? ""}
+		onchange={onAnimal}
+	/>
+	<Input
 		id="shelter-messages-q"
+		class="min-w-40 flex-1"
 		type="search"
+		label={m.shelter_messages_search()}
+		hideLabel
 		bind:value={query}
 		placeholder={m.shelter_messages_search()}
-		class="h-11 min-w-40 flex-1 rounded-full border border-sand-300 bg-white px-3 text-sm focus-ring"
 	/>
 </div>
 
@@ -82,7 +93,7 @@
 		{#each rows as thread (thread.id)}
 			<li>
 				<a
-					href="/shelter/messages/{thread.id}"
+					href={resolve("/shelter/messages/[id]", { id: thread.id })}
 					class="flex items-center gap-3 rounded-xl border border-sand-200 bg-white px-3 py-3 focus-ring hover:bg-peach-50"
 				>
 					{#if thread.animal_photo && data.current}
@@ -107,6 +118,7 @@
 					</div>
 					{#if thread.unread_for_me}
 						<span class="size-2.5 shrink-0 rounded-full bg-coral-600" aria-hidden="true"></span>
+						<span class="sr-only">{m.shelter_filter_unread()}</span>
 					{/if}
 				</a>
 			</li>

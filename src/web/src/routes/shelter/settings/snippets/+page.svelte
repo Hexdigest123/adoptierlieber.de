@@ -5,6 +5,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
 	import Textarea from "$lib/components/ui/Textarea.svelte";
+	import FormStatus from "$lib/components/ui/FormStatus.svelte";
 
 	let { data }: PageProps = $props();
 
@@ -39,7 +40,15 @@
 
 	async function remove(id: string) {
 		if (!data.current) return;
-		await fetch(`/api/shelters/${data.current.shelter_id}/snippets/${id}`, { method: "DELETE" });
+		error = false;
+		try {
+			const response = await fetch(`/api/shelters/${data.current.shelter_id}/snippets/${id}`, {
+				method: "DELETE",
+			});
+			if (!response.ok) error = true;
+		} catch {
+			error = true;
+		}
 		await invalidateAll();
 	}
 </script>
@@ -57,10 +66,10 @@
 		<Input id="snippet-title" label={m.shelter_snippet_title()} bind:value={title} required />
 		<Textarea id="snippet-body" label={m.shelter_snippet_body()} bind:value={body} required />
 		<Button type="submit" loading={saving}>{m.shelter_snippet_add()}</Button>
-		{#if error}
-			<p class="text-sm text-coral-700">{m.error_generic()}</p>
-		{/if}
 	</form>
+{/if}
+{#if error}
+	<FormStatus class="mt-3" type="error">{m.error_generic()}</FormStatus>
 {/if}
 
 {#if data.snippets.length === 0}
@@ -70,7 +79,7 @@
 		{#each data.snippets as snippet (snippet.id)}
 			<li class="rounded-2xl border border-sand-200 bg-white p-4">
 				<p class="font-semibold text-sand-950">{snippet.title}</p>
-				<p class="mt-1 text-sm text-sand-700">{snippet.body}</p>
+				<p class="mt-1 text-sm whitespace-pre-wrap text-sand-700">{snippet.body}</p>
 				{#if !data.readonly}
 					<div class="mt-3">
 						<Button type="button" variant="ghost" size="sm" onclick={() => void remove(snippet.id)}>

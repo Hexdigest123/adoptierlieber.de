@@ -1,12 +1,16 @@
 <script lang="ts">
+	import { untrack } from "svelte";
 	import { browser } from "$app/environment";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { m } from "$lib/paraglide/messages";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Checkbox from "$lib/components/ui/Checkbox.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
+	import Select from "$lib/components/ui/Select.svelte";
 	import Textarea from "$lib/components/ui/Textarea.svelte";
 	import FormStatus from "$lib/components/ui/FormStatus.svelte";
+	import { dialog } from "$lib/dialog";
 	import AnimalDetail from "$lib/components/app/AnimalDetail.svelte";
 	import PawPrint from "lucide-svelte/icons/paw-print";
 	import Heart from "lucide-svelte/icons/heart";
@@ -123,19 +127,25 @@
 		return { key, mode: "new", draft: fromAnimal(null, species) };
 	}
 
-	let primary = $state<Draft>(fromAnimal(animal));
-	let kind = $state<Kind>(startAsPair ? "pair" : "single");
-	let companions = $state<Companion[]>([blankCompanion(animal?.species ?? "cat")]);
+	// Editing state starts from the props once; the edit page re-creates the form per animal.
+	const start = untrack(() => ({ animal, startAsPair }));
+	let primary = $state<Draft>(fromAnimal(start.animal));
+	let kind = $state<Kind>(start.startAsPair ? "pair" : "single");
+	let companions = $state<Companion[]>([blankCompanion(start.animal?.species ?? "cat")]);
 	let selectedPartnerIds = $state<string[]>(
-		animal?.bonded_partners?.map((row) => row.id) ??
-			(animal?.bonded_animal_id ? [animal.bonded_animal_id] : []),
+		start.animal?.bonded_partners?.map((row) => row.id) ??
+			(start.animal?.bonded_animal_id ? [start.animal.bonded_animal_id] : []),
 	);
 	let bonded = $state(
-		Boolean(animal?.bonded_partners?.length || animal?.bonded_partner || animal?.bond_group_id),
+		Boolean(
+			start.animal?.bonded_partners?.length ||
+			start.animal?.bonded_partner ||
+			start.animal?.bond_group_id,
+		),
 	);
-	let bondedPartner = $state(animal?.bonded_partner ?? "");
-	let photos = $state<string[]>(animal?.photos ?? []);
-	let status = $state(animal?.status ?? "draft");
+	let bondedPartner = $state(start.animal?.bonded_partner ?? "");
+	let photos = $state<string[]>(start.animal?.photos ?? []);
+	let status = $state(start.animal?.status ?? "draft");
 	let error = $state("");
 	let saved = $state(false);
 	let saving = $state(false);
@@ -359,11 +369,14 @@
 		return m.shelter_publish_required();
 	}
 
-	function selectClass(invalid: boolean): string {
-		return `h-11 rounded-xl border bg-white px-3.5 focus-ring ${
-			invalid ? "border-coral-600" : "border-sand-300"
-		}`;
-	}
+	const unsetOption = { value: "", label: m.shelter_unset() };
+	const triadOptions = $derived([
+		unsetOption,
+		{ value: "yes", label: m.shelter_yes() },
+		{ value: "no", label: m.shelter_no() },
+		{ value: "unknown", label: m.shelter_unknown() },
+	]);
+	let partnerPick = $state("");
 
 	function breedSelectValue(draft: Draft): string {
 		if (draft.breedOther) return BREED_OTHER;
@@ -549,7 +562,7 @@
 					}
 				}
 				saving = false;
-				if (first) await goto(`/shelter/animals/${first.id}`);
+				if (first) await goto(resolve("/shelter/animals/[id]", { id: first.id }));
 				return first ?? null;
 			}
 
@@ -566,7 +579,7 @@
 			}
 			const row = (await response.json()) as StaffAnimal;
 			saving = false;
-			await goto(`/shelter/animals/${row.id}`);
+			await goto(resolve("/shelter/animals/[id]", { id: row.id }));
 			return row;
 		}
 
@@ -596,7 +609,7 @@
 		saving = false;
 		saved = true;
 		if (isNew) {
-			await goto(`/shelter/animals/${row.id}`);
+			await goto(resolve("/shelter/animals/[id]", { id: row.id }));
 		}
 		selectedPartnerIds = row.bonded_partners?.map((entry) => entry.id) ?? selectedPartnerIds;
 		bondedPartner = row.bonded_partner ?? bondedPartner;
@@ -664,7 +677,7 @@
 			return;
 		}
 		const row = (await response.json()) as StaffAnimal;
-		await goto(`/shelter/animals/${row.id}`);
+		await goto(resolve("/shelter/animals/[id]", { id: row.id }));
 	}
 
 	async function publish() {
@@ -731,14 +744,10 @@
 			method: "DELETE",
 		});
 		if (response.ok) {
-			await goto("/shelter/animals");
+			await goto(resolve("/shelter/animals"));
 		} else {
 			error = m.shelter_animal_delete_blocked();
 		}
-	}
-
-	function closePreviewOnKey(event: KeyboardEvent) {
-		if (event.key === "Escape") previewOpen = false;
 	}
 
 	function careFields(draft: Draft) {
@@ -771,8 +780,6 @@
 	}
 </script>
 
-<svelte:window onkeydown={closePreviewOnKey} />
-
 {#snippet draftFields(draft: Draft, prefix: string, section: "basics" | "story" | "care")}
 	{#if section === "basics"}
 		<div class="grid gap-4 sm:grid-cols-2">
@@ -784,47 +791,29 @@
 				bind:value={draft.name}
 				disabled={readonly}
 			/>
+			<Select
+				id="{prefix}-species"
+				label={m.shelter_field_species()}
+				required
+				error={fieldError(prefix, "species")}
+				bind:value={draft.species}
+				disabled={readonly}
+				options={speciesOptions.map((option) => ({ value: option, label: speciesLabel(option) }))}
+				onchange={() => onSpeciesChange(draft)}
+			/>
 			<div class="flex flex-col gap-1.5">
-				<label for="{prefix}-species" class="text-sm font-semibold text-sand-900"
-					>{m.shelter_field_species()}
-					<span class="text-coral-600" aria-hidden="true"> *</span></label
-				>
-				<select
-					id="{prefix}-species"
-					bind:value={draft.species}
-					disabled={readonly}
-					aria-invalid={fieldError(prefix, "species") ? true : undefined}
-					aria-describedby={fieldError(prefix, "species") ? `${prefix}-species-error` : undefined}
-					class={selectClass(Boolean(fieldError(prefix, "species")))}
-					onchange={() => onSpeciesChange(draft)}
-				>
-					{#each speciesOptions as option (option)}
-						<option value={option}>{speciesLabel(option)}</option>
-					{/each}
-				</select>
-				{#if fieldError(prefix, "species")}
-					<p id="{prefix}-species-error" class="text-sm text-coral-700">
-						{fieldError(prefix, "species")}
-					</p>
-				{/if}
-			</div>
-			<div class="flex flex-col gap-1.5">
-				<label for="{prefix}-breed" class="text-sm font-semibold text-sand-900"
-					>{m.shelter_field_breed()}</label
-				>
-				<select
+				<Select
 					id="{prefix}-breed"
+					label={m.shelter_field_breed()}
 					value={breedSelectValue(draft)}
 					disabled={readonly}
-					class={selectClass(false)}
+					options={[
+						unsetOption,
+						...breedsFor(draft.species).map((option) => ({ value: option, label: option })),
+						{ value: BREED_OTHER, label: m.shelter_breed_other() },
+					]}
 					onchange={(event) => onBreedSelect(draft, event.currentTarget.value)}
-				>
-					<option value="">{m.shelter_unset()}</option>
-					{#each breedsFor(draft.species) as option (option)}
-						<option value={option}>{option}</option>
-					{/each}
-					<option value={BREED_OTHER}>{m.shelter_breed_other()}</option>
-				</select>
+				/>
 				{#if breedSelectValue(draft) === BREED_OTHER}
 					<Input
 						id="{prefix}-breed-custom"
@@ -835,28 +824,20 @@
 					/>
 				{/if}
 			</div>
-			<div class="flex flex-col gap-1.5">
-				<label for="{prefix}-sex" class="text-sm font-semibold text-sand-900"
-					>{m.shelter_field_sex()}
-					{#if !creating}<span class="text-coral-600" aria-hidden="true"> *</span>{/if}</label
-				>
-				<select
-					id="{prefix}-sex"
-					bind:value={draft.sex}
-					disabled={readonly}
-					aria-invalid={fieldError(prefix, "sex") ? true : undefined}
-					aria-describedby={fieldError(prefix, "sex") ? `${prefix}-sex-error` : undefined}
-					class={selectClass(Boolean(fieldError(prefix, "sex")))}
-				>
-					<option value="">{m.shelter_unset()}</option>
-					<option value="female">{m.shelter_sex_female()}</option>
-					<option value="male">{m.shelter_sex_male()}</option>
-					<option value="unknown">{m.shelter_unknown()}</option>
-				</select>
-				{#if fieldError(prefix, "sex")}
-					<p id="{prefix}-sex-error" class="text-sm text-coral-700">{fieldError(prefix, "sex")}</p>
-				{/if}
-			</div>
+			<Select
+				id="{prefix}-sex"
+				label={m.shelter_field_sex()}
+				required={!creating}
+				error={fieldError(prefix, "sex")}
+				bind:value={draft.sex}
+				disabled={readonly}
+				options={[
+					unsetOption,
+					{ value: "female", label: m.shelter_sex_female() },
+					{ value: "male", label: m.shelter_sex_male() },
+					{ value: "unknown", label: m.shelter_unknown() },
+				]}
+			/>
 			<Input
 				id="{prefix}-age"
 				label={m.shelter_field_age()}
@@ -880,23 +861,19 @@
 					</Checkbox>
 				</div>
 			</div>
-			<div class="flex flex-col gap-1.5">
-				<label for="{prefix}-size" class="text-sm font-semibold text-sand-900"
-					>{m.shelter_field_size()}</label
-				>
-				<select
-					id="{prefix}-size"
-					bind:value={draft.size}
-					disabled={readonly}
-					class={selectClass(false)}
-				>
-					<option value="">{m.shelter_unset()}</option>
-					<option value="s">S</option>
-					<option value="m">M</option>
-					<option value="l">L</option>
-					<option value="xl">XL</option>
-				</select>
-			</div>
+			<Select
+				id="{prefix}-size"
+				label={m.shelter_field_size()}
+				bind:value={draft.size}
+				disabled={readonly}
+				options={[
+					unsetOption,
+					{ value: "s", label: "S" },
+					{ value: "m", label: "M" },
+					{ value: "l", label: "L" },
+					{ value: "xl", label: "XL" },
+				]}
+			/>
 		</div>
 		<p class="mt-3 text-sm text-sand-600">{m.shelter_location_inherited({ zip, city })}</p>
 	{:else if section === "story"}
@@ -940,29 +917,16 @@
 						? "house_trained"
 						: (field.id as Exclude<PublishField, "house_trained">)}
 				{@const careError = fieldError(prefix, careKey)}
-				<div class="flex flex-col gap-1.5">
-					<label for="{prefix}-{field.id}" class="text-sm font-semibold text-sand-900"
-						>{field.label}
-						{#if !creating}<span class="text-coral-600" aria-hidden="true"> *</span>{/if}</label
-					>
-					<select
-						id="{prefix}-{field.id}"
-						value={field.value}
-						disabled={readonly}
-						aria-invalid={careError ? true : undefined}
-						aria-describedby={careError ? `${prefix}-${field.id}-error` : undefined}
-						onchange={(event) => field.set(event.currentTarget.value as Triad | "")}
-						class={selectClass(Boolean(careError))}
-					>
-						<option value="">{m.shelter_unset()}</option>
-						<option value="yes">{m.shelter_yes()}</option>
-						<option value="no">{m.shelter_no()}</option>
-						<option value="unknown">{m.shelter_unknown()}</option>
-					</select>
-					{#if careError}
-						<p id="{prefix}-{field.id}-error" class="text-sm text-coral-700">{careError}</p>
-					{/if}
-				</div>
+				<Select
+					id="{prefix}-{field.id}"
+					label={field.label}
+					required={!creating}
+					error={careError}
+					value={field.value}
+					disabled={readonly}
+					options={triadOptions}
+					onchange={(event) => field.set(event.currentTarget.value as Triad | "")}
+				/>
 			{/each}
 		</div>
 	{/if}
@@ -1106,30 +1070,26 @@
 							{#if existingChoices(index).length === 0}
 								<p class="mt-3 text-sm text-sand-600">{m.shelter_wizard_linked_empty()}</p>
 							{:else}
-								<div class="mt-3 flex flex-col gap-1.5">
-									<label
-										for="an-partner-pick-{entry.key}"
-										class="text-sm font-semibold text-sand-900"
-										>{m.shelter_wizard_linked_pick()}</label
-									>
-									<select
-										id="an-partner-pick-{entry.key}"
-										value={entry.id}
-										disabled={readonly}
-										onchange={(event) => {
-											const current = companions[index];
-											if (current?.mode === "existing") {
-												current.id = event.currentTarget.value;
-											}
-										}}
-										class="h-11 rounded-xl border border-sand-300 bg-white px-3.5 focus-ring"
-									>
-										<option value="">{m.shelter_unset()}</option>
-										{#each existingChoices(index) as row (row.id)}
-											<option value={row.id}>{row.name} {speciesLabel(row.species)}</option>
-										{/each}
-									</select>
-								</div>
+								<Select
+									id="an-partner-pick-{entry.key}"
+									class="mt-3"
+									label={m.shelter_wizard_linked_pick()}
+									value={entry.id}
+									disabled={readonly}
+									options={[
+										unsetOption,
+										...existingChoices(index).map((row) => ({
+											value: row.id,
+											label: `${row.name} ${speciesLabel(row.species)}`,
+										})),
+									]}
+									onchange={(event) => {
+										const current = companions[index];
+										if (current?.mode === "existing") {
+											current.id = event.currentTarget.value;
+										}
+									}}
+								/>
 							{/if}
 						{/if}
 					</li>
@@ -1204,26 +1164,25 @@
 						</ul>
 					{/if}
 					{#if partnerChoices.length}
-						<div class="flex flex-col gap-1.5">
-							<label for="an-partner-edit" class="text-sm font-semibold text-sand-900"
-								>{m.shelter_wizard_linked_add()}</label
-							>
-							<select
-								id="an-partner-edit"
-								value=""
-								disabled={readonly}
-								onchange={(event) => {
-									addSelectedPartner(event.currentTarget.value);
-									event.currentTarget.value = "";
-								}}
-								class="h-11 rounded-xl border border-sand-300 bg-white px-3.5 focus-ring"
-							>
-								<option value="">{m.shelter_unset()}</option>
-								{#each partnerChoices.filter((row) => !selectedPartnerIds.includes(row.id)) as row (row.id)}
-									<option value={row.id}>{row.name} {speciesLabel(row.species)}</option>
-								{/each}
-							</select>
-						</div>
+						<Select
+							id="an-partner-edit"
+							label={m.shelter_wizard_linked_add()}
+							bind:value={partnerPick}
+							disabled={readonly}
+							options={[
+								unsetOption,
+								...partnerChoices
+									.filter((row) => !selectedPartnerIds.includes(row.id))
+									.map((row) => ({
+										value: row.id,
+										label: `${row.name} ${speciesLabel(row.species)}`,
+									})),
+							]}
+							onchange={() => {
+								addSelectedPartner(partnerPick);
+								partnerPick = "";
+							}}
+						/>
 					{/if}
 					{#if !selectedPartnerIds.length}
 						<Input
@@ -1459,6 +1418,7 @@
 			role="dialog"
 			aria-modal="true"
 			aria-label={m.shelter_preview_title()}
+			use:dialog={() => (previewOpen = false)}
 		>
 			<div class="mb-3 flex items-start justify-between gap-3">
 				<p class="text-sm font-medium text-sand-700">{m.shelter_preview_title()}</p>
@@ -1473,8 +1433,16 @@
 
 {#if confirmUnpublish}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-sand-950/40 p-4">
-		<div class="w-full max-w-md rounded-2xl bg-white p-6">
-			<p class="font-semibold text-sand-950">{m.shelter_unpublish_confirm()}</p>
+		<div
+			class="w-full max-w-md rounded-2xl bg-white p-6"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="unpublish-title"
+			use:dialog={() => (confirmUnpublish = false)}
+		>
+			<p id="unpublish-title" class="font-semibold text-sand-950">
+				{m.shelter_unpublish_confirm()}
+			</p>
 			<div class="mt-4 flex gap-2">
 				<Button onclick={unpublish}>{m.shelter_unpublish()}</Button>
 				<Button variant="ghost" onclick={() => (confirmUnpublish = false)}
@@ -1487,8 +1455,14 @@
 
 {#if confirmHome}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-sand-950/40 p-4">
-		<div class="w-full max-w-md rounded-2xl bg-white p-6">
-			<p class="font-semibold text-sand-950">{m.shelter_home_confirm()}</p>
+		<div
+			class="w-full max-w-md rounded-2xl bg-white p-6"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="home-title"
+			use:dialog={() => (confirmHome = false)}
+		>
+			<p id="home-title" class="font-semibold text-sand-950">{m.shelter_home_confirm()}</p>
 			<div class="mt-3">
 				<Input id="home-note" label={m.shelter_home_note()} bind:value={homeNote} />
 			</div>
